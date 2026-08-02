@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run typecheck",
+    "typecheck": "tsc --noEmit",
+    "aldi:crawl": "tsx server/catalogue/aldi/runAldiCrawl.ts"
   },
   "keywords": [],
   "author": "",
@@ -16,5 +18,10 @@
     "express": "^5.2.1",
     "mongoose": "^9.9.1",
     "playwright": "^1.62.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
   }
 }
