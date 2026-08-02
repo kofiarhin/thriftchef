@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { PlaywrightCrawler, log, type Request } from "crawlee";
+import { PlaywrightCrawler, Request, log } from "crawlee";
 import type { Page } from "playwright";
 import { Product, type CatalogueSafetyStatus } from "../../models/Product";
 import { ALDI_CATEGORIES, type AldiCategory } from "./aldiCategories";
@@ -618,7 +618,7 @@ export async function runAldiCatalogueCrawl(
         });
       },
     ],
-    async requestHandler({ page, request, crawler: activeCrawler }) {
+    async requestHandler({ page, request }) {
       const data = request.userData as ListRequestData | DetailRequestData;
 
       await dismissCookieBanner(page);
@@ -647,7 +647,7 @@ export async function runAldiCatalogueCrawl(
           });
         }
 
-        await activeCrawler.addRequests(
+        await crawler.addRequests(
           selected.map((product) => ({
             url: product.productUrl,
             uniqueKey: `aldi-product:${product.retailerProductId}`,
