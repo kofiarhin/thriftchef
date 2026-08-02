@@ -559,8 +559,12 @@ async function persistProducts(
             retailer: RETAILER,
             storeId,
             retailerProductId: product.retailerProductId,
-            previousPricePence: null,
-            priceChangedAt: null,
+            ...(priceChanged
+              ? {}
+              : {
+                  previousPricePence: null,
+                  priceChangedAt: null,
+                }),
           },
         },
         upsert: true,
@@ -708,7 +712,13 @@ export async function runAldiCatalogueCrawl(
 
   await crawler.run(initialRequests);
 
-  const scrapedProducts = [...scrapedById.values()];
+  const scrapedProducts = [...scrapedById.values()].map((product) => ({
+    ...product,
+    categoryPaths: mergeCategoryPaths(
+      product.categoryPaths,
+      listingById.get(product.retailerProductId)?.categoryPaths ?? [],
+    ),
+  }));
   const persisted = await persistProducts(scrapedProducts, storeId, crawlRunId);
 
   return {
