@@ -1,0 +1,9 @@
+{
+	"id": "w0ZTBMrWqUgBjmY",
+	"json": "{\"id\":\"w0ZTBMrWqUgBjmY\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-whole-green-beans-000000000275878001\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-whole-green-beans-000000000275878001\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-whole-green-beans-000000000275878001\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-whole-green-beans-000000000275878001\",\"brand\":\"FOUR SEASONS\",\"name\":\"Whole Green Beans\",\"packageText\":\"1 KG\",\"comparisonPriceText\":\"(£1.29/1 KG)\",\"priceText\":\"£1.29\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/755e5bfd-ae78-48cb-8a40-a6353f5eb476/Whole%20Green%20Beans\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-whole-green-beans-000000000275878001\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:32:55.363Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-whole-green-beans-000000000275878001",
+	"url": "https://www.aldi.co.uk/product/four-seasons-whole-green-beans-000000000275878001"
+}

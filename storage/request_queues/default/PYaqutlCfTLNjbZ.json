@@ -1,0 +1,9 @@
+{
+	"id": "PYaqutlCfTLNjbZ",
+	"json": "{\"id\":\"PYaqutlCfTLNjbZ\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-frozen-mango-chunks-000000000286757003\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-frozen-mango-chunks-000000000286757003\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-frozen-mango-chunks-000000000286757003\",\"brand\":\"FOUR SEASONS\",\"name\":\"Frozen Mango Chunks\",\"packageText\":\"0.5 KG\",\"comparisonPriceText\":\"(£3.58/1 KG)\",\"priceText\":\"£1.79\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/e48d1432-ab68-4d5f-9d9c-306a8ddee9fe/Frozen%20Mango%20Chunks\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-frozen-mango-chunks-000000000286757003\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
+	"method": "GET",
+	"orderNo": 1785630803053,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-frozen-mango-chunks-000000000286757003",
+	"url": "https://www.aldi.co.uk/product/four-seasons-frozen-mango-chunks-000000000286757003"
+}

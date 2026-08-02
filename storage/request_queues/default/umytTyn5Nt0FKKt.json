@@ -1,0 +1,9 @@
+{
+	"id": "umytTyn5Nt0FKKt",
+	"json": "{\"id\":\"umytTyn5Nt0FKKt\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-french-fries-000000000000271960\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-french-fries-000000000000271960\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-french-fries-000000000000271960\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-french-fries-000000000000271960\",\"brand\":\"FOUR SEASONS\",\"name\":\"French Fries\",\"packageText\":\"1 KG\",\"comparisonPriceText\":\"(£1.25/1 KG)\",\"priceText\":\"£1.25\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/68ff5e10-b1eb-4823-9f3f-2eddcf036006/French%20Fries\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-french-fries-000000000000271960\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:32:32.780Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-french-fries-000000000000271960",
+	"url": "https://www.aldi.co.uk/product/four-seasons-french-fries-000000000000271960"
+}

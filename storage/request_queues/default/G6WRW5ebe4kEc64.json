@@ -1,0 +1,9 @@
+{
+	"id": "G6WRW5ebe4kEc64",
+	"json": "{\"id\":\"G6WRW5ebe4kEc64\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-cheesy-hash-browns-000000000000371195\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-cheesy-hash-browns-000000000000371195\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-cheesy-hash-browns-000000000000371195\",\"brand\":\"FOUR SEASONS\",\"name\":\"Cheesy Hash Browns\",\"packageText\":\"0.6 KG\",\"comparisonPriceText\":null,\"priceText\":null,\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/61dc083b-e1b1-4767-9cc3-9c9f2f3b77a4/Cheesy%20Hash%20Browns\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-cheesy-hash-browns-000000000000371195\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":3,\"enqueueStrategy\":\"same-hostname\"}}}",
+	"method": "GET",
+	"orderNo": 1785630955629,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-cheesy-hash-browns-000000000000371195",
+	"url": "https://www.aldi.co.uk/product/four-seasons-cheesy-hash-browns-000000000000371195"
+}

@@ -1,0 +1,9 @@
+{
+	"id": "IdbmtvMdJsm85Lh",
+	"json": "{\"id\":\"IdbmtvMdJsm85Lh\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-sweet-potato-fries-000000000000271030\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-sweet-potato-fries-000000000000271030\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-sweet-potato-fries-000000000000271030\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-sweet-potato-fries-000000000000271030\",\"brand\":\"FOUR SEASONS\",\"name\":\"Sweet Potato Fries\",\"packageText\":\"0.5 KG\",\"comparisonPriceText\":\"(£3.98/1 KG)\",\"priceText\":\"£1.99\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/7e8d5cff-4551-41e3-b695-9a02afc6a985/Sweet%20Potato%20Fries\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-sweet-potato-fries-000000000000271030\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:32:23.242Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-sweet-potato-fries-000000000000271030",
+	"url": "https://www.aldi.co.uk/product/four-seasons-sweet-potato-fries-000000000000271030"
+}

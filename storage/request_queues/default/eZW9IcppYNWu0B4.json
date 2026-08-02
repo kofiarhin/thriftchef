@@ -1,0 +1,9 @@
+{
+	"id": "eZW9IcppYNWu0B4",
+	"json": "{\"id\":\"eZW9IcppYNWu0B4\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-hash-browns-000000000000270164\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-hash-browns-000000000000270164\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-hash-browns-000000000000270164\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-hash-browns-000000000000270164\",\"brand\":\"FOUR SEASONS\",\"name\":\"Hash Browns\",\"packageText\":\"0.75 KG\",\"comparisonPriceText\":\"(£2.33/1 KG)\",\"priceText\":\"£1.75\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/b58a1a20-6af4-403b-9846-1d22e367228c/Hash%20Browns\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-hash-browns-000000000000270164\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:32:41.544Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-hash-browns-000000000000270164",
+	"url": "https://www.aldi.co.uk/product/four-seasons-hash-browns-000000000000270164"
+}

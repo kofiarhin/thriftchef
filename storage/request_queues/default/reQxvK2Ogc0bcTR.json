@@ -1,0 +1,9 @@
+{
+	"id": "reQxvK2Ogc0bcTR",
+	"json": "{\"id\":\"reQxvK2Ogc0bcTR\",\"url\":\"https://www.aldi.co.uk/products/frozen-food/vegetables-sides/k/1588161416978056004\",\"loadedUrl\":\"https://www.aldi.co.uk/products/frozen-food/vegetables-sides/k/1588161416978056004\",\"uniqueKey\":\"aldi-list:https://www.aldi.co.uk/products/frozen-food/vegetables-sides/k/1588161416978056004:1785630475741\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":1,\"errorMessages\":[\"Error: requestHandler timed out after 180 seconds.\\n    at Timeout._onTimeout (C:\\\\Users\\\\laura.bolas\\\\projects\\\\thriftchef\\\\node_modules\\\\@apify\\\\timeout\\\\cjs\\\\index.cjs:64:68)\\n    at listOnTimeout (node:internal/timers:588:17)\\n    at process.processTimers (node:internal/timers:523:7)\"],\"headers\":{},\"userData\":{\"label\":\"LIST\",\"__crawlee\":{\"state\":4}},\"handledAt\":\"2026-08-02T00:31:27.372Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 1,
+	"uniqueKey": "aldi-list:https://www.aldi.co.uk/products/frozen-food/vegetables-sides/k/1588161416978056004:1785630475741",
+	"url": "https://www.aldi.co.uk/products/frozen-food/vegetables-sides/k/1588161416978056004"
+}

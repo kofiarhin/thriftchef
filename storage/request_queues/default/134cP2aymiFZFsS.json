@@ -1,0 +1,9 @@
+{
+	"id": "134cP2aymiFZFsS",
+	"json": "{\"id\":\"134cP2aymiFZFsS\",\"url\":\"https://www.aldi.co.uk/product/specially-selected-petits-pois-000000000000365781\",\"loadedUrl\":\"https://www.aldi.co.uk/product/specially-selected-petits-pois-000000000000365781\",\"uniqueKey\":\"https://www.aldi.co.uk/product/specially-selected-petits-pois-000000000000365781\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/specially-selected-petits-pois-000000000000365781\",\"brand\":\"SPECIALLY SELECTED\",\"name\":\"Petits Pois\",\"packageText\":\"0.7 KG\",\"comparisonPriceText\":\"(£1.56/1 KG)\",\"priceText\":\"£1.09\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/d4633138-6d47-41b1-982d-a75e011eb74f/Petits%20Pois\",\"productUrl\":\"https://www.aldi.co.uk/product/specially-selected-petits-pois-000000000000365781\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:31:56.841Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/specially-selected-petits-pois-000000000000365781",
+	"url": "https://www.aldi.co.uk/product/specially-selected-petits-pois-000000000000365781"
+}

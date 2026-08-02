@@ -1,0 +1,9 @@
+{
+	"id": "EhxxfgMStdXKf9Y",
+	"json": "{\"id\":\"EhxxfgMStdXKf9Y\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-broccoli-florets-000000000275878002\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-broccoli-florets-000000000275878002\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-broccoli-florets-000000000275878002\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-broccoli-florets-000000000275878002\",\"brand\":\"FOUR SEASONS\",\"name\":\"Broccoli Florets\",\"packageText\":\"1 KG\",\"comparisonPriceText\":\"(£1.29/1 KG)\",\"priceText\":\"£1.29\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/5d74d22e-b187-43e7-9b62-2cc58dc8070e/Broccoli%20Florets\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-broccoli-florets-000000000275878002\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:32:17.002Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-broccoli-florets-000000000275878002",
+	"url": "https://www.aldi.co.uk/product/four-seasons-broccoli-florets-000000000275878002"
+}

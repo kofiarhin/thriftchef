@@ -1,0 +1,9 @@
+{
+	"id": "V2A9ipDUUrLRID8",
+	"json": "{\"id\":\"V2A9ipDUUrLRID8\",\"url\":\"https://www.aldi.co.uk/product/specially-selected-chunky-oven-chips-000000000000365169\",\"uniqueKey\":\"https://www.aldi.co.uk/product/specially-selected-chunky-oven-chips-000000000000365169\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/specially-selected-chunky-oven-chips-000000000000365169\",\"brand\":\"SPECIALLY SELECTED\",\"name\":\"Chunky Oven Chips\",\"packageText\":\"1.5 KG\",\"comparisonPriceText\":\"(£2.19/1 KG)\",\"priceText\":\"£3.29\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/8383f38a-0808-473e-bed9-f018eb477b15/Chunky%20Oven%20Chips\",\"productUrl\":\"https://www.aldi.co.uk/product/specially-selected-chunky-oven-chips-000000000000365169\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
+	"method": "GET",
+	"orderNo": 1785630830081,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/specially-selected-chunky-oven-chips-000000000000365169",
+	"url": "https://www.aldi.co.uk/product/specially-selected-chunky-oven-chips-000000000000365169"
+}

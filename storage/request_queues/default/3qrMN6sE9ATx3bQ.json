@@ -1,0 +1,9 @@
+{
+	"id": "3qrMN6sE9ATx3bQ",
+	"json": "{\"id\":\"3qrMN6sE9ATx3bQ\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-country-vegetable-mix-000000000000365250\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-country-vegetable-mix-000000000000365250\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-country-vegetable-mix-000000000000365250\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-country-vegetable-mix-000000000000365250\",\"brand\":\"FOUR SEASONS\",\"name\":\"Country Vegetable Mix\",\"packageText\":\"1 KG\",\"comparisonPriceText\":\"(£1.39/1 KG)\",\"priceText\":\"£1.39\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/182fcd70-35cd-4687-9f26-1cfcb9d1684a/Country%20Vegetable%20Mix\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-country-vegetable-mix-000000000000365250\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:31:49.834Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-country-vegetable-mix-000000000000365250",
+	"url": "https://www.aldi.co.uk/product/four-seasons-country-vegetable-mix-000000000000365250"
+}

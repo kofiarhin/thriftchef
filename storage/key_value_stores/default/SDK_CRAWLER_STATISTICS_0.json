@@ -1,0 +1,40 @@
+{
+  "requestsFinished": 13,
+  "requestsFailed": 0,
+  "requestsRetries": 1,
+  "requestsFailedPerMinute": 0,
+  "requestsFinishedPerMinute": 3,
+  "requestMinDurationMillis": 4633,
+  "requestMaxDurationMillis": 9278,
+  "requestTotalFailedDurationMillis": 0,
+  "requestTotalFinishedDurationMillis": 88454,
+  "crawlerStartedAt": "2026-08-02T00:27:55.974Z",
+  "crawlerFinishedAt": null,
+  "statsPersistedAt": "2026-08-02T00:32:55.821Z",
+  "crawlerRuntimeMillis": 300347,
+  "crawlerLastStartTimestamp": 1785630475474,
+  "requestRetryHistogram": [
+    12,
+    1
+  ],
+  "statsId": 0,
+  "requestAvgFailedDurationMillis": null,
+  "requestAvgFinishedDurationMillis": 6804,
+  "requestTotalDurationMillis": 88454,
+  "requestsTotal": 13,
+  "requestsWithStatusCode": {
+    "200": 14
+  },
+  "errors": {},
+  "retryErrors": {
+    "C:\\Users\\laura.bolas\\projects\\thriftchef\\node_modules\\@apify\\timeout\\cjs\\index.cjs:64:68": {
+      "missing error code": {
+        "Error": {
+          "requestHandler timed out after 180 seconds.": {
+            "count": 1
+          }
+        }
+      }
+    }
+  }
+}

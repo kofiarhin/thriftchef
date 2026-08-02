@@ -1,0 +1,9 @@
+{
+	"id": "agoozwdIyICKiO8",
+	"json": "{\"id\":\"agoozwdIyICKiO8\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-carrot-peas-sweetcorn-steam-bags-4-pack-000000000365332003\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-carrot-peas-sweetcorn-steam-bags-4-pack-000000000365332003\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-carrot-peas-sweetcorn-steam-bags-4-pack-000000000365332003\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-carrot-peas-sweetcorn-steam-bags-4-pack-000000000365332003\",\"brand\":\"FOUR SEASONS\",\"name\":\"Carrot, Peas & Sweetcorn Steam Bags 4 Pack\",\"packageText\":\"0.64 KG\",\"comparisonPriceText\":\"(£2.95/1 KG)\",\"priceText\":\"£1.89\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/29348be2-a197-4671-ad83-bec3004b0247/Carrot%20Peas%20%20Sweetcorn%20Steam%20Bags%204%20Pack\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-carrot-peas-sweetcorn-steam-bags-4-pack-000000000365332003\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:33:02.153Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-carrot-peas-sweetcorn-steam-bags-4-pack-000000000365332003",
+	"url": "https://www.aldi.co.uk/product/four-seasons-carrot-peas-sweetcorn-steam-bags-4-pack-000000000365332003"
+}

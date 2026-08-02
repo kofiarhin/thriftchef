@@ -1,0 +1,567 @@
+{
+  "usableSessionsCount": 15,
+  "retiredSessionsCount": 0,
+  "sessions": [
+    {
+      "id": "session_9KXB99oyJm",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:17:58.777Z",
+      "createdAt": "2026-08-02T00:27:58.776Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_LvpPP0veCh",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": [
+          {
+            "key": "OptanonAlertBoxClosed",
+            "value": "2026-08-02T00:30:19.660Z",
+            "expires": "2027-08-02T00:30:19.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.225Z",
+            "lastAccessed": "2026-08-02T00:32:52.326Z"
+          },
+          {
+            "key": "OptanonConsent",
+            "value": "isGpcEnabled=0&datestamp=Sun+Aug+02+2026+01%3A31%3A54+GMT%2B0100+(British+Summer+Time)&version=202406.1.0&browserGpcFlag=0&isIABGlobal=false&hosts=&consentId=717e52a2-900d-4a1d-a616-31fab637a2fe&interactionCount=1&isAnonUser=1&landingPath=NotLandingPage&groups=C1%3A1%2CC4%3A1%2CC6%3A1%2CC2%3A1&intType=1&geolocation=%3B&AwaitingReconsent=false",
+            "expires": "2027-08-02T00:31:54.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.234Z",
+            "lastAccessed": "2026-08-02T00:32:52.329Z"
+          },
+          {
+            "key": "rxVisitor",
+            "value": "1785630619708DTS7P1A6ANSPRUF4KC09KTC0U9AHIKI2",
+            "expires": "2026-08-02T01:21:25.222Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.237Z",
+            "lastAccessed": "2026-08-02T00:32:52.326Z"
+          },
+          {
+            "key": "dtPC",
+            "value": "-10181$30489254_667h-vQTRMUUPRHDADDSKRFFWPKRLUHRPLKQRO-0e0",
+            "expires": "2026-08-02T01:21:25.223Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.237Z",
+            "lastAccessed": "2026-08-02T00:32:52.326Z"
+          },
+          {
+            "key": "rxvt",
+            "value": "1785632419715|1785630619715",
+            "expires": "2026-08-02T01:21:25.223Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.237Z",
+            "lastAccessed": "2026-08-02T00:32:52.327Z"
+          },
+          {
+            "key": "adobeujs-optin",
+            "value": "%7B%22aam%22%3Atrue%2C%22adcloud%22%3Atrue%2C%22aa%22%3Atrue%2C%22campaign%22%3Atrue%2C%22ecid%22%3Atrue%2C%22livefyre%22%3Afalse%2C%22target%22%3Atrue%2C%22mediaaa%22%3Atrue%7D",
+            "expires": "2027-08-27T00:31:54.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.238Z",
+            "lastAccessed": "2026-08-02T00:32:52.328Z"
+          },
+          {
+            "key": "AMCVS_95446750574EBBDF7F000101%40AdobeOrg",
+            "value": "1",
+            "expires": "2026-08-02T01:21:25.223Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.239Z",
+            "lastAccessed": "2026-08-02T00:32:52.327Z"
+          },
+          {
+            "key": "dtCookie",
+            "value": "v_4_srv_1_sn_764CICE2JKU9FKSJE8RK46B26KOC6NK5_app-3A71a59cf76257fb7f_0_ol_0_perc_100000_mul_1",
+            "expires": "2026-08-02T01:21:25.223Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.239Z",
+            "lastAccessed": "2026-08-02T00:32:52.327Z"
+          },
+          {
+            "key": "s_tp",
+            "value": "3161",
+            "expires": "2026-08-02T01:21:56.261Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.240Z",
+            "lastAccessed": "2026-08-02T00:32:52.329Z"
+          },
+          {
+            "key": "gpv_pn",
+            "value": "Vegetables%20%26%20Sides",
+            "expires": "2026-08-02T01:00:20.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.240Z",
+            "lastAccessed": "2026-08-02T00:32:52.329Z"
+          },
+          {
+            "key": "s_vnc365",
+            "value": "1817166620682%26vn%3D1",
+            "expires": "2027-08-02T22:59:59.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.240Z",
+            "lastAccessed": "2026-08-02T00:32:52.327Z"
+          },
+          {
+            "key": "s_ivc",
+            "value": "true",
+            "expires": "2026-08-02T01:00:20.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.240Z",
+            "lastAccessed": "2026-08-02T00:32:52.327Z"
+          },
+          {
+            "key": "s_cc",
+            "value": "true",
+            "expires": "2026-08-02T01:21:25.223Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.240Z",
+            "lastAccessed": "2026-08-02T00:32:52.327Z"
+          },
+          {
+            "key": "s_nr365",
+            "value": "1785630620695-New",
+            "expires": "2027-08-02T00:30:20.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.240Z",
+            "lastAccessed": "2026-08-02T00:32:52.329Z"
+          },
+          {
+            "key": "s_sq",
+            "value": "aldis.aldi-uk-2.5-prod%3D%2526c.%2526a.%2526activitymap.%2526page%253DVegetables%252520%252526%252520Sides%2526link%253DAccept%252520All%2526region%253Donetrust-button-group%2526pageIDType%253D1%2526.activitymap%2526.a%2526.c",
+            "expires": "2026-08-02T01:21:25.223Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.240Z",
+            "lastAccessed": "2026-08-02T00:32:52.329Z"
+          },
+          {
+            "key": "_twpid",
+            "value": "tw.1785630620745.98930019193815459",
+            "expires": "2027-08-27T00:30:20.752Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.240Z",
+            "lastAccessed": "2026-08-02T00:32:52.327Z"
+          },
+          {
+            "key": "_fbp",
+            "value": "fb.2.1785630621112.35522219243341523",
+            "expires": "2026-10-31T00:31:56.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.242Z",
+            "lastAccessed": "2026-08-02T00:32:52.328Z"
+          },
+          {
+            "key": "at_check",
+            "value": "true",
+            "expires": "2026-08-02T01:22:52.326Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.242Z",
+            "lastAccessed": "2026-08-02T00:32:52.328Z"
+          },
+          {
+            "key": "_uetsid",
+            "value": "584d88708e0911f1a9855bfac9f26d43",
+            "expires": "2026-08-03T00:31:55.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.242Z",
+            "lastAccessed": "2026-08-02T00:32:52.328Z"
+          },
+          {
+            "key": "_uetvid",
+            "value": "584f76d08e0911f18ab54da8a3273366",
+            "expires": "2027-08-27T00:31:55.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.242Z",
+            "lastAccessed": "2026-08-02T00:32:52.328Z"
+          },
+          {
+            "key": "_gcl_au",
+            "value": "1.1.2123689251.1785630620.-.-.1785630621.1510200017.1785630622.1785630716",
+            "expires": "2026-10-31T00:30:20.000Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.242Z",
+            "lastAccessed": "2026-08-02T00:32:52.329Z"
+          },
+          {
+            "key": "s_ips",
+            "value": "900",
+            "expires": "2026-08-02T01:21:56.261Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.242Z",
+            "lastAccessed": "2026-08-02T00:32:52.328Z"
+          },
+          {
+            "key": "s_ppv",
+            "value": "https%253A%252F%252Fwww.aldi.co.uk%252Fproduct%252Fspecially-selected-petits-pois-000000000000365781%2C28%2C28%2C28%2C900%2C3%2C1",
+            "expires": "2026-08-02T01:21:56.261Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.243Z",
+            "lastAccessed": "2026-08-02T00:32:52.329Z"
+          },
+          {
+            "key": "AMCV_95446750574EBBDF7F000101%40AdobeOrg",
+            "value": "179643557%7CMCMID%7C71360846652122021444107451997379428092%7CMCAAMLH-1786235484%7C6%7CMCAAMB-1786235484%7CRKhpRz8krg2tLO6pguXWp5olkAcUniQYPHaMWWgdJ3xzPWQmdj0y%7CMCOPTOUT-1785637884s%7CNONE%7CMCAID%7CNONE%7CvVersion%7C5.5.0%7CMCIDTS%7C20668",
+            "expires": "2027-09-06T00:31:24.440Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.243Z",
+            "lastAccessed": "2026-08-02T00:32:52.328Z"
+          },
+          {
+            "key": "mbox",
+            "value": "session#0139ebec573e43149fd7af640c3a1da7#1785632633|PC#0139ebec573e43149fd7af640c3a1da7.37_0#1848875517",
+            "expires": "2027-09-06T00:32:52.273Z",
+            "domain": "aldi.co.uk",
+            "path": "/",
+            "secure": true,
+            "hostOnly": false,
+            "creation": "2026-08-02T00:31:25.243Z",
+            "lastAccessed": "2026-08-02T00:32:52.329Z"
+          }
+        ]
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:17:58.787Z",
+      "createdAt": "2026-08-02T00:27:58.787Z",
+      "usageCount": 14,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_EJcgNOedlw",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:21:22.745Z",
+      "createdAt": "2026-08-02T00:31:22.744Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_VtG7hdNlYI",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:21:28.213Z",
+      "createdAt": "2026-08-02T00:31:28.213Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_OD0wmMnEgz",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:21:36.164Z",
+      "createdAt": "2026-08-02T00:31:36.164Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_i41K59H959",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:21:42.671Z",
+      "createdAt": "2026-08-02T00:31:42.671Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_oMCu7ZT9YU",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:21:50.160Z",
+      "createdAt": "2026-08-02T00:31:50.160Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_tgAYPwqWGK",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:21:57.274Z",
+      "createdAt": "2026-08-02T00:31:57.274Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_pfpqH3BC5L",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:22:03.105Z",
+      "createdAt": "2026-08-02T00:32:03.105Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_2P1zMosBTS",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:22:10.823Z",
+      "createdAt": "2026-08-02T00:32:10.823Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_mcamQh64Nu",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:22:17.337Z",
+      "createdAt": "2026-08-02T00:32:17.337Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_5PknHjNluE",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:22:23.586Z",
+      "createdAt": "2026-08-02T00:32:23.586Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_5l0UsfUdBj",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:22:33.199Z",
+      "createdAt": "2026-08-02T00:32:33.199Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_vfM2b1KDbm",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:22:41.930Z",
+      "createdAt": "2026-08-02T00:32:41.930Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    },
+    {
+      "id": "session_5c6ojYRX4J",
+      "cookieJar": {
+        "version": "tough-cookie@6.0.2",
+        "storeType": "MemoryCookieStore",
+        "rejectPublicSuffixes": true,
+        "enableLooseMode": false,
+        "allowSpecialUseDomain": true,
+        "prefixSecurity": "silent",
+        "cookies": []
+      },
+      "userData": {},
+      "maxErrorScore": 3,
+      "errorScoreDecrement": 0.5,
+      "expiresAt": "2026-08-02T01:22:49.709Z",
+      "createdAt": "2026-08-02T00:32:49.709Z",
+      "usageCount": 0,
+      "maxUsageCount": 50,
+      "errorScore": 0
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+	"id": "leoTJdX8LCgV8RU",
+	"json": "{\"id\":\"leoTJdX8LCgV8RU\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-waffle-fries-000000000000487112\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-waffle-fries-000000000000487112\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-waffle-fries-000000000000487112\",\"brand\":\"FOUR SEASONS\",\"name\":\"Waffle Fries\",\"packageText\":\"0.55 KG\",\"comparisonPriceText\":\"(£3.07/1 KG)\",\"priceText\":\"£1.69\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/cbbbfd9d-8ba5-49fc-8b65-7843ae578cad/Waffle%20Fries\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-waffle-fries-000000000000487112\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
+	"method": "GET",
+	"orderNo": 1785630819375,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-waffle-fries-000000000000487112",
+	"url": "https://www.aldi.co.uk/product/four-seasons-waffle-fries-000000000000487112"
+}

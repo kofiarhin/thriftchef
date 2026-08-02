@@ -1,0 +1,9 @@
+{
+	"id": "yQSNvFvG1GQqK67",
+	"json": "{\"id\":\"yQSNvFvG1GQqK67\",\"url\":\"https://www.aldi.co.uk/product/everyday-essentials-chicken-breast-fillets-000000000000365448\",\"loadedUrl\":\"https://www.aldi.co.uk/product/everyday-essentials-chicken-breast-fillets-000000000000365448\",\"uniqueKey\":\"https://www.aldi.co.uk/product/everyday-essentials-chicken-breast-fillets-000000000000365448\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/everyday-essentials-chicken-breast-fillets-000000000000365448\",\"brand\":\"EVERYDAY ESSENTIALS\",\"name\":\"Chicken Breast Fillets\",\"packageText\":\"1 KG\",\"comparisonPriceText\":\"(£4.25/1 KG)\",\"priceText\":\"£4.25\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/5402121d-af52-4276-b0f6-4131f043664c/Chicken%20Breast%20Fillets\",\"productUrl\":\"https://www.aldi.co.uk/product/everyday-essentials-chicken-breast-fillets-000000000000365448\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:33:08.946Z\"}",
+	"method": "GET",
+	"orderNo": null,
+	"retryCount": 0,
+	"uniqueKey": "https://www.aldi.co.uk/product/everyday-essentials-chicken-breast-fillets-000000000000365448",
+	"url": "https://www.aldi.co.uk/product/everyday-essentials-chicken-breast-fillets-000000000000365448"
+}
