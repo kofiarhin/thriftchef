@@ -1,9 +1,0 @@
-{
-	"id": "lvGbY3AeHlctzoo",
-	"json": "{\"id\":\"lvGbY3AeHlctzoo\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-mini-corn-cobs-000000000000262690\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-mini-corn-cobs-000000000000262690\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-mini-corn-cobs-000000000000262690\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-mini-corn-cobs-000000000000262690\",\"brand\":\"FOUR SEASONS\",\"name\":\"Mini Corn Cobs\",\"packageText\":\"0.75 KG\",\"comparisonPriceText\":\"(£1.72/1 KG)\",\"priceText\":\"£1.29\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/589af64e-3f15-4bc9-a446-b1dd0eac9b24/Mini%20Corn%20Cobs\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-mini-corn-cobs-000000000000262690\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:31:42.342Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-mini-corn-cobs-000000000000262690",
-	"url": "https://www.aldi.co.uk/product/four-seasons-mini-corn-cobs-000000000000262690"
-}

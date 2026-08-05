@@ -1,9 +1,0 @@
-{
-	"id": "4NWsUeer1oFZbzl",
-	"json": "{\"id\":\"4NWsUeer1oFZbzl\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-summer-fruits-000000000286556001\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-summer-fruits-000000000286556001\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-summer-fruits-000000000286556001\",\"brand\":\"FOUR SEASONS\",\"name\":\"Summer Fruits\",\"packageText\":\"0.5 KG\",\"comparisonPriceText\":\"(£3.98/1 KG)\",\"priceText\":\"£1.99\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/81a7211f-a0fc-43c5-a9f2-a08fbf3af9b8/Summer%20Fruits\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-summer-fruits-000000000286556001\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
-	"method": "GET",
-	"orderNo": 1785630803036,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-summer-fruits-000000000286556001",
-	"url": "https://www.aldi.co.uk/product/four-seasons-summer-fruits-000000000286556001"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "5g1nX8vzFM9cLcf",
-	"json": "{\"id\":\"5g1nX8vzFM9cLcf\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-black-forest-fruits-000000000286556002\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-black-forest-fruits-000000000286556002\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-black-forest-fruits-000000000286556002\",\"brand\":\"FOUR SEASONS\",\"name\":\"Black Forest Fruits\",\"packageText\":\"0.5 KG\",\"comparisonPriceText\":\"(£3.98/1 KG)\",\"priceText\":\"£1.99\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/28f51321-0536-4459-9d04-61cbd9649e0e/Black%20Forest%20Fruits\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-black-forest-fruits-000000000286556002\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
-	"method": "GET",
-	"orderNo": 1785630803049,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-black-forest-fruits-000000000286556002",
-	"url": "https://www.aldi.co.uk/product/four-seasons-black-forest-fruits-000000000286556002"
-}

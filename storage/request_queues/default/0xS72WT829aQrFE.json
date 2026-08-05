@@ -1,9 +1,0 @@
-{
-	"id": "0xS72WT829aQrFE",
-	"json": "{\"id\":\"0xS72WT829aQrFE\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-frozen-blueberries-000000000000285771\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-frozen-blueberries-000000000000285771\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-frozen-blueberries-000000000000285771\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-frozen-blueberries-000000000000285771\",\"brand\":\"FOUR SEASONS\",\"name\":\"Frozen Blueberries\",\"packageText\":\"0.4 KG\",\"comparisonPriceText\":\"(£4.98/1 KG)\",\"priceText\":\"£1.99\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/5f01138b-31c1-4373-8626-14cae38c2051/Frozen%20Blueberries\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-frozen-blueberries-000000000000285771\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":3,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:33:23.061Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-frozen-blueberries-000000000000285771",
-	"url": "https://www.aldi.co.uk/product/four-seasons-frozen-blueberries-000000000000285771"
-}

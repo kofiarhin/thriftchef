@@ -1,9 +1,0 @@
-{
-	"id": "hcCd4FC4zJPUiFQ",
-	"json": "{\"id\":\"hcCd4FC4zJPUiFQ\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-homestyle-straight-cut-chips-000000000000365691\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-homestyle-straight-cut-chips-000000000000365691\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-homestyle-straight-cut-chips-000000000000365691\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-homestyle-straight-cut-chips-000000000000365691\",\"brand\":\"FOUR SEASONS\",\"name\":\"Homestyle Straight Cut Chips\",\"packageText\":\"1 KG\",\"comparisonPriceText\":\"(£1.29/1 KG)\",\"priceText\":\"£1.29\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/232/c82fbf49-57d8-417d-ba36-2cfed3d2b233/Homestyle%20Straight%20Cut%20Chips\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-homestyle-straight-cut-chips-000000000000365691\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":3,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:33:50.088Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-homestyle-straight-cut-chips-000000000000365691",
-	"url": "https://www.aldi.co.uk/product/four-seasons-homestyle-straight-cut-chips-000000000000365691"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "I1aKlkavPo7L1sY",
-	"json": "{\"id\":\"I1aKlkavPo7L1sY\",\"url\":\"https://www.aldi.co.uk/product/the-fishmonger-skinless-boneless-basa-fillets-000000000000273392\",\"uniqueKey\":\"https://www.aldi.co.uk/product/the-fishmonger-skinless-boneless-basa-fillets-000000000000273392\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/the-fishmonger-skinless-boneless-basa-fillets-000000000000273392\",\"brand\":\"THE FISHMONGER\",\"name\":\"Skinless & Boneless Basa Fillets\",\"packageText\":\"0.38 KG\",\"comparisonPriceText\":\"(£4.71/1 KG)\",\"priceText\":\"£1.79\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/45e6a861-a3d4-45a2-88f9-43061e6f78e2/Skinless%20%20Boneless%20Basa%20Fillets\",\"productUrl\":\"https://www.aldi.co.uk/product/the-fishmonger-skinless-boneless-basa-fillets-000000000000273392\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":3,\"enqueueStrategy\":\"same-hostname\"}}}",
-	"method": "GET",
-	"orderNo": 1785630788922,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/the-fishmonger-skinless-boneless-basa-fillets-000000000000273392",
-	"url": "https://www.aldi.co.uk/product/the-fishmonger-skinless-boneless-basa-fillets-000000000000273392"
-}

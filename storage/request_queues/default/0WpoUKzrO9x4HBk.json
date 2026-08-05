@@ -1,9 +1,0 @@
-{
-	"id": "0WpoUKzrO9x4HBk",
-	"json": "{\"id\":\"0WpoUKzrO9x4HBk\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-steak-cut-chips-000000000000365692\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-steak-cut-chips-000000000000365692\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-steak-cut-chips-000000000000365692\",\"brand\":\"FOUR SEASONS\",\"name\":\"Steak Cut Chips\",\"packageText\":\"1.5 KG\",\"comparisonPriceText\":\"(£1.33/1 KG)\",\"priceText\":\"£1.99\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/1a2ca29d-5037-475e-bcf5-2cbc0939da75/Steak%20Cut%20Chips\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-steak-cut-chips-000000000000365692\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
-	"method": "GET",
-	"orderNo": 1785630824307,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-steak-cut-chips-000000000000365692",
-	"url": "https://www.aldi.co.uk/product/four-seasons-steak-cut-chips-000000000000365692"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "1O4wz7PDSQ4edxN",
-	"json": "{\"id\":\"1O4wz7PDSQ4edxN\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-skin-on-beef-dripping-chips-000000000000371121\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-skin-on-beef-dripping-chips-000000000000371121\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-skin-on-beef-dripping-chips-000000000000371121\",\"brand\":\"FOUR SEASONS\",\"name\":\"Skin On Beef Dripping Chips\",\"packageText\":\"0.75 KG\",\"comparisonPriceText\":\"(£3.19/1 KG)\",\"priceText\":\"£2.39\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/f60144be-ce3a-4136-8739-b8d9b03ecdce/Skin%20On%20Beef%20Dripping%20Chips\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-skin-on-beef-dripping-chips-000000000000371121\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
-	"method": "GET",
-	"orderNo": 1785630808405,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-skin-on-beef-dripping-chips-000000000000371121",
-	"url": "https://www.aldi.co.uk/product/four-seasons-skin-on-beef-dripping-chips-000000000000371121"
-}

@@ -1,9 +1,0 @@
-{
-	"id": "TGflRZ9kwAIioDr",
-	"json": "{\"id\":\"TGflRZ9kwAIioDr\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-garden-peas-000000000000366805\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-garden-peas-000000000000366805\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-garden-peas-000000000000366805\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-garden-peas-000000000000366805\",\"brand\":\"FOUR SEASONS\",\"name\":\"Garden Peas\",\"packageText\":\"0.9 KG\",\"comparisonPriceText\":\"(£1.28/1 KG)\",\"priceText\":\"£1.15\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/34ea5096-ff13-4e22-88e6-8bb0f03c1581/Garden%20Peas\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-garden-peas-000000000000366805\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":2,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:32:10.553Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-garden-peas-000000000000366805",
-	"url": "https://www.aldi.co.uk/product/four-seasons-garden-peas-000000000000366805"
-}

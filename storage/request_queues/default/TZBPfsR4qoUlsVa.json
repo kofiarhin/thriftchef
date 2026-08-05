@@ -1,9 +1,0 @@
-{
-	"id": "TZBPfsR4qoUlsVa",
-	"json": "{\"id\":\"TZBPfsR4qoUlsVa\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-mixed-vegetables-000000000000366028\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-mixed-vegetables-000000000000366028\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-mixed-vegetables-000000000000366028\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-mixed-vegetables-000000000000366028\",\"brand\":\"FOUR SEASONS\",\"name\":\"Mixed Vegetables\",\"packageText\":\"1 KG\",\"comparisonPriceText\":\"(£0.99/1 KG)\",\"priceText\":\"£0.99\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/2d44b83d-49c7-4202-8efa-b80af505dd42/Mixed%20Vegetables\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-mixed-vegetables-000000000000366028\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:32:02.812Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-mixed-vegetables-000000000000366028",
-	"url": "https://www.aldi.co.uk/product/four-seasons-mixed-vegetables-000000000000366028"
-}

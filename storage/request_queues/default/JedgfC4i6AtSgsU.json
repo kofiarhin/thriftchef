@@ -1,9 +1,0 @@
-{
-	"id": "JedgfC4i6AtSgsU",
-	"json": "{\"id\":\"JedgfC4i6AtSgsU\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-frozen-strawberries-000000000287524001\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-frozen-strawberries-000000000287524001\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-frozen-strawberries-000000000287524001\",\"brand\":\"FOUR SEASONS\",\"name\":\"Frozen Strawberries\",\"packageText\":\"0.35 KG\",\"comparisonPriceText\":\"(£5.69/1 KG)\",\"priceText\":\"£1.99\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/3010b9f9-8f93-4aff-8166-be86b337bdf5/Frozen%20Strawberries\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-frozen-strawberries-000000000287524001\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
-	"method": "GET",
-	"orderNo": 1785630803032,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-frozen-strawberries-000000000287524001",
-	"url": "https://www.aldi.co.uk/product/four-seasons-frozen-strawberries-000000000287524001"
-}

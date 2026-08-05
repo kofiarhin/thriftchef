@@ -1,9 +1,0 @@
-{
-	"id": "7XQwY5KLbT2nIvZ",
-	"json": "{\"id\":\"7XQwY5KLbT2nIvZ\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-frozen-raspberries-000000000287524002\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-frozen-raspberries-000000000287524002\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-frozen-raspberries-000000000287524002\",\"brand\":\"FOUR SEASONS\",\"name\":\"Frozen Raspberries\",\"packageText\":\"0.35 KG\",\"comparisonPriceText\":\"(£5.69/1 KG)\",\"priceText\":\"£1.99\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/93924bee-2fe7-4de9-a282-39df3c7a20fc/Frozen%20Raspberries\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-frozen-raspberries-000000000287524002\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
-	"method": "GET",
-	"orderNo": 1785630803028,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-frozen-raspberries-000000000287524002",
-	"url": "https://www.aldi.co.uk/product/four-seasons-frozen-raspberries-000000000287524002"
-}

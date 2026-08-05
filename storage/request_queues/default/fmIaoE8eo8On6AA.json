@@ -1,9 +1,0 @@
-{
-	"id": "fmIaoE8eo8On6AA",
-	"json": "{\"id\":\"fmIaoE8eo8On6AA\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-salt-pepper-fries-000000000488254001\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-salt-pepper-fries-000000000488254001\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-salt-pepper-fries-000000000488254001\",\"brand\":\"FOUR SEASONS\",\"name\":\"Salt & Pepper Fries\",\"packageText\":\"0.8 KG\",\"comparisonPriceText\":\"(£2.24/1 KG)\",\"priceText\":\"Save 8%£1.79£1.95\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/7811c275-10f5-402d-b8cc-6fa8638e5f93/Salt%20%20Pepper%20Fries\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-salt-pepper-fries-000000000488254001\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":4,\"enqueueStrategy\":\"same-hostname\"}}}",
-	"method": "GET",
-	"orderNo": 1785630808414,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-salt-pepper-fries-000000000488254001",
-	"url": "https://www.aldi.co.uk/product/four-seasons-salt-pepper-fries-000000000488254001"
-}

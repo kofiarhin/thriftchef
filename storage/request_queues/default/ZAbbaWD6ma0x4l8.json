@@ -1,9 +1,0 @@
-{
-	"id": "ZAbbaWD6ma0x4l8",
-	"json": "{\"id\":\"ZAbbaWD6ma0x4l8\",\"url\":\"https://www.aldi.co.uk/product/four-seasons-sweetcorn-000000000000262686\",\"loadedUrl\":\"https://www.aldi.co.uk/product/four-seasons-sweetcorn-000000000000262686\",\"uniqueKey\":\"https://www.aldi.co.uk/product/four-seasons-sweetcorn-000000000000262686\",\"method\":\"GET\",\"noRetry\":false,\"retryCount\":0,\"errorMessages\":[],\"headers\":{},\"userData\":{\"listingProduct\":{\"tileId\":null,\"retailerCategoryItemId\":null,\"href\":\"/product/four-seasons-sweetcorn-000000000000262686\",\"brand\":\"FOUR SEASONS\",\"name\":\"Sweetcorn\",\"packageText\":\"1 KG\",\"comparisonPriceText\":\"(£1.49/1 KG)\",\"priceText\":\"£1.49\",\"imageUrl\":\"https://dm.emea.cms.aldi.cx/is/image/aldiprodeu/product/jpg/scaleWidth/306/d31ece0d-3c11-48e3-9a6d-5020e206adf4/Sweetcorn\",\"productUrl\":\"https://www.aldi.co.uk/product/four-seasons-sweetcorn-000000000000262686\"},\"categoryPath\":[\"Frozen Food\",\"Vegetables & Sides\"],\"__crawlee\":{\"crawlDepth\":1,\"enqueueStrategy\":\"same-hostname\",\"state\":4}},\"handledAt\":\"2026-08-02T00:31:36.024Z\"}",
-	"method": "GET",
-	"orderNo": null,
-	"retryCount": 0,
-	"uniqueKey": "https://www.aldi.co.uk/product/four-seasons-sweetcorn-000000000000262686",
-	"url": "https://www.aldi.co.uk/product/four-seasons-sweetcorn-000000000000262686"
-}

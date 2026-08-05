@@ -1,37 +1,48 @@
 {
-  "requestsFinished": 13,
-  "requestsFailed": 0,
+  "requestsFinished": 0,
+  "requestsFailed": 1,
   "requestsRetries": 1,
-  "requestsFailedPerMinute": 0,
-  "requestsFinishedPerMinute": 3,
-  "requestMinDurationMillis": 4633,
-  "requestMaxDurationMillis": 9278,
-  "requestTotalFailedDurationMillis": 0,
-  "requestTotalFinishedDurationMillis": 88454,
-  "crawlerStartedAt": "2026-08-02T00:27:55.974Z",
-  "crawlerFinishedAt": null,
-  "statsPersistedAt": "2026-08-02T00:32:55.821Z",
-  "crawlerRuntimeMillis": 300347,
-  "crawlerLastStartTimestamp": 1785630475474,
+  "requestsFailedPerMinute": 1,
+  "requestsFinishedPerMinute": 0,
+  "requestMinDurationMillis": null,
+  "requestMaxDurationMillis": 0,
+  "requestTotalFailedDurationMillis": 5476,
+  "requestTotalFinishedDurationMillis": 0,
+  "crawlerStartedAt": "2026-08-02T01:12:41.190Z",
+  "crawlerFinishedAt": "2026-08-02T01:13:20.219Z",
+  "statsPersistedAt": "2026-08-02T01:13:20.219Z",
+  "crawlerRuntimeMillis": 39529,
+  "crawlerLastStartTimestamp": 1785633160690,
   "requestRetryHistogram": [
-    12,
+    null,
+    null,
     1
   ],
   "statsId": 0,
-  "requestAvgFailedDurationMillis": null,
-  "requestAvgFinishedDurationMillis": 6804,
-  "requestTotalDurationMillis": 88454,
-  "requestsTotal": 13,
+  "requestAvgFailedDurationMillis": 5476,
+  "requestAvgFinishedDurationMillis": null,
+  "requestTotalDurationMillis": 5476,
+  "requestsTotal": 1,
   "requestsWithStatusCode": {
-    "200": 14
+    "200": 3
   },
-  "errors": {},
-  "retryErrors": {
-    "C:\\Users\\laura.bolas\\projects\\thriftchef\\node_modules\\@apify\\timeout\\cjs\\index.cjs:64:68": {
+  "errors": {
+    "https://www.aldi.co.uk/_nuxt/DNrTai_o.js:203:7837": {
       "missing error code": {
         "Error": {
-          "requestHandler timed out after 180 seconds.": {
+          "page.$$eval: ReferenceError: __name is not defined": {
             "count": 1
+          }
+        }
+      }
+    }
+  },
+  "retryErrors": {
+    "https://www.aldi.co.uk/_nuxt/DNrTai_o.js:203:7837": {
+      "missing error code": {
+        "Error": {
+          "page.$$eval: ReferenceError: __name is not defined": {
+            "count": 2
           }
         }
       }
