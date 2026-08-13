@@ -1,48 +1,49 @@
 {
-  "requestsFinished": 0,
-  "requestsFailed": 1,
-  "requestsRetries": 1,
-  "requestsFailedPerMinute": 1,
-  "requestsFinishedPerMinute": 0,
-  "requestMinDurationMillis": null,
-  "requestMaxDurationMillis": 0,
-  "requestTotalFailedDurationMillis": 5476,
-  "requestTotalFinishedDurationMillis": 0,
-  "crawlerStartedAt": "2026-08-02T01:12:41.190Z",
-  "crawlerFinishedAt": "2026-08-02T01:13:20.219Z",
-  "statsPersistedAt": "2026-08-02T01:13:20.219Z",
-  "crawlerRuntimeMillis": 39529,
-  "crawlerLastStartTimestamp": 1785633160690,
+  "requestsFinished": 2102,
+  "requestsFailed": 2,
+  "requestsRetries": 2,
+  "requestsFailedPerMinute": 0,
+  "requestsFinishedPerMinute": 23,
+  "requestMinDurationMillis": 1332,
+  "requestMaxDurationMillis": 10080,
+  "requestTotalFailedDurationMillis": 123133,
+  "requestTotalFinishedDurationMillis": 4977731,
+  "crawlerStartedAt": "2026-08-13T10:22:45.728Z",
+  "crawlerFinishedAt": null,
+  "statsPersistedAt": "2026-08-13T11:55:48.318Z",
+  "crawlerRuntimeMillis": 5584507,
+  "crawlerLastStartTimestamp": 1786616563811,
   "requestRetryHistogram": [
+    2102,
     null,
-    null,
-    1
+    2
   ],
   "statsId": 0,
-  "requestAvgFailedDurationMillis": 5476,
-  "requestAvgFinishedDurationMillis": null,
-  "requestTotalDurationMillis": 5476,
-  "requestsTotal": 1,
+  "requestAvgFailedDurationMillis": 61567,
+  "requestAvgFinishedDurationMillis": 2368,
+  "requestTotalDurationMillis": 5100864,
+  "requestsTotal": 2104,
   "requestsWithStatusCode": {
-    "200": 3
+    "200": 2102,
+    "404": 6
   },
   "errors": {
-    "https://www.aldi.co.uk/_nuxt/DNrTai_o.js:203:7837": {
+    "C:\\Users\\laura.bolas\\projects\\thriftchef\\server\\catalogue\\aldi\\aldiCrawler.ts:512:14": {
       "missing error code": {
-        "Error": {
-          "page.$$eval: ReferenceError: __name is not defined": {
-            "count": 1
+        "TimeoutError": {
+          "page.waitForSelector: Timeout 60000ms exceeded.": {
+            "count": 2
           }
         }
       }
     }
   },
   "retryErrors": {
-    "https://www.aldi.co.uk/_nuxt/DNrTai_o.js:203:7837": {
+    "C:\\Users\\laura.bolas\\projects\\thriftchef\\server\\catalogue\\aldi\\aldiCrawler.ts:512:14": {
       "missing error code": {
-        "Error": {
-          "page.$$eval: ReferenceError: __name is not defined": {
-            "count": 2
+        "TimeoutError": {
+          "page.waitForSelector: Timeout 60000ms exceeded.": {
+            "count": 4
           }
         }
       }

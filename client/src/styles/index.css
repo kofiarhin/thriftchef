@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: oklch(99% 0.005 250);
+  --color-surface-raised: oklch(100% 0 0);
+  --color-ink: oklch(25% 0.02 250);
+  --color-ink-muted: oklch(50% 0.02 250);
+  --color-line: oklch(90% 0.01 250);
+  --color-brand: oklch(48% 0.13 155);
+  --color-brand-soft: oklch(96% 0.03 155);
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A visible focus ring everywhere, since the whole form is keyboard-operable. */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}

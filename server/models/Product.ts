@@ -1,6 +1,16 @@
 import { model, models, Schema, type Model } from "mongoose";
 
-export type CatalogueSafetyStatus = "verified" | "incomplete" | "ambiguous";
+/**
+ * "verified" means the retailer published ingredients and allergen advice.
+ * "inferred" means allergens were derived from the product's published wording
+ * because the retailer publishes none — usable for planning, but never safe to
+ * present to a user as an allergen guarantee.
+ */
+export type CatalogueSafetyStatus =
+  | "verified"
+  | "inferred"
+  | "incomplete"
+  | "ambiguous";
 
 export interface ProductRecord {
   retailer: "aldi-uk";
@@ -60,7 +70,7 @@ const productSchema = new Schema<ProductRecord>(
     catalogueSafetyStatus: {
       type: String,
       required: true,
-      enum: ["verified", "incomplete", "ambiguous"],
+      enum: ["verified", "inferred", "incomplete", "ambiguous"],
     },
     eligibleForPlanning: { type: Boolean, required: true, default: false },
     safetyIssues: { type: [String], default: [] },

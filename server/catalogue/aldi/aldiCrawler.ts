@@ -2,12 +2,18 @@ import { randomUUID } from "node:crypto";
 import { PlaywrightCrawler, Request, log } from "crawlee";
 import type { Locator, Page } from "playwright";
 import { Product, type CatalogueSafetyStatus } from "../../models/Product";
+import {
+  assessAllergens,
+  type AllergenAssessmentInput,
+} from "../allergenInference";
 import { ALDI_CATEGORIES, type AldiCategory } from "./aldiCategories";
 
 const RETAILER = "aldi-uk" as const;
 const DEFAULT_STORE_ID = "belper-de56-1ar";
 const DEFAULT_EXPECTED_STORE_TEXT = "DE56 1AR";
 const PRODUCT_TILE_SELECTOR = '[data-test="product-tile"]';
+/** Products are written in batches so an interrupted crawl keeps its work. */
+const PERSIST_BATCH_SIZE = 50;
 
 const GEOLOCATION_DENIED_SCRIPT = `
   Object.defineProperty(navigator, "geolocation", {
@@ -90,6 +96,8 @@ interface ScrapedProduct {
 interface ListRequestData {
   label: "LIST";
   category: AldiCategory;
+  /** 1-based listing page. Aldi serves 30 tiles per page via `?page=N`. */
+  page: number;
 }
 
 interface DetailRequestData {
@@ -105,7 +113,9 @@ function cleanText(value: string | null | undefined): string | null {
   return cleaned.length > 0 ? cleaned : null;
 }
 
-export function parsePricePence(value: string | null | undefined): number | null {
+export function parsePricePence(
+  value: string | null | undefined,
+): number | null {
   if (!value) return null;
 
   const match = value.replace(/,/g, "").match(/(?:£\s*)?(\d+(?:\.\d{1,2})?)/);
@@ -144,7 +154,10 @@ function canonicalizeUrl(value: string, baseUrl?: string): string | null {
   }
 }
 
-function mergeCategoryPaths(existing: string[][], incoming: string[][]): string[][] {
+function mergeCategoryPaths(
+  existing: string[][],
+  incoming: string[][],
+): string[][] {
   const paths = new Map<string, string[]>();
 
   for (const path of [...existing, ...incoming]) {
@@ -158,7 +171,8 @@ function normalizeAllergens(
   ingredientsRaw: string | null,
   allergenAdviceRaw: string | null,
 ): string[] {
-  const source = `${ingredientsRaw ?? ""} ${allergenAdviceRaw ?? ""}`.toLowerCase();
+  const source =
+    `${ingredientsRaw ?? ""} ${allergenAdviceRaw ?? ""}`.toLowerCase();
   const matchers: Array<[string, RegExp]> = [
     ["celery", /\bcelery\b/],
     ["gluten", /\b(gluten|wheat|barley|rye|oats?)\b/],
@@ -173,53 +187,75 @@ function normalizeAllergens(
     ["sesame", /\bsesame\b/],
     ["soya", /\b(soya|soy)\b/],
     ["sulphites", /\b(sulphites?|sulfites?|sulphur dioxide|sulfur dioxide)\b/],
-    ["tree nuts", /\b(almond|hazelnut|walnut|cashew|pecan|brazil nut|pistachio|macadamia|tree nuts?)\b/],
+    [
+      "tree nuts",
+      /\b(almond|hazelnut|walnut|cashew|pecan|brazil nut|pistachio|macadamia|tree nuts?)\b/,
+    ],
   ];
 
-  return matchers.filter(([, pattern]) => pattern.test(source)).map(([name]) => name);
+  return matchers
+    .filter(([, pattern]) => pattern.test(source))
+    .map(([name]) => name);
 }
 
+/**
+ * Aldi publishes neither ingredients nor allergen advice, so in practice every
+ * product takes the inferred branch. The retailer-data branch is kept because
+ * it is the only trustworthy one: if Aldi ever exposes real labels, products
+ * upgrade to "verified" without a code change.
+ */
 function evaluateCatalogueSafety(
   ingredientsRaw: string | null,
   allergenAdviceRaw: string | null,
+  inferenceInput: AllergenAssessmentInput,
 ): {
   normalizedAllergens: string[];
   catalogueSafetyStatus: CatalogueSafetyStatus;
   eligibleForPlanning: boolean;
   safetyIssues: string[];
 } {
-  const safetyIssues: string[] = [];
+  const combined =
+    `${ingredientsRaw ?? ""} ${allergenAdviceRaw ?? ""}`.toLowerCase();
 
-  if (!ingredientsRaw) safetyIssues.push("MISSING_INGREDIENTS");
-  if (!allergenAdviceRaw) safetyIssues.push("MISSING_ALLERGEN_DATA");
+  if (ingredientsRaw && allergenAdviceRaw) {
+    const ambiguous =
+      /information unavailable|not available|see packaging|check pack/i.test(
+        combined,
+      );
 
-  const combined = `${ingredientsRaw ?? ""} ${allergenAdviceRaw ?? ""}`.toLowerCase();
-  if (/information unavailable|not available|see packaging|check pack/i.test(combined)) {
-    safetyIssues.push("AMBIGUOUS_SAFETY_DATA");
+    return {
+      normalizedAllergens: normalizeAllergens(ingredientsRaw, allergenAdviceRaw),
+      catalogueSafetyStatus: ambiguous ? "ambiguous" : "verified",
+      eligibleForPlanning: !ambiguous,
+      safetyIssues: ambiguous ? ["AMBIGUOUS_SAFETY_DATA"] : [],
+    };
   }
 
-  const catalogueSafetyStatus: CatalogueSafetyStatus = safetyIssues.includes(
-    "AMBIGUOUS_SAFETY_DATA",
-  )
-    ? "ambiguous"
-    : safetyIssues.length > 0
-      ? "incomplete"
-      : "verified";
+  const safetyIssues = ["NO_RETAILER_ALLERGEN_DATA", "ALLERGENS_INFERRED"];
+  if (!ingredientsRaw) safetyIssues.push("MISSING_INGREDIENTS");
 
   return {
-    normalizedAllergens: normalizeAllergens(ingredientsRaw, allergenAdviceRaw),
-    catalogueSafetyStatus,
-    eligibleForPlanning: catalogueSafetyStatus === "verified",
+    normalizedAllergens: assessAllergens(inferenceInput).normalizedAllergens,
+    catalogueSafetyStatus: "inferred",
+    eligibleForPlanning: true,
     safetyIssues,
   };
 }
 
 async function readLocatorText(locator: Locator): Promise<string | null> {
   if ((await locator.count()) === 0) return null;
-  return cleanText(await locator.first().textContent().catch(() => null));
+  return cleanText(
+    await locator
+      .first()
+      .textContent()
+      .catch(() => null),
+  );
 }
 
-async function readFirstText(page: Page, selectors: string[]): Promise<string | null> {
+async function readFirstText(
+  page: Page,
+  selectors: string[],
+): Promise<string | null> {
   for (const selector of selectors) {
     const value = await readLocatorText(page.locator(selector));
     if (value) return value;
@@ -237,7 +273,9 @@ async function readFirstAttribute(
     const locator = page.locator(selector).first();
     if ((await locator.count()) === 0) continue;
 
-    const value = cleanText(await locator.getAttribute(attribute).catch(() => null));
+    const value = cleanText(
+      await locator.getAttribute(attribute).catch(() => null),
+    );
     if (value) return value;
   }
 
@@ -263,7 +301,10 @@ async function dismissCookieBanner(page: Page): Promise<void> {
   }
 }
 
-async function waitForSelectedStore(page: Page, expectedStoreText: string): Promise<void> {
+async function waitForSelectedStore(
+  page: Page,
+  expectedStoreText: string,
+): Promise<void> {
   if (!expectedStoreText.trim()) return;
 
   log.info(
@@ -278,7 +319,10 @@ async function waitForSelectedStore(page: Page, expectedStoreText: string): Prom
   log.info(`Aldi store "${expectedStoreText}" detected. Continuing crawl.`);
 }
 
-async function loadAllProductTiles(page: Page, maxProducts?: number): Promise<void> {
+async function loadAllProductTiles(
+  page: Page,
+  maxProducts?: number,
+): Promise<void> {
   await page.waitForSelector(PRODUCT_TILE_SELECTOR, { timeout: 60_000 });
 
   let previousCount = -1;
@@ -312,7 +356,9 @@ async function extractListingProducts(
 
   for (let index = 0; index < tileCount; index += 1) {
     const tile = tiles.nth(index);
-    const link = tile.locator('a.product-tile__link[href], a[href*="/product/"]').first();
+    const link = tile
+      .locator('a.product-tile__link[href], a[href*="/product/"]')
+      .first();
     const href = await link.getAttribute("href").catch(() => null);
     const productUrl = href ? canonicalizeUrl(href, page.url()) : null;
     const retailerProductId = productUrl ? extractProductId(productUrl) : null;
@@ -330,8 +376,12 @@ async function extractListingProducts(
     products.push({
       retailerProductId,
       productUrl,
-      name: await readLocatorText(tile.locator('[data-test="product-tile__name"]')),
-      brand: await readLocatorText(tile.locator('[data-test="product-tile__brandname"]')),
+      name: await readLocatorText(
+        tile.locator('[data-test="product-tile__name"]'),
+      ),
+      brand: await readLocatorText(
+        tile.locator('[data-test="product-tile__brandname"]'),
+      ),
       packageSizeRaw: await readLocatorText(
         tile.locator('[data-test="product-tile__unit-of-measurement"]'),
       ),
@@ -339,7 +389,9 @@ async function extractListingProducts(
         tile.locator('[data-test="product-tile__comparison-price"]'),
       ),
       priceText:
-        (await readLocatorText(tile.locator('[data-test="product-tile__price"]'))) ??
+        (await readLocatorText(
+          tile.locator('[data-test="product-tile__price"]'),
+        )) ??
         (await readLocatorText(tile.locator(".base-price--product-tile"))) ??
         (await readLocatorText(tile.locator(".base-price"))),
       imageUrl: imageSource ? canonicalizeUrl(imageSource, page.url()) : null,
@@ -348,6 +400,39 @@ async function extractListingProducts(
   }
 
   return { products, skipped };
+}
+
+/**
+ * Aldi caps a listing at 30 tiles and exposes the rest through `?page=N`
+ * links in its pager. Scrolling alone never reveals them, so the highest
+ * advertised page number decides how many extra listing requests to enqueue.
+ */
+export function extractHighestPageNumber(hrefs: string[]): number {
+  return hrefs.reduce((highest, href) => {
+    const raw = href.match(/[?&]page=(\d+)/)?.[1];
+    const page = raw ? Number.parseInt(raw, 10) : Number.NaN;
+
+    return Number.isInteger(page) && page > highest ? page : highest;
+  }, 1);
+}
+
+function buildListingPageUrl(categoryUrl: string, page: number): string | null {
+  try {
+    const url = new URL(categoryUrl);
+    url.searchParams.set("page", String(page));
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function readPaginationHrefs(page: Page): Promise<string[]> {
+  return page
+    .locator('a[href*="page="]')
+    .evaluateAll((anchors) =>
+      anchors.map((anchor) => anchor.getAttribute("href") ?? ""),
+    )
+    .catch(() => []);
 }
 
 async function expandSection(page: Page, pattern: RegExp): Promise<void> {
@@ -391,7 +476,9 @@ function extractLabelledSection(
     if (!matchingLabel) continue;
 
     const values: string[] = [];
-    const inlineValue = cleanText(lines[index].slice(matchingLabel.length).replace(/^:/, ""));
+    const inlineValue = cleanText(
+      lines[index].slice(matchingLabel.length).replace(/^:/, ""),
+    );
     if (inlineValue) values.push(inlineValue);
 
     for (let nextIndex = index + 1; nextIndex < lines.length; nextIndex += 1) {
@@ -400,7 +487,9 @@ function extractLabelledSection(
 
       if (
         normalizedStopLabels.some(
-          (label) => normalizedNextLine === label || normalizedNextLine.startsWith(`${label}:`),
+          (label) =>
+            normalizedNextLine === label ||
+            normalizedNextLine.startsWith(`${label}:`),
         )
       ) {
         break;
@@ -465,9 +554,15 @@ async function extractDetailProduct(
       '[data-test="product-details__price"]',
     ])) ?? listing.priceText;
 
-  const canonicalUrl = await readFirstAttribute(page, ['link[rel="canonical"]'], "href");
-  const productUrl = canonicalizeUrl(canonicalUrl ?? page.url()) ?? listing.productUrl;
-  const retailerProductId = extractProductId(productUrl) ?? listing.retailerProductId;
+  const canonicalUrl = await readFirstAttribute(
+    page,
+    ['link[rel="canonical"]'],
+    "href",
+  );
+  const productUrl =
+    canonicalizeUrl(canonicalUrl ?? page.url()) ?? listing.productUrl;
+  const retailerProductId =
+    extractProductId(productUrl) ?? listing.retailerProductId;
   const pricePence = parsePricePence(priceText);
 
   const imageSource = await readFirstAttribute(
@@ -476,7 +571,13 @@ async function extractDetailProduct(
     "src",
   );
 
-  const pageText = cleanText(await page.locator("main").innerText().catch(() => null)) ?? "";
+  const pageText =
+    cleanText(
+      await page
+        .locator("main")
+        .innerText()
+        .catch(() => null),
+    ) ?? "";
   const stopLabels = [
     "allergy advice",
     "allergen information",
@@ -488,16 +589,31 @@ async function extractDetailProduct(
     "you may also like",
   ];
 
-  const ingredientsRaw = extractLabelledSection(pageText, ["ingredients"], stopLabels);
+  const ingredientsRaw = extractLabelledSection(
+    pageText,
+    ["ingredients"],
+    stopLabels,
+  );
   const allergenAdviceRaw = extractLabelledSection(
     pageText,
     ["allergy advice", "allergen information", "allergens"],
-    ["dietary information", "storage information", "nutrition information", "features", "you may also like"],
+    [
+      "dietary information",
+      "storage information",
+      "nutrition information",
+      "features",
+      "you may also like",
+    ],
   );
   const dietaryInformationRaw = extractLabelledSection(
     pageText,
     ["dietary information", "dietary"],
-    ["storage information", "nutrition information", "features", "you may also like"],
+    [
+      "storage information",
+      "nutrition information",
+      "features",
+      "you may also like",
+    ],
   );
 
   if (!retailerProductId || !name || pricePence === null) return null;
@@ -514,8 +630,15 @@ async function extractDetailProduct(
     ingredientsRaw,
     allergenAdviceRaw,
     dietaryInformationRaw,
-    ...evaluateCatalogueSafety(ingredientsRaw, allergenAdviceRaw),
-    imageUrl: imageSource ? canonicalizeUrl(imageSource, productUrl) : listing.imageUrl,
+    ...evaluateCatalogueSafety(ingredientsRaw, allergenAdviceRaw, {
+      name,
+      brand,
+      description,
+      categoryPaths: listing.categoryPaths,
+    }),
+    imageUrl: imageSource
+      ? canonicalizeUrl(imageSource, productUrl)
+      : listing.imageUrl,
     productUrl,
   };
 }
@@ -548,7 +671,9 @@ async function persistProducts(
 
   const operations = products.map((product) => {
     const existing = existingById.get(product.retailerProductId);
-    const priceChanged = Boolean(existing && existing.pricePence !== product.pricePence);
+    const priceChanged = Boolean(
+      existing && existing.pricePence !== product.pricePence,
+    );
 
     if (existing) updated += 1;
     else inserted += 1;
@@ -567,14 +692,17 @@ async function persistProducts(
             name: product.name,
             brand: product.brand,
             description: product.description,
-            categoryPaths: mergeCategoryPaths(existing?.categoryPaths ?? [], product.categoryPaths),
+            categoryPaths: mergeCategoryPaths(
+              existing?.categoryPaths ?? [],
+              product.categoryPaths,
+            ),
             pricePence: product.pricePence,
             previousPricePence: priceChanged
-              ? existing?.pricePence ?? null
-              : existing?.previousPricePence ?? null,
+              ? (existing?.pricePence ?? null)
+              : (existing?.previousPricePence ?? null),
             priceChangedAt: priceChanged
               ? now
-              : existing?.priceChangedAt ?? null,
+              : (existing?.priceChangedAt ?? null),
             packageSizeRaw: product.packageSizeRaw,
             comparisonPriceRaw: product.comparisonPriceRaw,
             ingredientsRaw: product.ingredientsRaw,
@@ -613,8 +741,11 @@ export async function runAldiCatalogueCrawl(
 ): Promise<AldiCrawlSummary> {
   const crawlRunId = randomUUID();
   const storeId = options.storeId ?? DEFAULT_STORE_ID;
-  const expectedStoreText = options.expectedStoreText ?? DEFAULT_EXPECTED_STORE_TEXT;
-  const categories = (options.categories ?? ALDI_CATEGORIES).filter((category) => category.enabled);
+  const expectedStoreText =
+    options.expectedStoreText ?? DEFAULT_EXPECTED_STORE_TEXT;
+  const categories = (options.categories ?? ALDI_CATEGORIES).filter(
+    (category) => category.enabled,
+  );
   const listingById = new Map<string, ListingProduct>();
   const scrapedById = new Map<string, ScrapedProduct>();
   const issues: CrawlIssue[] = [];
@@ -625,6 +756,28 @@ export async function runAldiCatalogueCrawl(
     throw new Error("No enabled Aldi categories are configured.");
   }
 
+  // A full catalogue crawl runs for hours. Persisting only after crawler.run()
+  // would discard every product if the run is interrupted, so completed
+  // products are flushed in batches and the totals accumulated as we go.
+  const unpersisted: ScrapedProduct[] = [];
+  const totals = { inserted: 0, updated: 0, priceChanges: 0 };
+
+  async function flushProducts(force = false): Promise<void> {
+    if (unpersisted.length === 0) return;
+    if (!force && unpersisted.length < PERSIST_BATCH_SIZE) return;
+
+    const batch = unpersisted.splice(0, unpersisted.length);
+    const persisted = await persistProducts(batch, storeId, crawlRunId);
+
+    totals.inserted += persisted.inserted;
+    totals.updated += persisted.updated;
+    totals.priceChanges += persisted.priceChanges;
+
+    log.info(
+      `Persisted ${batch.length} products (running totals: ${totals.inserted} inserted, ${totals.updated} updated).`,
+    );
+  }
+
   const crawler = new PlaywrightCrawler({
     maxConcurrency: 1,
     maxRequestRetries: 2,
@@ -633,10 +786,11 @@ export async function runAldiCatalogueCrawl(
     launchContext: {
       launchOptions: {
         headless: options.headless ?? false,
-        args: ["--disable-blink-features=AutomationControlled", "--disable-dev-shm-usage"],
-      },
-      browserContextOptions: {
-        locale: "en-GB",
+        args: [
+          "--disable-blink-features=AutomationControlled",
+          "--disable-dev-shm-usage",
+          "--lang=en-GB",
+        ],
       },
     },
     preNavigationHooks: [
@@ -660,8 +814,41 @@ export async function runAldiCatalogueCrawl(
         }
 
         await loadAllProductTiles(page, options.maxProductsPerCategory);
-        const listingResult = await extractListingProducts(page, data.category.categoryPath);
+        const listingResult = await extractListingProducts(
+          page,
+          data.category.categoryPath,
+        );
         skipped += listingResult.skipped;
+
+        // Only the first page advertises the full pager; enqueue the rest once.
+        if (data.page === 1 && !options.maxProductsPerCategory) {
+          const highestPage = extractHighestPageNumber(
+            await readPaginationHrefs(page),
+          );
+
+          const furtherPages = [];
+          for (let next = 2; next <= highestPage; next += 1) {
+            const url = buildListingPageUrl(data.category.url, next);
+            if (!url) continue;
+
+            furtherPages.push({
+              url,
+              uniqueKey: `aldi-category:${data.category.key}:${next}:${crawlRunId}`,
+              userData: {
+                label: "LIST",
+                category: data.category,
+                page: next,
+              } as ListRequestData,
+            });
+          }
+
+          if (furtherPages.length > 0) {
+            await crawler.addRequests(furtherPages);
+            log.info(
+              `Aldi category ${data.category.key}: queued ${furtherPages.length} further listing pages.`,
+            );
+          }
+        }
 
         const selected = options.maxProductsPerCategory
           ? listingResult.products.slice(0, options.maxProductsPerCategory)
@@ -691,7 +878,7 @@ export async function runAldiCatalogueCrawl(
         );
 
         log.info(
-          `Aldi category ${data.category.key}: discovered ${selected.length} product links.`,
+          `Aldi category ${data.category.key} (page ${data.page}): discovered ${selected.length} product links.`,
         );
         return;
       }
@@ -719,13 +906,17 @@ export async function runAldiCatalogueCrawl(
       }
 
       const previouslyScraped = scrapedById.get(product.retailerProductId);
-      scrapedById.set(product.retailerProductId, {
+      const merged = {
         ...product,
         categoryPaths: mergeCategoryPaths(
           previouslyScraped?.categoryPaths ?? [],
           listing.categoryPaths,
         ),
-      });
+      };
+
+      scrapedById.set(product.retailerProductId, merged);
+      unpersisted.push(merged);
+      await flushProducts();
     },
     failedRequestHandler({ request }, error) {
       issues.push({
@@ -740,24 +931,26 @@ export async function runAldiCatalogueCrawl(
     (category) =>
       new Request({
         url: category.url,
-        uniqueKey: `aldi-category:${category.key}:${crawlRunId}`,
-        userData: { label: "LIST", category } as ListRequestData,
+        uniqueKey: `aldi-category:${category.key}:1:${crawlRunId}`,
+        userData: { label: "LIST", category, page: 1 } as ListRequestData,
       }),
   );
 
-  await crawler.run(initialRequests);
-
-  const scrapedProducts = [...scrapedById.values()];
-  const persisted = await persistProducts(scrapedProducts, storeId, crawlRunId);
+  try {
+    await crawler.run(initialRequests);
+  } finally {
+    // Keep whatever completed, even if the crawl threw part way through.
+    await flushProducts(true);
+  }
 
   return {
     crawlRunId,
     categoriesRequested: categories.length,
     productLinksDiscovered: listingById.size,
-    productsScraped: scrapedProducts.length,
-    inserted: persisted.inserted,
-    updated: persisted.updated,
-    priceChanges: persisted.priceChanges,
+    productsScraped: scrapedById.size,
+    inserted: totals.inserted,
+    updated: totals.updated,
+    priceChanges: totals.priceChanges,
     skipped,
     issues,
   };
