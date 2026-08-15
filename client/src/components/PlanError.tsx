@@ -65,7 +65,7 @@ export function PlanError({ error, onRetry, onEditConstraints }: PlanErrorProps)
   return (
     <div
       role="alert"
-      className="rounded-lg border border-red-300 bg-red-50 p-5 text-red-900"
+      className="rounded-lg border border-danger bg-danger-surface p-5 text-danger-ink"
     >
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="mt-2 text-sm">{body}</p>
@@ -82,7 +82,7 @@ export function PlanError({ error, onRetry, onEditConstraints }: PlanErrorProps)
         <button
           type="button"
           onClick={onEditConstraints}
-          className="rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-900 transition hover:border-red-500"
+          className="rounded-md border border-danger bg-surface-raised px-4 py-2 text-sm font-medium text-ink transition hover:border-danger-strong"
         >
           Edit constraints
         </button>
@@ -91,7 +91,7 @@ export function PlanError({ error, onRetry, onEditConstraints }: PlanErrorProps)
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-md bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            className="rounded-md bg-danger-strong px-4 py-2 text-sm font-semibold text-on-danger transition hover:opacity-90"
           >
             Try again
           </button>

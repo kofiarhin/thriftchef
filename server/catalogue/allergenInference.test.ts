@@ -180,3 +180,61 @@ describe("assessAllergens with categories", () => {
     );
   });
 });
+
+describe("dairy aisles that do not mean dairy", () => {
+  const inMilkAisle = (name: string) =>
+    assessAllergens({ name, categoryPaths: [["Chilled Food", "Milk"]] })
+      .normalizedAllergens;
+  const inYogurtAisle = (name: string) =>
+    assessAllergens({ name, categoryPaths: [["Chilled Food", "Yogurts"]] })
+      .normalizedAllergens;
+  const inDairyAisle = (name: string) =>
+    assessAllergens({ name, categoryPaths: [["Chilled Food", "Dairy"]] })
+      .normalizedAllergens;
+
+  it("does not call a plant drink milk just because it sits in the milk aisle", () => {
+    // Live regression: Aldi shelves oat, soya and almond drinks under "Milk".
+    // Marking them milk removes the substitutes a milk-allergic shopper needs.
+    assert.deepEqual(inMilkAisle("UHT Unsweetened Almond Drink"), ["tree nuts"]);
+    assert.deepEqual(inMilkAisle("Barista Style Oat Drink"), ["gluten"]);
+    assert.deepEqual(inMilkAisle("UHT Sweetened Soya Drink"), ["soya"]);
+  });
+
+  it("does not call a soya pot milk", () => {
+    assert.deepEqual(inYogurtAisle("Blueberry Soya Pot"), ["soya"]);
+    assert.deepEqual(inYogurtAisle("Plain Soya Pot"), ["soya"]);
+  });
+
+  it("does not call a rendered animal fat milk", () => {
+    assert.deepEqual(inDairyAisle("Goose Fat"), []);
+    assert.deepEqual(inDairyAisle("Pork Lard"), []);
+  });
+
+  it("still reads real dairy in those aisles as milk", () => {
+    assert.deepEqual(inDairyAisle("Beautifully Buttery"), ["milk"]);
+    assert.deepEqual(inDairyAisle("Lurpak Spreadable"), ["milk"]);
+    assert.deepEqual(inYogurtAisle("Natural Kefir Pot"), ["milk"]);
+    assert.deepEqual(inYogurtAisle("Little Delights Strawberry"), ["milk"]);
+    assert.deepEqual(
+      assessAllergens({
+        name: "Burrata 150g",
+        categoryPaths: [["Chilled Food", "Cheese"]],
+      }).normalizedAllergens,
+      ["milk"],
+    );
+  });
+
+  it("keeps milk when the wording says dairy, whatever else the name contains", () => {
+    // The wording check is the safety net: a real dairy product cannot be
+    // cleared by looking like an alternative.
+    assert.deepEqual(inYogurtAisle("Coconut Yogurt Pot"), ["milk"]);
+    assert.deepEqual(inYogurtAisle("Hazelnut Yogurt Pot").sort(), [
+      "milk",
+      "tree nuts",
+    ]);
+    assert.deepEqual(inMilkAisle("Oat Milk Chocolate Drink").sort(), [
+      "gluten",
+      "milk",
+    ]);
+  });
+});

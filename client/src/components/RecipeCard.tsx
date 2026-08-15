@@ -79,7 +79,7 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
       </div>
 
       {recipe.allergenWarnings.length > 0 ? (
-        <p className="mt-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p className="mt-4 rounded-md border border-warning bg-warning-surface px-3 py-2 text-sm text-warning-ink">
           <span className="font-semibold">May contain:</span>{" "}
           {recipe.allergenWarnings.join(", ")}. Inferred from product wording —
           check the packaging.

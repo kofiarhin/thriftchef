@@ -79,7 +79,7 @@ export function CheckboxGroup<T extends string>({
       </div>
 
       {error ? (
-        <p id={errorId} role="alert" className="mt-2 text-sm font-medium text-red-700">
+        <p id={errorId} role="alert" className="mt-2 text-sm font-medium text-danger-ink">
           Error: {error}
         </p>
       ) : null}
@@ -132,7 +132,7 @@ export function TextField({
 
       <div
         className={`mt-2 flex items-center rounded-md border bg-surface-raised ${
-          error ? "border-red-600" : "border-line"
+          error ? "border-danger-strong" : "border-line"
         }`}
       >
         {prefix ? (
@@ -158,7 +158,7 @@ export function TextField({
       </div>
 
       {error ? (
-        <p id={errorId} role="alert" className="mt-2 text-sm font-medium text-red-700">
+        <p id={errorId} role="alert" className="mt-2 text-sm font-medium text-danger-ink">
           Error: {error}
         </p>
       ) : null}

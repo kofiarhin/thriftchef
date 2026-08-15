@@ -148,6 +148,33 @@ const CATEGORY_ALLERGENS: Array<[InferredAllergen, RegExp]> = [
   ["eggs", /^eggs$/i],
 ];
 
+/**
+ * Aldi stocks the dairy alternatives beside the dairy: oat, soya and almond
+ * drinks sit in "Milk", soya pots in "Yogurts". Letting the aisle imply milk
+ * for those would strip a milk-allergic shopper of the very products they can
+ * eat, so an alternative's own wording overrides its aisle.
+ */
+const PLANT_BASE = /\b(soya|soy|almond|oat|coconut|hazelnut|cashew|hemp|pea)\b/;
+const ALTERNATIVE_FORM = /\b(drinks?|alternatives?|pots?)\b/;
+
+/** Rendered animal fats are filed under "Dairy" but contain no milk. */
+const NON_DAIRY_FAT = /\b(lard|dripping|suet)\b|\b(goose|duck|beef|pork)\s+fat\b/;
+
+/**
+ * Whether a dairy aisle should be read as implying milk for this product.
+ *
+ * Wording always wins over shelf position, and it is the safety net here: a
+ * product whose own name says yogurt, cream or cheese keeps its milk however
+ * it is described, so clearing an alternative can never clear a real dairy
+ * product by accident.
+ */
+function aisleImpliesMilk(haystack: string, fromText: InferredAllergen[]): boolean {
+  if (fromText.includes("milk")) return true;
+  if (NON_DAIRY_FAT.test(haystack)) return false;
+  if (PLANT_BASE.test(haystack) && ALTERNATIVE_FORM.test(haystack)) return false;
+  return true;
+}
+
 export interface AllergenAssessmentInput {
   name: string;
   brand?: string | null;
@@ -205,7 +232,12 @@ export function assessAllergens(
   // A free-from or vegan claim on the product still wins over its aisle: a
   // dairy-free spread filed under "Dairy" is not milk.
   const haystack = normalizeForMatching(inferredFrom);
-  const detected = new Set<InferredAllergen>([...fromText, ...fromCategories]);
+  const detected = new Set<InferredAllergen>(fromText);
+
+  for (const allergen of fromCategories) {
+    if (allergen === "milk" && !aisleImpliesMilk(haystack, fromText)) continue;
+    detected.add(allergen);
+  }
 
   for (const [allergen, pattern] of FREE_FROM_PATTERNS) {
     if (pattern.test(haystack)) detected.delete(allergen);

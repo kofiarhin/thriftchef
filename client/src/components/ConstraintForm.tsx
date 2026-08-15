@@ -153,7 +153,7 @@ export function ConstraintForm({
         <button
           type="submit"
           disabled={isGenerating}
-          className="rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-on-brand transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isGenerating ? "Generating plan…" : "Generate meal plan"}
         </button>

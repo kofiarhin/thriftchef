@@ -39,7 +39,7 @@ export function StatusPanel({ status, isLoading, error }: StatusPanelProps) {
 
         {error ? (
           <div role="alert" className="text-sm">
-            <p className="font-medium text-red-700">
+            <p className="font-medium text-danger-ink">
               Could not read the catalogue status.
             </p>
             <p className="mt-1 text-ink-muted">{error.message}</p>
@@ -73,7 +73,7 @@ export function StatusPanel({ status, isLoading, error }: StatusPanelProps) {
             </dl>
 
             {status.eligibleProducts === 0 ? (
-              <p role="alert" className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+              <p role="alert" className="mt-3 rounded-md border border-danger bg-danger-surface px-3 py-2 text-sm text-danger-ink">
                 No products are available yet. Run{" "}
                 <code className="font-mono text-xs">npm run aldi:crawl</code> to
                 populate the catalogue.
@@ -81,7 +81,7 @@ export function StatusPanel({ status, isLoading, error }: StatusPanelProps) {
             ) : null}
 
             {status.isStale && status.eligibleProducts > 0 ? (
-              <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <p className="mt-3 rounded-md border border-warning bg-warning-surface px-3 py-2 text-sm text-warning-ink">
                 This catalogue is more than three days old. Prices may have
                 changed.
               </p>

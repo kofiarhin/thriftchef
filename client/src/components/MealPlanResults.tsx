@@ -36,7 +36,7 @@ function BudgetSummary({ plan }: { plan: MealPlanResponse }) {
         </p>
         <p
           className={`text-2xl font-semibold tabular-nums ${
-            isOver ? "text-red-700" : "text-ink"
+            isOver ? "text-danger-ink" : "text-ink"
           }`}
         >
           {formatPence(Math.abs(differencePence))}
@@ -78,7 +78,7 @@ export function MealPlanResults({
               type="button"
               onClick={onRegenerate}
               disabled={isRegenerating}
-              className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md bg-brand px-4 py-2 text-sm font-semibold text-on-brand transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isRegenerating ? "Regenerating…" : "Regenerate plan"}
             </button>
@@ -88,11 +88,11 @@ export function MealPlanResults({
         <BudgetSummary plan={plan} />
 
         {plan.warnings.length > 0 ? (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-4">
-            <h3 className="text-sm font-semibold text-amber-900">
+          <div className="rounded-lg border border-warning bg-warning-surface p-4">
+            <h3 className="text-sm font-semibold text-warning-ink">
               Before you shop
             </h3>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-warning-ink">
               {plan.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
