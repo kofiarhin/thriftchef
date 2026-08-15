@@ -61,6 +61,15 @@ export const UK_ALLERGENS = [
 ] as const;
 export type Allergen = (typeof UK_ALLERGENS)[number];
 
+export const PANTRY_BASICS = [
+  "salt",
+  "pepper",
+  "cooking oil",
+  "basic herbs and spices",
+  "stock cubes",
+] as const;
+export type PantryBasic = (typeof PANTRY_BASICS)[number];
+
 export const PLAN_DAYS = 7;
 
 export interface MealPlanRequest {
@@ -72,6 +81,7 @@ export interface MealPlanRequest {
   appliances: Appliance[];
   allergies: Allergen[];
   dislikedIngredients: string[];
+  pantryBasics: PantryBasic[];
   storeId?: string;
 }
 
@@ -98,6 +108,9 @@ export interface RecipeIngredient {
   name: string;
   quantity: string;
   estimatedCostPence: number;
+  /** Fraction of a retail pack consumed by this recipe. */
+  packages: number;
+  imageUrl: string | null;
 }
 
 export interface Recipe {
@@ -109,6 +122,7 @@ export interface Recipe {
   cookMinutes: number;
   appliances: Appliance[];
   ingredients: RecipeIngredient[];
+  pantryItems: PantryBasic[];
   steps: string[];
   allergenWarnings: string[];
   productIds: string[];
@@ -123,6 +137,7 @@ export interface ShoppingListItem {
   unitPricePence: number;
   totalPricePence: number;
   productUrl: string;
+  imageUrl: string | null;
 }
 
 export interface ShoppingListGroup {
@@ -157,6 +172,11 @@ export interface PlanGeneratorInput {
   products: SelectableProduct[];
   /** Present on the second attempt, describing why the first was unusable. */
   retry?: { reason: string; previousTotalPence?: number };
+  replacement?: {
+    day: number;
+    mealType: MealType;
+    currentPlan: { days: MealPlanDay[]; recipes: Recipe[] };
+  };
 }
 
 /**
@@ -182,5 +202,6 @@ export interface SelectableProduct {
   dietaryInfo: string | null;
   safetyStatus: "verified" | "inferred";
   productUrl: string;
+  imageUrl?: string | null;
   lastSeenAt: Date;
 }

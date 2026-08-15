@@ -14,6 +14,7 @@ export type {
   MealPlanResponse,
   MealPreference,
   MealType,
+  PantryBasic,
   ProductCoverage,
   Recipe,
   RecipeIngredient,
@@ -26,6 +27,7 @@ export {
   COOKING_APPLIANCES,
   MEAL_PREFERENCES,
   MEAL_TYPES,
+  PANTRY_BASICS,
   UK_ALLERGENS,
 } from "../../../server/mealPlanning/mealPlanTypes";
 

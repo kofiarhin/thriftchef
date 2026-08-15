@@ -203,6 +203,7 @@ function parseRecipe(
   const ingredients = rawIngredients.map((ingredient) =>
     parseIngredient(ingredient, context),
   );
+  const rawPantryItems = Array.isArray(raw.pantryItems) ? raw.pantryItems : [];
 
   return {
     recipe: {
@@ -218,6 +219,9 @@ function parseRecipe(
       prepMinutes: boundedInteger(raw.prepMinutes, 0, LIMITS.minutes, 0),
       cookMinutes: boundedInteger(raw.cookMinutes, 0, LIMITS.minutes, 0),
       appliances: appliances as Appliance[],
+      pantryItems: context.request.pantryBasics.filter((item) =>
+        rawPantryItems.includes(item),
+      ),
       steps,
       allergenWarnings: [],
       productIds: [],
@@ -355,6 +359,8 @@ export function validateAndPricePlan(
         name: product?.name ?? ingredient.productId,
         quantity: ingredient.quantity,
         estimatedCostPence: Math.round((product?.pricePence ?? 0) * ingredient.packages),
+        packages: ingredient.packages,
+        imageUrl: product?.imageUrl ?? null,
       };
     });
 

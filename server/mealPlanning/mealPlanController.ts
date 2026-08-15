@@ -3,13 +3,15 @@ import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { ApiError } from "../http/errors";
 import { addLogContext } from "../http/requestId";
-import { parseMealPlanRequest } from "./mealPlanSchemas";
+import {
+  parseMealPlanRequest,
+  parseMealReplacementRequest,
+} from "./mealPlanSchemas";
 import {
   PlanRejectedError,
   validateAndPricePlan,
   type PricedPlan,
 } from "./mealPlanValidator";
-import { generateMockPlan } from "./mockPlanner";
 import { createNvidiaGenerator } from "./nvidiaClient";
 import {
   fetchCandidateProducts,
@@ -35,23 +37,11 @@ export interface MealPlanDependencies {
   newPlanId: () => string;
 }
 
-export function createMockGenerator(): PlanGenerator {
-  return async ({ request, products }) => generateMockPlan(request, products);
-}
-
-/**
- * Live AI is opt-in. Without `MEAL_PLAN_GENERATOR=nvidia` and credentials, the
- * app runs the deterministic planner, so local development and tests never
- * depend on an external service.
- */
 export function defaultDependencies(config: AppConfig): MealPlanDependencies {
-  const generate =
-    config.mealPlanGenerator === "nvidia" && config.nvidia
-      ? createNvidiaGenerator({
-          config: config.nvidia,
-          maxContextProducts: config.mealPlanMaxContextProducts,
-        })
-      : createMockGenerator();
+  const generate = createNvidiaGenerator({
+    config: config.nvidia,
+    maxContextProducts: config.mealPlanMaxContextProducts,
+  });
 
   return {
     loadProducts: fetchCandidateProducts,
@@ -260,7 +250,7 @@ export function createMealPlanHandler(
 
     addLogContext(response, {
       storeId,
-      generator: config.mealPlanGenerator,
+      generator: "nvidia",
       generationMs: Date.now() - started,
       generationAttempts: attempts,
       productsConsidered: selection.productsConsidered,
@@ -268,6 +258,145 @@ export function createMealPlanHandler(
       estimatedTotalPence: priced.estimatedTotalPence,
     });
 
+    response.json(body);
+  };
+}
+
+function rawPlanFromResponse(plan: MealPlanResponse): unknown {
+  return { days: plan.days, recipes: plan.recipes };
+}
+
+function replacementRecipeFrom(raw: unknown): Record<string, unknown> {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new PlanRejectedError("INVALID_RECIPE", "The replacement was not an object.");
+  }
+
+  const recipe = (raw as Record<string, unknown>).recipe;
+  if (typeof recipe !== "object" || recipe === null || Array.isArray(recipe)) {
+    throw new PlanRejectedError("INVALID_RECIPE", "The replacement contained no recipe.");
+  }
+
+  return recipe as Record<string, unknown>;
+}
+
+/** Replaces one meal while validating the submitted plan and the replacement. */
+export function createMealReplacementHandler(
+  config: AppConfig,
+  dependencies: MealPlanDependencies,
+) {
+  return async (httpRequest: Request, response: Response): Promise<void> => {
+    const replacementRequest = parseMealReplacementRequest(httpRequest.body);
+    const { request: planRequest, plan, day, mealType } = replacementRequest;
+    const storeId = planRequest.storeId ?? config.aldi.storeId;
+    const candidates = await dependencies.loadProducts(storeId);
+    const selection = selectProducts(candidates, planRequest, {
+      maxProducts: config.mealPlanMaxContextProducts,
+    });
+    assertUsableSelection(candidates, selection, planRequest);
+
+    const productsById = new Map(
+      selection.products.map((product) => [product.productId, product]),
+    );
+    const validationContext = { request: planRequest, products: productsById };
+    const current = validateAndPricePlan(rawPlanFromResponse(plan), validationContext);
+    const target = current.days
+      .find((entry) => entry.day === day)
+      ?.meals.find((meal) => meal.mealType === mealType);
+
+    if (!target) {
+      throw ApiError.badRequest(
+        `Day ${day} does not contain a ${mealType} to replace.`,
+        [{ field: "mealType", message: "Choose a meal that exists in the current plan." }],
+        "INVALID_MEAL_PLAN_REQUEST",
+      );
+    }
+
+    let priced: PricedPlan | null = null;
+    let retry: PlanGeneratorInput["retry"];
+    const replacementId = `replacement-${dependencies.newPlanId()}`;
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      try {
+        const raw = await dependencies.generate({
+          request: planRequest,
+          products: selection.products,
+          retry,
+          replacement: {
+            day,
+            mealType,
+            currentPlan: { days: current.days, recipes: current.recipes },
+          },
+        });
+        const replacementRecipe = {
+          ...replacementRecipeFrom(raw),
+          id: replacementId,
+          mealType,
+        };
+        const days = current.days.map((entry) => ({
+          day: entry.day,
+          meals: entry.meals.map((meal) => ({
+            mealType: meal.mealType,
+            recipeId:
+              entry.day === day && meal.mealType === mealType
+                ? replacementId
+                : meal.recipeId,
+          })),
+        }));
+        const referencedIds = new Set(
+          days.flatMap((entry) => entry.meals.map((meal) => meal.recipeId)),
+        );
+        const recipes = [
+          ...current.recipes.filter((recipe) => referencedIds.has(recipe.id)),
+          replacementRecipe,
+        ];
+        priced = validateAndPricePlan({ days, recipes }, validationContext);
+
+        if (priced.budgetStatus === "over-budget") {
+          throw new PlanRejectedError(
+            "INVALID_RECIPE",
+            "The replacement pushed the basket over budget.",
+          );
+        }
+        break;
+      } catch (error) {
+        if (!(error instanceof PlanRejectedError) || attempt === 2) throw error;
+        retry = { reason: error.reason };
+      }
+    }
+
+    if (!priced) throw ApiError.unprocessable("Meal replacement did not settle.");
+
+    const body: MealPlanResponse = {
+      planId: dependencies.newPlanId(),
+      generatedAt: dependencies.now().toISOString(),
+      currency: "GBP",
+      budgetPence: planRequest.budgetPence,
+      estimatedTotalPence: priced.estimatedTotalPence,
+      budgetStatus: priced.budgetStatus,
+      assumptions: [
+        ...priced.assumptions,
+        `Recipes are scaled for a household of ${planRequest.householdSize}.`,
+        "Prices are the Aldi shelf prices recorded at the last catalogue crawl and exclude offers.",
+      ],
+      warnings: [...selection.warnings],
+      days: priced.days,
+      recipes: priced.recipes,
+      shoppingList: priced.shoppingList,
+      productCoverage: {
+        productsConsidered: selection.productsConsidered,
+        productsUsed: priced.productsUsed,
+        excludedForAllergies: selection.excludedForAllergies,
+        excludedForSafety: selection.excludedForSafety,
+      },
+    };
+
+    addLogContext(response, {
+      storeId,
+      generator: "nvidia",
+      operation: "replace-meal",
+      productsConsidered: selection.productsConsidered,
+      productsUsed: priced.productsUsed,
+    });
     response.json(body);
   };
 }

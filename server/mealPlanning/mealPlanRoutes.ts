@@ -4,6 +4,7 @@ import { asyncHandler } from "../http/errors";
 import { createRateLimiter } from "../http/rateLimit";
 import {
   createMealPlanHandler,
+  createMealReplacementHandler,
   type MealPlanDependencies,
 } from "./mealPlanController";
 
@@ -21,6 +22,15 @@ export function createMealPlanRoutes(
       max: config.rateLimit.max,
     }),
     asyncHandler(createMealPlanHandler(config, dependencies)),
+  );
+
+  router.post(
+    "/replace",
+    createRateLimiter({
+      windowMs: config.rateLimit.windowMs,
+      max: config.rateLimit.max,
+    }),
+    asyncHandler(createMealReplacementHandler(config, dependencies)),
   );
 
   return router;

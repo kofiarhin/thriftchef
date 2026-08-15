@@ -19,6 +19,7 @@ function product(
     dietaryInfo: null,
     safetyStatus: "inferred",
     productUrl: `https://www.aldi.co.uk/product/${productId}`,
+    imageUrl: `https://cdn.aldi.test/${productId}.jpg`,
     lastSeenAt: new Date("2026-08-13T00:00:00.000Z"),
     ...overrides,
   };
@@ -177,6 +178,7 @@ describe("consolidateShoppingList", () => {
       unitPricePence: 100,
       totalPricePence: 100,
       productUrl: "https://www.aldi.co.uk/product/a",
+      imageUrl: "https://cdn.aldi.test/a.jpg",
     });
   });
 });

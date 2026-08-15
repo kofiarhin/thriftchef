@@ -5,6 +5,7 @@ import type {
   MealPlanRequest,
   MealPreference,
   MealType,
+  PantryBasic,
 } from "./api/types";
 
 /**
@@ -20,6 +21,7 @@ export interface ConstraintFormState {
   appliances: Appliance[];
   allergies: Allergen[];
   dislikedIngredients: string;
+  pantryBasics: PantryBasic[];
 }
 
 export const INITIAL_FORM_STATE: ConstraintFormState = {
@@ -31,6 +33,7 @@ export const INITIAL_FORM_STATE: ConstraintFormState = {
   appliances: ["hob", "oven"],
   allergies: [],
   dislikedIngredients: "",
+  pantryBasics: [],
 };
 
 export const MIN_BUDGET_POUNDS = 10;
@@ -132,6 +135,7 @@ export function validateConstraints(
       appliances: state.appliances,
       allergies: state.allergies,
       dislikedIngredients,
+      pantryBasics: state.pantryBasics,
     },
   };
 }
@@ -147,6 +151,7 @@ export function mapServerFieldToFormField(field: string): FieldName | null {
     appliances: "appliances",
     allergies: "allergies",
     dislikedIngredients: "dislikedIngredients",
+    pantryBasics: "pantryBasics",
   };
 
   return mapping[field] ?? null;

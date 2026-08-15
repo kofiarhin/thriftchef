@@ -8,9 +8,11 @@ import { CATALOGUE_STATUS, MEAL_PLAN } from "./testing/fixtures";
 interface RouteHandlers {
   catalogue?: () => Response | Promise<Response>;
   generate?: (body: unknown) => Response | Promise<Response>;
+  replace?: (body: unknown) => Response | Promise<Response>;
 }
 
 const generateCalls: unknown[] = [];
+const replaceCalls: unknown[] = [];
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -35,6 +37,12 @@ function mockApi(handlers: RouteHandlers = {}): void {
         return handlers.generate?.(body) ?? json(MEAL_PLAN);
       }
 
+      if (url.includes("/api/meal-plans/replace")) {
+        const body = JSON.parse(String(init?.body)) as unknown;
+        replaceCalls.push(body);
+        return handlers.replace?.(body) ?? json(MEAL_PLAN);
+      }
+
       throw new Error(`Unexpected request to ${url}`);
     }),
   );
@@ -42,6 +50,7 @@ function mockApi(handlers: RouteHandlers = {}): void {
 
 beforeEach(() => {
   generateCalls.length = 0;
+  replaceCalls.length = 0;
 });
 
 afterEach(() => {
@@ -49,9 +58,9 @@ afterEach(() => {
 });
 
 async function submitForm(): Promise<void> {
-  await userEvent.click(
-    screen.getByRole("button", { name: /generate meal plan/i }),
-  );
+  await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+  await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+  await userEvent.click(screen.getByRole("button", { name: /generate my plan/i }));
 }
 
 describe("App", () => {
@@ -96,7 +105,7 @@ describe("App", () => {
     const budget = screen.getByLabelText(/weekly budget/i);
     await userEvent.clear(budget);
     await userEvent.type(budget, "5");
-    await submitForm();
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(await screen.findByText(/enter a weekly budget between/i)).toBeInTheDocument();
     expect(budget).toHaveAttribute("aria-invalid", "true");
@@ -108,7 +117,7 @@ describe("App", () => {
     renderWithProviders(<App />);
 
     await userEvent.click(screen.getByRole("checkbox", { name: /dinner/i }));
-    await submitForm();
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(
       await screen.findByText(/choose at least one meal to plan/i),
@@ -123,7 +132,7 @@ describe("App", () => {
     await submitForm();
 
     expect(
-      await screen.findByRole("heading", { name: /your week of meals/i }),
+      await screen.findByRole("heading", { name: /your week is sorted/i }),
     ).toBeInTheDocument();
 
     expect(generateCalls[0]).toMatchObject({
@@ -133,10 +142,10 @@ describe("App", () => {
       appliances: ["hob", "oven"],
     });
 
-    const summary = screen.getByRole("region", { name: /your week of meals/i });
+    const summary = screen.getByRole("region", { name: /your week is sorted/i });
     expect(within(summary).getByText("£70.00")).toBeInTheDocument();
-    expect(within(summary).getByText("£64.20")).toBeInTheDocument();
-    expect(within(summary).getByText(/within budget/i)).toBeInTheDocument();
+    expect(within(summary).getAllByText("£64.20")).not.toHaveLength(0);
+    expect(within(summary).getByText("£5.80")).toBeInTheDocument();
   });
 
   it("renders all seven days and the grouped shopping list", async () => {
@@ -144,12 +153,13 @@ describe("App", () => {
     renderWithProviders(<App />);
     await submitForm();
 
-    await screen.findByRole("heading", { name: /your week of meals/i });
+    await screen.findByRole("heading", { name: /your week is sorted/i });
 
     for (let day = 1; day <= 7; day += 1) {
-      expect(screen.getByText(`Day ${day}`)).toBeInTheDocument();
+      expect(screen.getAllByText(`Day ${day}`)).not.toHaveLength(0);
     }
 
+    await userEvent.click(screen.getByRole("tab", { name: /shopping list/i }));
     const shoppingList = screen.getByRole("region", { name: /shopping list/i });
     expect(within(shoppingList).getByText("Fresh Food")).toBeInTheDocument();
     expect(within(shoppingList).getByText("Food Cupboard")).toBeInTheDocument();
@@ -189,14 +199,15 @@ describe("App", () => {
     renderWithProviders(<App />);
     await submitForm();
 
-    const button = screen.getByRole("button", { name: /generating plan/i });
-    expect(button).toBeDisabled();
     expect(await screen.findByRole("status")).toHaveTextContent(
       /generating your meal plan/i,
     );
+    expect(
+      screen.queryByRole("button", { name: /generate my plan/i }),
+    ).not.toBeInTheDocument();
 
     pending.release();
-    await screen.findByRole("heading", { name: /your week of meals/i });
+    await screen.findByRole("heading", { name: /your week is sorted/i });
   });
 
   it("explains a constraint conflict and offers the server's suggestions", async () => {
@@ -241,7 +252,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /try again/i }));
 
-    await screen.findByRole("heading", { name: /your week of meals/i });
+    await screen.findByRole("heading", { name: /your week is sorted/i });
     expect(generateCalls).toHaveLength(2);
     expect(generateCalls[0]).toEqual(generateCalls[1]);
   });
@@ -278,12 +289,12 @@ describe("App", () => {
     renderWithProviders(<App />);
     await submitForm();
 
-    await screen.findByRole("heading", { name: /your week of meals/i });
+    await screen.findByRole("heading", { name: /your week is sorted/i });
     expect(
       screen.queryByRole("heading", { name: /plan your week/i }),
     ).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /edit constraints/i }));
+    await userEvent.click(screen.getByRole("button", { name: /edit plan/i }));
 
     expect(
       await screen.findByRole("heading", { name: /plan your week/i }),
@@ -295,27 +306,39 @@ describe("App", () => {
     renderWithProviders(<App />);
     await submitForm();
 
-    await screen.findByRole("heading", { name: /your week of meals/i });
-    await userEvent.click(screen.getByRole("button", { name: /regenerate plan/i }));
+    await screen.findByRole("heading", { name: /your week is sorted/i });
+    await userEvent.click(screen.getByRole("button", { name: /regenerate week/i }));
+    await userEvent.click(screen.getByRole("button", { name: /confirm regenerate/i }));
 
     await waitFor(() => expect(generateCalls).toHaveLength(2));
     expect(generateCalls[0]).toEqual(generateCalls[1]);
   });
 
-  it("keeps every form control reachable by label", () => {
+  it("keeps every form control reachable across the three labelled steps", async () => {
     mockApi();
     renderWithProviders(<App />);
 
-    for (const legend of [
-      /meals to plan each day/i,
-      /cooking appliances available/i,
-      /meal preferences/i,
-      /allergies to avoid/i,
-    ]) {
-      expect(screen.getByRole("group", { name: legend })).toBeInTheDocument();
-    }
-
+    expect(screen.getByRole("group", { name: /meals to plan each day/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    expect(screen.getByRole("group", { name: /meal preferences/i })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /allergies to avoid/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/cuisine preferences/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/disliked ingredients/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    expect(screen.getByRole("group", { name: /cooking appliances available/i })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: /already have at home/i })).toBeInTheDocument();
+  });
+
+  it("replaces one selected meal through the NVIDIA replacement endpoint", async () => {
+    mockApi();
+    renderWithProviders(<App />);
+    await submitForm();
+    await screen.findByRole("heading", { name: /your week is sorted/i });
+
+    await userEvent.click(screen.getByRole("tab", { name: /^recipes$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /replace this meal/i }));
+
+    await waitFor(() => expect(replaceCalls).toHaveLength(1));
+    expect(replaceCalls[0]).toMatchObject({ day: 1, mealType: "dinner" });
   });
 });

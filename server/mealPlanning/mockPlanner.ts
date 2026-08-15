@@ -4,6 +4,7 @@ import {
   type Appliance,
   type MealPlanRequest,
   type MealType,
+  type PantryBasic,
   type SelectableProduct,
 } from "./mealPlanTypes";
 
@@ -31,6 +32,7 @@ export interface GeneratedRecipe {
   cookMinutes: number;
   appliances: Appliance[];
   ingredients: GeneratedIngredient[];
+  pantryItems: PantryBasic[];
   steps: string[];
 }
 
@@ -333,6 +335,7 @@ export function generateMockPlan(
         cookMinutes: template.cookMinutes,
         appliances: template.appliances,
         ingredients,
+        pantryItems: [],
         steps: template.steps,
       });
       ids.push(id);

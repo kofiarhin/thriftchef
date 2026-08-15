@@ -37,6 +37,7 @@ export interface CandidateProduct {
   catalogueSafetyStatus: CatalogueSafetyStatus;
   eligibleForPlanning: boolean;
   productUrl: string;
+  imageUrl?: string | null;
   lastSeenAt: Date;
 }
 
@@ -135,6 +136,7 @@ function toSelectable(product: CandidateProduct): SelectableProduct {
     dietaryInfo: product.dietaryInformationRaw,
     safetyStatus: product.catalogueSafetyStatus === "verified" ? "verified" : "inferred",
     productUrl: product.productUrl,
+    imageUrl: product.imageUrl ?? null,
     lastSeenAt: product.lastSeenAt,
   };
 }
@@ -266,6 +268,7 @@ export async function fetchCandidateProducts(
       catalogueSafetyStatus: 1,
       eligibleForPlanning: 1,
       productUrl: 1,
+      imageUrl: 1,
       lastSeenAt: 1,
     },
   ).lean();
@@ -283,6 +286,7 @@ export async function fetchCandidateProducts(
     catalogueSafetyStatus: document.catalogueSafetyStatus,
     eligibleForPlanning: document.eligibleForPlanning,
     productUrl: document.productUrl,
+    imageUrl: document.imageUrl ?? null,
     lastSeenAt: document.lastSeenAt,
   }));
 }

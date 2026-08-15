@@ -13,6 +13,9 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     ...loadConfig({
       MONGODB_URI: "mongodb://localhost:27017/thriftchef-test",
       NODE_ENV: "test",
+      NVIDIA_API_KEY: "test-key",
+      NVIDIA_API_URL: "https://integrate.api.nvidia.com/v1/chat/completions",
+      NVIDIA_MODEL: "nvidia/test-model",
     }),
     ...overrides,
   };

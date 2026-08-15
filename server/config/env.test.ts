@@ -4,6 +4,9 @@ import { loadConfig } from "./env";
 
 const MINIMAL: Record<string, string> = {
   MONGODB_URI: "mongodb://localhost:27017/thriftchef",
+  NVIDIA_API_KEY: "test-key",
+  NVIDIA_API_URL: "https://integrate.api.nvidia.com/v1/chat/completions",
+  NVIDIA_MODEL: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
 };
 
 describe("loadConfig", () => {
@@ -14,7 +17,7 @@ describe("loadConfig", () => {
     assert.equal(config.port, 5000);
     assert.equal(config.clientOrigin, "http://localhost:5173");
     assert.equal(config.mongodbUri, "mongodb://localhost:27017/thriftchef");
-    assert.equal(config.mealPlanGenerator, "mock");
+    assert.equal(config.nvidia.model, MINIMAL.NVIDIA_MODEL);
     assert.equal(config.catalogueStaleAfterHours, 72);
     assert.equal(config.mealPlanMaxContextProducts, 120);
     assert.equal(config.rateLimit.windowMs, 60_000);
@@ -45,45 +48,29 @@ describe("loadConfig", () => {
     assert.ok(!error.message.includes("not-a-port"));
   });
 
-  it("requires NVIDIA credentials only when the nvidia generator is selected", () => {
-    assert.equal(
-      loadConfig({ ...MINIMAL, MEAL_PLAN_GENERATOR: "mock" }).nvidia,
-      null,
-    );
-
+  it("always requires NVIDIA credentials", () => {
     assert.throws(
-      () => loadConfig({ ...MINIMAL, MEAL_PLAN_GENERATOR: "nvidia" }),
+      () => loadConfig({ MONGODB_URI: MINIMAL.MONGODB_URI }),
       (error: unknown) =>
         error instanceof Error && error.message.includes("NVIDIA_API_KEY"),
     );
 
     const config = loadConfig({
       ...MINIMAL,
-      MEAL_PLAN_GENERATOR: "nvidia",
       NVIDIA_API_KEY: "secret-key",
       NVIDIA_API_URL: "https://integrate.api.nvidia.com/v1/chat/completions",
       NVIDIA_MODEL: "meta/llama-3.3-70b-instruct",
     });
 
-    assert.equal(config.nvidia?.model, "meta/llama-3.3-70b-instruct");
-    assert.equal(config.nvidia?.timeoutMs, 30_000);
-    assert.equal(config.nvidia?.maxRetries, 1);
-  });
-
-  it("rejects an unknown generator without echoing the value", () => {
-    assert.throws(
-      () => loadConfig({ ...MINIMAL, MEAL_PLAN_GENERATOR: "openai" }),
-      (error: unknown) =>
-        error instanceof Error &&
-        error.message.includes("MEAL_PLAN_GENERATOR") &&
-        !error.message.includes("openai"),
-    );
+    assert.equal(config.nvidia.model, "meta/llama-3.3-70b-instruct");
+    assert.equal(config.nvidia.timeoutMs, 30_000);
+    assert.equal(config.nvidia.maxRetries, 1);
   });
 
   it("reports every missing required variable at once", () => {
     const error = (() => {
       try {
-        loadConfig({ MEAL_PLAN_GENERATOR: "nvidia" });
+        loadConfig({});
         return null;
       } catch (thrown) {
         return thrown as Error;

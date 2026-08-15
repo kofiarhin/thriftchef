@@ -69,7 +69,10 @@ export function createNvidiaGenerator(options: NvidiaClientOptions): PlanGenerat
     const context = buildAiContext(input.products, input.request, {
       maxProducts: maxContextProducts,
     });
-    const prompt = buildPrompt(input.request, context, { retry: input.retry });
+    const prompt = buildPrompt(input.request, context, {
+      retry: input.retry,
+      replacement: input.replacement,
+    });
 
     for (let attempt = 0; attempt <= config.maxRetries; attempt += 1) {
       const controller = new AbortController();
@@ -88,7 +91,7 @@ export function createNvidiaGenerator(options: NvidiaClientOptions): PlanGenerat
               { role: "system", content: prompt.system },
               { role: "user", content: prompt.user },
             ],
-            temperature: 0.2,
+            temperature: 0,
             max_tokens: 4096,
             response_format: { type: "json_object" },
           }),

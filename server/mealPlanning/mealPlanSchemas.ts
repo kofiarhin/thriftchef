@@ -4,18 +4,73 @@ import {
   COOKING_APPLIANCES,
   MEAL_PREFERENCES,
   MEAL_TYPES,
+  PANTRY_BASICS,
   UK_ALLERGENS,
   type Allergen,
   type Appliance,
   type MealPlanRequest,
+  type MealPlanResponse,
   type MealPreference,
   type MealType,
+  type PantryBasic,
 } from "./mealPlanTypes";
 
 /** Field-addressed so the form can render each problem beside its control. */
 export interface FieldIssue {
   field: string;
   message: string;
+}
+
+export interface MealReplacementRequest {
+  request: MealPlanRequest;
+  plan: MealPlanResponse;
+  day: number;
+  mealType: MealType;
+}
+
+/**
+ * Validates the replacement envelope. The embedded plan remains untrusted and
+ * is passed through the normal plan validator before it can be reused.
+ */
+export function parseMealReplacementRequest(body: unknown): MealReplacementRequest {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw ApiError.badRequest(
+      "The replacement request must be a JSON object.",
+      [{ field: "body", message: "The replacement request must be a JSON object." }],
+      "INVALID_MEAL_PLAN_REQUEST",
+    );
+  }
+
+  const input = body as Record<string, unknown>;
+  const request = parseMealPlanRequest(input.request);
+  const day = input.day;
+  const mealType = input.mealType;
+
+  const issues: FieldIssue[] = [];
+  if (typeof day !== "number" || !Number.isInteger(day) || day < 1 || day > 7) {
+    issues.push({ field: "day", message: "day must be a whole number between 1 and 7." });
+  }
+  if (typeof mealType !== "string" || !MEAL_TYPES.includes(mealType as MealType)) {
+    issues.push({ field: "mealType", message: `mealType must be one of: ${MEAL_TYPES.join(", ")}.` });
+  }
+  if (typeof input.plan !== "object" || input.plan === null || Array.isArray(input.plan)) {
+    issues.push({ field: "plan", message: "plan must be the current meal plan." });
+  }
+
+  if (issues.length > 0) {
+    throw ApiError.badRequest(
+      "The replacement request is not valid.",
+      issues,
+      "INVALID_MEAL_PLAN_REQUEST",
+    );
+  }
+
+  return {
+    request,
+    plan: input.plan as MealPlanResponse,
+    day: day as number,
+    mealType: mealType as MealType,
+  };
 }
 
 const MAX_FREE_TEXT_LENGTH = 40;
@@ -30,6 +85,7 @@ const ALLOWED_KEYS = new Set([
   "appliances",
   "allergies",
   "dislikedIngredients",
+  "pantryBasics",
   "storeId",
 ]);
 
@@ -208,6 +264,11 @@ export function parseMealPlanRequest(body: unknown): MealPlanRequest {
     input.allergies,
     UK_ALLERGENS,
   );
+  const pantryBasics = validator.enumList<PantryBasic>(
+    "pantryBasics",
+    input.pantryBasics,
+    PANTRY_BASICS,
+  );
 
   // An empty list is a valid no-cook plan. A list holding only a kettle and a
   // blender is not: it looks like a cooking selection but cannot cook.
@@ -256,6 +317,7 @@ export function parseMealPlanRequest(body: unknown): MealPlanRequest {
     appliances,
     allergies,
     dislikedIngredients,
+    pantryBasics,
     ...(storeId ? { storeId } : {}),
   };
 }

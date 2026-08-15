@@ -1,8 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiRequestError } from "./api/http";
-import { fetchCatalogueStatus, generateMealPlan } from "./api/mealPlans";
-import type { MealPlanRequest, MealPlanResponse } from "./api/types";
+import {
+  fetchCatalogueStatus,
+  generateMealPlan,
+  replaceMeal,
+  type ReplaceMealInput,
+} from "./api/mealPlans";
+import type { MealPlanRequest, MealPlanResponse, MealType } from "./api/types";
 import { ConstraintForm } from "./components/ConstraintForm";
 import { MealPlanResults } from "./components/MealPlanResults";
 import { PlanError } from "./components/PlanError";
@@ -33,6 +38,7 @@ export function App() {
   const [showForm, setShowForm] = useState(true);
   // The submitted request is kept so "Regenerate" repeats it exactly.
   const [lastRequest, setLastRequest] = useState<MealPlanRequest | null>(null);
+  const [plan, setPlan] = useState<MealPlanResponse | null>(null);
 
   const catalogue = useQuery({
     queryKey: ["catalogue-status"],
@@ -41,19 +47,38 @@ export function App() {
 
   const planMutation = useMutation<MealPlanResponse, unknown, MealPlanRequest>({
     mutationFn: generateMealPlan,
-    onSuccess: () => setShowForm(false),
+    onMutate: () => setShowForm(false),
+    onSuccess: (nextPlan) => {
+      setPlan(nextPlan);
+      setShowForm(false);
+    },
+    onError: (error) => {
+      if (Object.keys(serverIssuesFrom(error)).length > 0) setShowForm(true);
+    },
+  });
+  const replaceMutation = useMutation<MealPlanResponse, unknown, ReplaceMealInput>({
+    mutationFn: replaceMeal,
+    onSuccess: setPlan,
   });
 
   const submit = (request: MealPlanRequest): void => {
     setLastRequest(request);
+    setPlan(null);
     planMutation.mutate(request);
   };
 
   const regenerate = (): void => {
-    if (lastRequest) planMutation.mutate(lastRequest);
+    if (lastRequest) {
+      setPlan(null);
+      planMutation.mutate(lastRequest);
+    }
   };
 
-  const plan = planMutation.data;
+  const replaceSelectedMeal = (day: number, mealType: MealType): void => {
+    if (!lastRequest || !plan) return;
+    replaceMutation.mutate({ request: lastRequest, plan, day, mealType });
+  };
+
   const isGenerating = planMutation.isPending;
 
   return (
@@ -71,8 +96,8 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <div className="order-2 min-w-0 lg:order-1">
+        <div className={showForm ? "grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]" : ""}>
+          <div className="min-w-0">
             {showForm ? (
               <section aria-labelledby="constraints-heading">
                 <h2 id="constraints-heading" className="text-2xl font-semibold text-ink">
@@ -95,7 +120,7 @@ export function App() {
               </section>
             ) : null}
 
-            <div className={showForm ? "mt-8" : ""}>
+            {!showForm ? <div>
               {isGenerating ? <PlanSkeleton /> : null}
 
               {!isGenerating && planMutation.isError ? (
@@ -114,10 +139,17 @@ export function App() {
                   plan={plan}
                   onRegenerate={regenerate}
                   onEditConstraints={() => setShowForm(true)}
+                  onReplaceMeal={replaceSelectedMeal}
                   isRegenerating={isGenerating}
+                  isReplacing={replaceMutation.isPending}
                 />
               ) : null}
-            </div>
+              {replaceMutation.isError ? (
+                <div role="alert" className="mt-4 rounded-xl border border-danger bg-danger-surface p-4 text-sm text-danger-ink">
+                  This meal could not be replaced. Your current plan is unchanged. Try again.
+                </div>
+              ) : null}
+            </div> : null}
 
             {!isGenerating && !plan && !planMutation.isError && !showForm ? (
               <p className="text-sm text-ink-muted">
@@ -126,13 +158,13 @@ export function App() {
             ) : null}
           </div>
 
-          <div className="print-hidden order-1 lg:order-2">
+          {showForm ? <div className="print-hidden">
             <StatusPanel
               status={catalogue.data}
               isLoading={catalogue.isLoading}
               error={catalogue.error as Error | null}
             />
-          </div>
+          </div> : null}
         </div>
       </main>
     </div>

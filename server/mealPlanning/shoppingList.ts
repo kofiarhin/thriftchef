@@ -81,6 +81,7 @@ export function consolidateShoppingList(
       unitPricePence: product.pricePence,
       totalPricePence,
       productUrl: product.productUrl,
+      imageUrl: product.imageUrl ?? null,
     });
     itemsByCategory.set(product.category, items);
   }

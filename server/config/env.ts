@@ -8,8 +8,6 @@
  */
 
 export type NodeEnv = "development" | "test" | "production";
-export type MealPlanGenerator = "mock" | "nvidia";
-
 export interface NvidiaConfig {
   apiKey: string;
   apiUrl: string;
@@ -23,9 +21,7 @@ export interface AppConfig {
   port: number;
   clientOrigin: string;
   mongodbUri: string;
-  mealPlanGenerator: MealPlanGenerator;
-  /** Null in mock mode, where the app must run without AI credentials. */
-  nvidia: NvidiaConfig | null;
+  nvidia: NvidiaConfig;
   rateLimit: { windowMs: number; max: number };
   catalogueStaleAfterHours: number;
   mealPlanMaxContextProducts: number;
@@ -144,12 +140,6 @@ class ConfigCollector {
 export function loadConfig(source: EnvSource): AppConfig {
   const collector = new ConfigCollector(source);
 
-  const mealPlanGenerator = collector.oneOf<MealPlanGenerator>(
-    "MEAL_PLAN_GENERATOR",
-    ["mock", "nvidia"],
-    "mock",
-  );
-
   const config: AppConfig = {
     nodeEnv: collector.oneOf<NodeEnv>(
       "NODE_ENV",
@@ -159,23 +149,19 @@ export function loadConfig(source: EnvSource): AppConfig {
     port: collector.integer("PORT", 5000, { min: 1, max: 65_535 }),
     clientOrigin: collector.string("CLIENT_ORIGIN", "http://localhost:5173"),
     mongodbUri: collector.requiredString("MONGODB_URI"),
-    mealPlanGenerator,
-    nvidia:
-      mealPlanGenerator === "nvidia"
-        ? {
-            apiKey: collector.requiredString("NVIDIA_API_KEY"),
-            apiUrl: collector.requiredString("NVIDIA_API_URL"),
-            model: collector.requiredString("NVIDIA_MODEL"),
-            timeoutMs: collector.integer("AI_REQUEST_TIMEOUT_MS", 30_000, {
-              min: 1_000,
-              max: 120_000,
-            }),
-            maxRetries: collector.integer("AI_MAX_RETRIES", 1, {
-              min: 0,
-              max: 3,
-            }),
-          }
-        : null,
+    nvidia: {
+      apiKey: collector.requiredString("NVIDIA_API_KEY"),
+      apiUrl: collector.requiredString("NVIDIA_API_URL"),
+      model: collector.requiredString("NVIDIA_MODEL"),
+      timeoutMs: collector.integer("AI_REQUEST_TIMEOUT_MS", 30_000, {
+        min: 1_000,
+        max: 120_000,
+      }),
+      maxRetries: collector.integer("AI_MAX_RETRIES", 1, {
+        min: 0,
+        max: 3,
+      }),
+    },
     rateLimit: {
       windowMs: collector.integer("MEAL_PLAN_RATE_LIMIT_WINDOW_MS", 60_000, {
         min: 1_000,

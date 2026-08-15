@@ -12,6 +12,7 @@ const VALID = {
   appliances: ["hob", "oven"],
   allergies: [],
   dislikedIngredients: [],
+  pantryBasics: [],
 };
 
 function issuesFor(body: unknown): FieldIssue[] {
@@ -31,6 +32,20 @@ function fieldsFor(body: unknown): string[] {
 }
 
 describe("parseMealPlanRequest", () => {
+  it("normalizes supported pantry basics", () => {
+    const request = parseMealPlanRequest({
+      ...VALID,
+      pantryBasics: ["Cooking-Oil", "salt", "cooking oil"],
+    });
+
+    assert.deepEqual(request.pantryBasics, ["salt", "cooking oil"]);
+  });
+
+  it("rejects unknown pantry basics", () => {
+    assert.deepEqual(fieldsFor({ ...VALID, pantryBasics: ["fresh chicken"] }), [
+      "pantryBasics",
+    ]);
+  });
   it("accepts a well-formed request", () => {
     const request = parseMealPlanRequest(VALID);
 
@@ -155,6 +170,7 @@ describe("parseMealPlanRequest", () => {
     assert.deepEqual(request.cuisinePreferences, []);
     assert.deepEqual(request.allergies, []);
     assert.deepEqual(request.dislikedIngredients, []);
+    assert.deepEqual(request.pantryBasics, []);
     assert.equal(request.storeId, undefined);
   });
 

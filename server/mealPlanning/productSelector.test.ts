@@ -267,6 +267,7 @@ describe("selectProducts", () => {
       "category",
       "categoryPaths",
       "dietaryInfo",
+      "imageUrl",
       "lastSeenAt",
       "name",
       "packageSize",

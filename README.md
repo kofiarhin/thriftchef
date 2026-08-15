@@ -10,8 +10,8 @@ consolidated Aldi shopping list priced from real catalogue data.
 Aldi crawl  ->  MongoDB catalogue  ->  product selector  ->  AI context
                                             |                    |
                                             v                    v
-                                     safety + allergy      plan generator
-                                       filtering           (mock | nvidia)
+                                     safety + allergy      NVIDIA generator
+                                       filtering
                                             |                    |
                                             +--------> validator + pricing
                                                               |
@@ -28,17 +28,15 @@ the basket total itself, so a model cannot invent a product or a price.
 - Node.js 22 or newer
 - MongoDB (local or hosted)
 - Playwright browsers for crawling (`npx playwright install chromium`)
+- An NVIDIA API key for meal generation
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env      # then fill in MONGODB_URI
+cp .env.example .env      # then fill in MongoDB and NVIDIA values
 npx playwright install chromium
 ```
-
-The app runs with `MEAL_PLAN_GENERATOR=mock` by default and needs no AI
-credentials for local development.
 
 ## Populate the catalogue
 
@@ -89,20 +87,19 @@ npm run test:client  # frontend only
 npm run build        # typecheck + production client build
 ```
 
-## Live AI generation
+## NVIDIA generation
 
-Set the generator to `nvidia` and supply credentials:
+All user-facing meal generation uses NVIDIA. Supply these credentials:
 
 ```bash
-MEAL_PLAN_GENERATOR=nvidia
 NVIDIA_API_KEY=...
 NVIDIA_API_URL=https://integrate.api.nvidia.com/v1/chat/completions
-NVIDIA_MODEL=meta/llama-3.3-70b-instruct
+NVIDIA_MODEL=nvidia/llama-3.3-nemotron-super-49b-v1.5
 ```
 
-Missing credentials in `nvidia` mode fail at startup with a message naming the
-variables — never their values. Mock mode remains available for tests and
-local work.
+Missing credentials fail at startup with a message naming the variables —
+never their values. The deterministic mock planner is test-only and is never a
+runtime fallback.
 
 Live output goes through exactly the same validator as the mock planner. If a
 plan is invalid or over budget the server regenerates once, then returns a
@@ -115,6 +112,7 @@ controlled error rather than a bad plan.
 | `GET /api/health` | Liveness check |
 | `GET /api/catalogue/status?storeId=` | Product counts, freshness, safety breakdown |
 | `POST /api/meal-plans/generate` | Generate a validated, priced seven-day plan |
+| `POST /api/meal-plans/replace` | Replace one meal while preserving the other six days |
 
 Failures share one shape and a closed set of codes, so the UI can map each to a
 recovery action:

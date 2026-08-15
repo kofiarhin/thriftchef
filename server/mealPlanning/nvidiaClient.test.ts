@@ -112,9 +112,12 @@ describe("createNvidiaGenerator", () => {
 
     const body = JSON.parse(String(captured.init.body)) as {
       model: string;
+      temperature: number;
       messages: Array<{ role: string; content: string }>;
     };
     assert.equal(body.model, CONFIG.model);
+    assert.equal(body.temperature, 0);
+    assert.ok(body.messages[0]?.content.startsWith("/no_think"));
     assert.deepEqual(
       body.messages.map((message) => message.role),
       ["system", "user"],

@@ -67,13 +67,13 @@ const VALID_BODY = {
 
 async function withServer(
   overrides: AppOverrides,
-  run: (post: (body: unknown) => Promise<Response>) => Promise<void>,
+  run: (post: (body: unknown, path?: string) => Promise<Response>) => Promise<void>,
 ): Promise<void> {
   const server = await startTestServer(createApp(testConfig(), overrides));
 
   try {
-    await run((body) =>
-      server.fetch("/api/meal-plans/generate", {
+    await run((body, path = "/api/meal-plans/generate") =>
+      server.fetch(path, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
@@ -85,10 +85,57 @@ async function withServer(
 }
 
 const WITH_CATALOGUE: AppOverrides = {
-  mealPlanDependencies: { loadProducts: async () => CATALOGUE },
+  mealPlanDependencies: {
+    loadProducts: async () => CATALOGUE,
+    generate: async ({ request, products }) => generateMockPlan(request, products),
+  },
 };
 
 describe("POST /api/meal-plans/generate", () => {
+  it("replaces one meal without changing the other six days", async () => {
+    await withServer(
+      {
+        mealPlanDependencies: {
+          loadProducts: async () => CATALOGUE,
+          generate: async (input) =>
+            input.replacement
+              ? {
+                  recipe: {
+                    id: "ignored-by-server",
+                    title: "Chicken tomato rice bowl",
+                    mealType: "dinner",
+                    servings: 2,
+                    prepMinutes: 10,
+                    cookMinutes: 25,
+                    appliances: ["hob"],
+                    ingredients: [
+                      { productId: "prot1", quantity: "250g", packages: 0.4 },
+                      { productId: "stap1", quantity: "150g", packages: 0.2 },
+                      { productId: "sauce1", quantity: "half a tin", packages: 0.5 },
+                    ],
+                    pantryItems: [],
+                    steps: ["Brown the chicken.", "Simmer with tomatoes and rice."],
+                  },
+                }
+              : generateMockPlan(input.request, input.products),
+        },
+      },
+      async (post) => {
+        const original = (await (await post(VALID_BODY)).json()) as MealPlanResponse;
+        const originalDayTwo = original.days[1].meals[0].title;
+        const response = await post(
+          { request: VALID_BODY, plan: original, day: 1, mealType: "dinner" },
+          "/api/meal-plans/replace",
+        );
+
+        assert.equal(response.status, 200);
+        const replaced = (await response.json()) as MealPlanResponse;
+        assert.equal(replaced.days[0].meals[0].title, "Chicken tomato rice bowl");
+        assert.equal(replaced.days[1].meals[0].title, originalDayTwo);
+        assert.equal(replaced.days.length, 7);
+      },
+    );
+  });
   it("returns a complete, priced plan without calling any AI", async () => {
     await withServer(WITH_CATALOGUE, async (post) => {
       const response = await post(VALID_BODY);
@@ -339,7 +386,13 @@ describe("POST /api/meal-plans/generate", () => {
     }));
 
     await withServer(
-      { mealPlanDependencies: { loadProducts: async () => stale } },
+      {
+        mealPlanDependencies: {
+          loadProducts: async () => stale,
+          generate: async ({ request, products }) =>
+            generateMockPlan(request, products),
+        },
+      },
       async (post) => {
         const body = (await (await post(VALID_BODY)).json()) as MealPlanResponse;
 
