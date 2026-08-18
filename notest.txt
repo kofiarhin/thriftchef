@@ -1,0 +1,24 @@
+1. the generation of the meal plan works but mostly i have to retry it more than once before the plan is generated.
+
+2. the generation of the plan is slow. want a fast response. dont want to use a fallback i still want to run the request through the nvidia api
+
+3. Ui design is trash. need to redesign the ui
+
+
+
+
+4. optimize the use of images. the layout looks too text centered
+
+5. bug fix: wen generating a meal plan at least breakfast/lunch/dinner should be selected. minimumm and error feedback if user does not selecct any
+
+
+5. current error message:
+Weekly meal plans and one Aldi shopping list, built to a budget.
+
+Aldi UK · single store
+
+Plan generation timed out
+The meal plan service did not finish within two minutes. Try again, or reduce the meal types per day so there is less for it to write.
+
+Edit constraints
+Try again

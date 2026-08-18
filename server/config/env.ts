@@ -153,11 +153,16 @@ export function loadConfig(source: EnvSource): AppConfig {
       apiKey: collector.requiredString("NVIDIA_API_KEY"),
       apiUrl: collector.requiredString("NVIDIA_API_URL"),
       model: collector.requiredString("NVIDIA_MODEL"),
-      timeoutMs: collector.integer("AI_REQUEST_TIMEOUT_MS", 30_000, {
+      // The total budget for one generation, not a per-attempt allowance. A
+      // 49B model writing a week of recipes needs well over 30 seconds, and
+      // the request is bounded by this figure however many attempts it makes.
+      timeoutMs: collector.integer("AI_REQUEST_TIMEOUT_MS", 120_000, {
         min: 1_000,
         max: 120_000,
       }),
-      maxRetries: collector.integer("AI_MAX_RETRIES", 1, {
+      // Transient upstream failures only. Timeouts are never retried, so this
+      // cannot multiply the budget above.
+      maxRetries: collector.integer("AI_MAX_RETRIES", 0, {
         min: 0,
         max: 3,
       }),
@@ -177,9 +182,12 @@ export function loadConfig(source: EnvSource): AppConfig {
       72,
       { min: 1, max: 8_760 },
     ),
+    // 80 products keeps every food group represented while cutting roughly a
+    // third off the prompt: fewer input tokens is less time before the model
+    // starts writing, and the plan only ever shops from a handful of them.
     mealPlanMaxContextProducts: collector.integer(
       "MEAL_PLAN_MAX_CONTEXT_PRODUCTS",
-      120,
+      80,
       { min: 10, max: 500 },
     ),
     mealPlanDefaultSnacks: collector.boolean("MEAL_PLAN_DEFAULT_SNACKS", false),

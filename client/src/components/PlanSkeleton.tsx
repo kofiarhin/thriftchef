@@ -3,14 +3,24 @@ function Block({ className }: { className: string }) {
 }
 
 /**
- * Announced politely rather than assertively: generation can take 30 seconds,
- * and a screen reader user needs to know work is underway without the whole
- * skeleton being read out.
+ * Announced politely rather than assertively: a screen reader user needs to
+ * know work is underway without the whole skeleton being read out.
+ *
+ * The wait quoted here matches the server's AI budget. Understating it teaches
+ * people to reload a request that is still working.
  */
 export function PlanSkeleton() {
   return (
     <div role="status" aria-live="polite" className="space-y-8">
-      <span className="sr-only">Generating your meal plan. This may take up to 30 seconds.</span>
+      <span className="sr-only">
+        Generating your meal plan. Writing a full week of recipes usually takes
+        under a minute and can take up to two minutes.
+      </span>
+
+      <p aria-hidden="true" className="text-sm text-ink-muted">
+        Building your week from real Aldi prices. This usually takes under a
+        minute, and can take up to two minutes.
+      </p>
 
       <div aria-hidden="true" className="grid gap-4 rounded-lg border border-line bg-surface-raised p-5 sm:grid-cols-3">
         {[0, 1, 2].map((index) => (

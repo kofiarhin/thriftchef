@@ -210,6 +210,30 @@ describe("App", () => {
     await screen.findByRole("heading", { name: /your week is sorted/i });
   });
 
+  /**
+   * The server allows the model up to two minutes, so telling the user to
+   * expect 30 seconds trains them to reload a request that is still working.
+   */
+  it("tells the user generation can take up to two minutes", async () => {
+    const pending: { release: () => void } = { release: () => {} };
+
+    mockApi({
+      generate: () =>
+        new Promise<Response>((resolve) => {
+          pending.release = () => resolve(json(MEAL_PLAN));
+        }),
+    });
+
+    renderWithProviders(<App />);
+    await submitForm();
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/two minutes/i);
+    expect(screen.getByRole("status")).not.toHaveTextContent(/30 seconds/i);
+
+    pending.release();
+    await screen.findByRole("heading", { name: /your week is sorted/i });
+  });
+
   it("explains a constraint conflict and offers the server's suggestions", async () => {
     mockApi({
       generate: () =>

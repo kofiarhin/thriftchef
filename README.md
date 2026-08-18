@@ -105,6 +105,39 @@ Live output goes through exactly the same validator as the mock planner. If a
 plan is invalid or over budget the server regenerates once, then returns a
 controlled error rather than a bad plan.
 
+### Timing and the generation budget
+
+A 49B model writing a full week of recipes needs well over 30 seconds, so the
+defaults give it the whole window:
+
+```bash
+AI_REQUEST_TIMEOUT_MS=120000   # total budget for one request, max 120000
+AI_MAX_RETRIES=0               # transient upstream failures only
+MEAL_PLAN_MAX_CONTEXT_PRODUCTS=80
+```
+
+`AI_REQUEST_TIMEOUT_MS` is the budget for the **whole** request, not an
+allowance each attempt claims afresh. Two rules keep it honest:
+
+- a timeout is never retried, whatever `AI_MAX_RETRIES` says, so one configured
+  wait cannot silently become two;
+- the validation-repair attempt shares the same deadline, and is skipped when
+  less than a quarter of the window remains — the original `422` is returned
+  rather than a `504` the repair was always going to hit.
+
+`AI_MAX_RETRIES` still covers genuinely transient upstream failures (`5xx`,
+`429`, connection errors), which fail fast and do not consume the window.
+
+To keep responses inside that budget the prompt asks for at most three distinct
+recipes per meal type, repeated across the seven days — the same shape the mock
+planner has always produced, and about half the output tokens of a week of
+unique recipes.
+
+Each generation logs its own timings on the request's access log line
+(`contextMs`, `upstreamMs`, `parseMs`, `validationMs`, `generationMs`,
+`generationAttempts`, `upstreamAttempts`). Durations and counts only: no prompt
+text, no response body, no credentials.
+
 ## API
 
 | Route | Purpose |

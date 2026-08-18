@@ -20,6 +20,7 @@ import {
   type SelectionResult,
 } from "./productSelector";
 import type {
+  GenerationTiming,
   MealPlanRequest,
   MealPlanResponse,
   PlanGenerator,
@@ -113,46 +114,86 @@ function assertUsableSelection(
   );
 }
 
+/**
+ * A repair is a second upstream call, so it only runs while a worthwhile slice
+ * of the budget is left. Below this share of the window a repair would almost
+ * certainly time out, and a controlled 422 tells the user more than a 504 that
+ * was inevitable.
+ */
+const MIN_REPAIR_BUDGET_SHARE = 0.25;
+
 interface GenerationOutcome {
   priced: PricedPlan;
   attempts: number;
   regenerated: boolean;
+  timings: GenerationTiming[];
+  /** Time spent validating and pricing, across every attempt. */
+  validationMs: number;
 }
 
 /**
- * Runs the generator, validates, and allows exactly one retry — for invalid
- * output or for an over-budget basket. A second failure is reported rather
- * than retried, so a broken generator cannot loop at the user's expense.
+ * Runs the generator, validates, and allows exactly one repair attempt — for
+ * invalid output or for an over-budget basket. A second failure is reported
+ * rather than retried, so a broken generator cannot loop at the user's expense.
+ *
+ * Every attempt shares one deadline: the configured AI timeout is the budget
+ * for the whole request, not an allowance each attempt may claim afresh.
  */
 async function generateValidPlan(
   dependencies: MealPlanDependencies,
   request: MealPlanRequest,
   products: SelectableProduct[],
+  budget: { deadlineAt: number; minRepairMs: number },
 ): Promise<GenerationOutcome> {
   const productsById = new Map(products.map((product) => [product.productId, product]));
   const context = { request, products: productsById };
+  const timings: GenerationTiming[] = [];
+  const onTiming = (timing: GenerationTiming): void => {
+    timings.push(timing);
+  };
 
   let firstRejection: PlanRejectedError | null = null;
   let retry: PlanGeneratorInput["retry"];
+  let validationMs = 0;
+
+  const canRepair = (): boolean =>
+    budget.deadlineAt - Date.now() >= budget.minRepairMs;
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     let priced: PricedPlan;
 
     try {
-      priced = validateAndPricePlan(
-        await dependencies.generate({ request, products, retry }),
-        context,
-      );
+      const raw = await dependencies.generate({
+        request,
+        products,
+        retry,
+        deadlineAt: budget.deadlineAt,
+        onTiming,
+      });
+
+      const validationStarted = Date.now();
+      try {
+        priced = validateAndPricePlan(raw, context);
+      } finally {
+        validationMs += Date.now() - validationStarted;
+      }
     } catch (error) {
       if (!(error instanceof PlanRejectedError) || attempt === 2) throw error;
+      if (!canRepair()) throw error;
 
       firstRejection = error;
       retry = { reason: error.reason };
       continue;
     }
 
-    if (priced.budgetStatus !== "over-budget" || attempt === 2) {
-      return { priced, attempts: attempt, regenerated: attempt > 1 };
+    if (priced.budgetStatus !== "over-budget" || attempt === 2 || !canRepair()) {
+      return {
+        priced,
+        attempts: attempt,
+        regenerated: attempt > 1,
+        timings,
+        validationMs,
+      };
     }
 
     retry = {
@@ -163,6 +204,16 @@ async function generateValidPlan(
 
   /* c8 ignore next */
   throw firstRejection ?? ApiError.unprocessable("Plan generation did not settle.");
+}
+
+/** Sums the per-attempt timings into the fields the access log records. */
+function summarize(timings: GenerationTiming[]): Record<string, number> {
+  return {
+    contextMs: timings.reduce((total, entry) => total + entry.contextMs, 0),
+    upstreamMs: timings.reduce((total, entry) => total + entry.upstreamMs, 0),
+    parseMs: timings.reduce((total, entry) => total + entry.parseMs, 0),
+    upstreamAttempts: timings.length,
+  };
 }
 
 function assertWithinBudget(priced: PricedPlan, request: MealPlanRequest): void {
@@ -198,11 +249,11 @@ export function createMealPlanHandler(
     assertUsableSelection(candidates, selection, planRequest);
 
     const started = Date.now();
-    const { priced, attempts, regenerated } = await generateValidPlan(
-      dependencies,
-      planRequest,
-      selection.products,
-    );
+    const { priced, attempts, regenerated, timings, validationMs } =
+      await generateValidPlan(dependencies, planRequest, selection.products, {
+        deadlineAt: started + config.nvidia.timeoutMs,
+        minRepairMs: config.nvidia.timeoutMs * MIN_REPAIR_BUDGET_SHARE,
+      });
 
     assertWithinBudget(priced, planRequest);
 
@@ -248,11 +299,14 @@ export function createMealPlanHandler(
       },
     };
 
+    // Timings only: durations and counts, never prompt or response text.
     addLogContext(response, {
       storeId,
       generator: "nvidia",
       generationMs: Date.now() - started,
       generationAttempts: attempts,
+      validationMs,
+      ...summarize(timings),
       productsConsidered: selection.productsConsidered,
       productsUsed: priced.productsUsed,
       estimatedTotalPence: priced.estimatedTotalPence,
@@ -313,14 +367,30 @@ export function createMealReplacementHandler(
 
     let priced: PricedPlan | null = null;
     let retry: PlanGeneratorInput["retry"];
+    let firstRejection: PlanRejectedError | null = null;
     const replacementId = `replacement-${dependencies.newPlanId()}`;
+    const started = Date.now();
+    const deadlineAt = started + config.nvidia.timeoutMs;
+    const timings: GenerationTiming[] = [];
 
     for (let attempt = 1; attempt <= 2; attempt += 1) {
+      // As in generation: both attempts share one budget, so a repair cannot
+      // extend the wait beyond the configured window. The first rejection is
+      // reported rather than the half-built plan that provoked it.
+      if (
+        attempt === 2 &&
+        deadlineAt - Date.now() < config.nvidia.timeoutMs * MIN_REPAIR_BUDGET_SHARE
+      ) {
+        throw firstRejection ?? ApiError.unprocessable("Meal replacement did not settle.");
+      }
+
       try {
         const raw = await dependencies.generate({
           request: planRequest,
           products: selection.products,
           retry,
+          deadlineAt,
+          onTiming: (timing) => timings.push(timing),
           replacement: {
             day,
             mealType,
@@ -360,6 +430,10 @@ export function createMealReplacementHandler(
         break;
       } catch (error) {
         if (!(error instanceof PlanRejectedError) || attempt === 2) throw error;
+
+        // Discard the rejected candidate so a later break cannot return it.
+        priced = null;
+        firstRejection = error;
         retry = { reason: error.reason };
       }
     }
@@ -394,6 +468,8 @@ export function createMealReplacementHandler(
       storeId,
       generator: "nvidia",
       operation: "replace-meal",
+      generationMs: Date.now() - started,
+      ...summarize(timings),
       productsConsidered: selection.productsConsidered,
       productsUsed: priced.productsUsed,
     });

@@ -3,7 +3,11 @@ import { ApiError } from "../http/errors";
 import { buildAiContext } from "./contextBuilder";
 import { PlanRejectedError } from "./mealPlanValidator";
 import { buildPrompt } from "./promptBuilder";
-import type { PlanGenerator, PlanGeneratorInput } from "./mealPlanTypes";
+import type {
+  GenerationTiming,
+  PlanGenerator,
+  PlanGeneratorInput,
+} from "./mealPlanTypes";
 
 export interface NvidiaClientOptions {
   config: NvidiaConfig;
@@ -54,18 +58,26 @@ function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
 }
 
+const TIMEOUT_MESSAGE =
+  "The meal plan service did not respond in time. Try again in a moment.";
+
 /**
  * Calls the NVIDIA chat-completions API and returns the raw plan candidate.
  *
  * The API key is read from config and never logged, echoed, or included in an
- * error. Network and 5xx failures are retried up to `maxRetries`; a timeout
- * surfaces as a 504 so the client can offer a retry.
+ * error. Transient network and 5xx failures are retried up to `maxRetries`.
+ *
+ * A timeout is deliberately *not* retried: `timeoutMs` is the promise made to
+ * the caller about how long they may wait, and retrying an abort would silently
+ * turn one such wait into several. It surfaces as a 504 instead, and the user
+ * decides whether to spend another wait on it.
  */
 export function createNvidiaGenerator(options: NvidiaClientOptions): PlanGenerator {
   const { config, maxContextProducts } = options;
   const doFetch = options.fetchImpl ?? fetch;
 
   return async (input: PlanGeneratorInput): Promise<unknown> => {
+    const contextStarted = Date.now();
     const context = buildAiContext(input.products, input.request, {
       maxProducts: maxContextProducts,
     });
@@ -73,10 +85,36 @@ export function createNvidiaGenerator(options: NvidiaClientOptions): PlanGenerat
       retry: input.retry,
       replacement: input.replacement,
     });
+    const contextMs = Date.now() - contextStarted;
+
+    const report = (
+      attempt: number,
+      upstreamMs: number,
+      parseMs: number,
+      outcome: GenerationTiming["outcome"],
+    ): void => {
+      input.onTiming?.({ attempt, contextMs, upstreamMs, parseMs, outcome });
+    };
+
+    /**
+     * Never outlive the request's shared deadline. Without this, a repair
+     * attempt would start a fresh full-length timeout of its own.
+     */
+    const attemptTimeout = (): number =>
+      input.deadlineAt === undefined
+        ? config.timeoutMs
+        : Math.min(config.timeoutMs, input.deadlineAt - Date.now());
 
     for (let attempt = 0; attempt <= config.maxRetries; attempt += 1) {
+      const remaining = attemptTimeout();
+      if (remaining <= 0) {
+        report(attempt + 1, 0, 0, "timeout");
+        throw ApiError.gatewayTimeout(TIMEOUT_MESSAGE);
+      }
+
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), config.timeoutMs);
+      const timer = setTimeout(() => controller.abort(), remaining);
+      const upstreamStarted = Date.now();
 
       try {
         const response = await doFetch(config.apiUrl, {
@@ -98,10 +136,15 @@ export function createNvidiaGenerator(options: NvidiaClientOptions): PlanGenerat
           signal: controller.signal,
         });
 
+        const upstreamMs = Date.now() - upstreamStarted;
+
         if (!response.ok) {
           if (isRetryableStatus(response.status) && attempt < config.maxRetries) {
+            report(attempt + 1, upstreamMs, 0, "upstream-error");
             continue;
           }
+
+          report(attempt + 1, upstreamMs, 0, "upstream-error");
 
           // The upstream body may quote the request, so only the status is
           // surfaced and nothing from the response is passed on.
@@ -116,26 +159,37 @@ export function createNvidiaGenerator(options: NvidiaClientOptions): PlanGenerat
         const content = payload.choices?.[0]?.message?.content;
 
         if (typeof content !== "string" || content.trim().length === 0) {
+          report(attempt + 1, upstreamMs, 0, "invalid-json");
           throw new PlanRejectedError(
             "INVALID_JSON",
             "The AI response contained no message content.",
           );
         }
 
-        return extractJsonObject(content);
+        const parseStarted = Date.now();
+        try {
+          const parsed = extractJsonObject(content);
+          report(attempt + 1, upstreamMs, Date.now() - parseStarted, "ok");
+          return parsed;
+        } catch (error) {
+          report(attempt + 1, upstreamMs, Date.now() - parseStarted, "invalid-json");
+          throw error;
+        }
       } catch (error) {
         if (error instanceof ApiError) throw error;
 
+        // A timeout ends the call outright — see the note on this function.
         if (controller.signal.aborted) {
-          if (attempt < config.maxRetries) continue;
-
-          throw ApiError.gatewayTimeout(
-            "The meal plan service did not respond in time. Try again in a moment.",
-          );
+          report(attempt + 1, Date.now() - upstreamStarted, 0, "timeout");
+          throw ApiError.gatewayTimeout(TIMEOUT_MESSAGE);
         }
 
-        if (attempt < config.maxRetries) continue;
+        if (attempt < config.maxRetries) {
+          report(attempt + 1, Date.now() - upstreamStarted, 0, "upstream-error");
+          continue;
+        }
 
+        report(attempt + 1, Date.now() - upstreamStarted, 0, "upstream-error");
         throw new ApiError(
           502,
           "AI_INVALID_RESPONSE",

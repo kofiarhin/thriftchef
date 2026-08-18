@@ -32,7 +32,7 @@ function describe(error: unknown): { title: string; body: string } {
     case "AI_TIMEOUT":
       return {
         title: "Plan generation timed out",
-        body: "The meal plan service did not respond in time. Try again — it usually works on a second attempt.",
+        body: "The meal plan service did not finish within two minutes. Try again, or reduce the meal types per day so there is less for it to write.",
       };
     case "AI_INVALID_RESPONSE":
       return {

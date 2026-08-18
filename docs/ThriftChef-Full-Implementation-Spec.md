@@ -192,8 +192,8 @@ MONGODB_URI=<mongo connection string>
 NVIDIA_API_KEY=<secret>
 NVIDIA_API_URL=<chat completions endpoint>
 NVIDIA_MODEL=<model id>
-AI_REQUEST_TIMEOUT_MS=30000
-AI_MAX_RETRIES=1
+AI_REQUEST_TIMEOUT_MS=120000
+AI_MAX_RETRIES=0
 MEAL_PLAN_RATE_LIMIT_WINDOW_MS=60000
 MEAL_PLAN_RATE_LIMIT_MAX=10
 ALDI_STORE_ID=belper-de56-1ar
@@ -204,11 +204,18 @@ ALDI_MAX_PRODUCTS_PER_CATEGORY=50
 
 Secrets must stay in `.env` or the deployment platform secret manager and must never be logged.
 
+`AI_REQUEST_TIMEOUT_MS` is the total budget for one generation request, shared by
+every attempt, and is capped at 120000. A timeout is never retried regardless of
+`AI_MAX_RETRIES`, which covers transient upstream failures only; the validation
+repair attempt shares the same deadline. A measured live generation of a
+seven-day dinner plan took ~37.6s upstream, so the former 30000 default failed
+systematically.
+
 ### 6.2 Optional Environment Variables
 
 ```text
 CATALOGUE_STALE_AFTER_HOURS=72
-MEAL_PLAN_MAX_CONTEXT_PRODUCTS=120
+MEAL_PLAN_MAX_CONTEXT_PRODUCTS=80
 MEAL_PLAN_DEFAULT_SNACKS=false
 LOG_LEVEL=info
 ```

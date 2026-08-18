@@ -167,6 +167,19 @@ export interface MealPlanResponse {
   productCoverage: ProductCoverage;
 }
 
+/** One upstream attempt, timed. Carries no prompt text and no response body. */
+export interface GenerationTiming {
+  /** 1-based attempt within a single generator call. */
+  attempt: number;
+  /** Selecting products and building the prompt. */
+  contextMs: number;
+  /** Time spent waiting on the model. */
+  upstreamMs: number;
+  /** Recovering a JSON object from the model's message. */
+  parseMs: number;
+  outcome: "ok" | "timeout" | "upstream-error" | "invalid-json";
+}
+
 export interface PlanGeneratorInput {
   request: MealPlanRequest;
   products: SelectableProduct[];
@@ -177,6 +190,13 @@ export interface PlanGeneratorInput {
     mealType: MealType;
     currentPlan: { days: MealPlanDay[]; recipes: Recipe[] };
   };
+  /**
+   * Epoch milliseconds after which this generation must stop. Shared by every
+   * attempt for one request, so a repair cannot extend the promised wait.
+   */
+  deadlineAt?: number;
+  /** Called once per upstream attempt, for the request's access log. */
+  onTiming?: (timing: GenerationTiming) => void;
 }
 
 /**

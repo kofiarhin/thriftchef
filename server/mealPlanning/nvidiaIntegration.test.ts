@@ -59,6 +59,8 @@ const REQUEST_BODY = {
  */
 function createUpstreamStub(behaviour: {
   respond: (productIds: string[], callIndex: number) => unknown;
+  /** Simulates a slow model, so budget arithmetic can be exercised. */
+  delayMs?: number;
 }) {
   const app = express();
   const received: Array<{ authorization: string | undefined; body: unknown }> = [];
@@ -75,16 +77,20 @@ function createUpstreamStub(behaviour: {
     // escaped; match the ids themselves rather than the surrounding syntax.
     const prompt = JSON.stringify(request.body);
     const productIds = [...new Set(prompt.match(/p-[a-z]+/g) ?? [])];
-
-    response.json({
-      choices: [
-        {
-          message: {
-            content: JSON.stringify(behaviour.respond(productIds, callIndex++)),
+    const send = (): void => {
+      response.json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(behaviour.respond(productIds, callIndex++)),
+            },
           },
-        },
-      ],
-    });
+        ],
+      });
+    };
+
+    if (behaviour.delayMs) setTimeout(send, behaviour.delayMs);
+    else send();
   });
 
   return { app, received };
@@ -119,6 +125,7 @@ function planUsing(productIds: string[]) {
 async function withNvidiaApp(
   stub: ReturnType<typeof createUpstreamStub>,
   run: (post: (body: unknown) => Promise<Response>) => Promise<void>,
+  overrides: Record<string, string> = {},
 ): Promise<void> {
   const upstream = await startTestServer(stub.app);
 
@@ -131,6 +138,7 @@ async function withNvidiaApp(
     NVIDIA_MODEL: "meta/llama-3.3-70b-instruct",
     AI_REQUEST_TIMEOUT_MS: "5000",
     AI_MAX_RETRIES: "0",
+    ...overrides,
   });
 
   const api = await startTestServer(
@@ -212,6 +220,82 @@ describe("meal plan generation in nvidia mode", () => {
     });
 
     assert.equal(stub.received.length, 2, "one retry, then give up");
+  });
+
+  /**
+   * The validation repair is a second upstream call, so an unbudgeted repair
+   * after a slow first attempt would double the wait the user was promised.
+   * When too little of the window remains, the original rejection is returned
+   * instead — a controlled 422 beats a 504 the repair was always going to hit.
+   */
+  it("skips the repair attempt when too little of the budget remains", async () => {
+    const stub = createUpstreamStub({
+      respond: () => planUsing(["p-not-in-catalogue"]),
+      delayMs: 900,
+    });
+
+    const started = Date.now();
+
+    await withNvidiaApp(
+      stub,
+      async (post) => {
+        const response = await post(REQUEST_BODY);
+        assert.equal(response.status, 422);
+
+        const body = (await response.json()) as {
+          error: { code: string; details: { reason: string } };
+        };
+        assert.equal(body.error.code, "AI_INVALID_RESPONSE");
+        assert.equal(body.error.details.reason, "UNKNOWN_PRODUCT");
+      },
+      { AI_REQUEST_TIMEOUT_MS: "1000" },
+    );
+
+    assert.equal(stub.received.length, 1, "no repair on an almost-spent budget");
+    assert.ok(
+      Date.now() - started < 2_000,
+      "the request must not outlive its configured budget",
+    );
+  });
+
+  it("logs generation timings without leaking the key or the prompt", async () => {
+    const stub = createUpstreamStub({ respond: (ids) => planUsing(ids) });
+    const lines: string[] = [];
+    const realLog = console.log;
+    console.log = (...args: unknown[]) => lines.push(args.map(String).join(" "));
+
+    try {
+      await withNvidiaApp(stub, async (post) => {
+        assert.equal((await post(REQUEST_BODY)).status, 200);
+      });
+    } finally {
+      console.log = realLog;
+    }
+
+    const access = lines
+      .map((line) => {
+        try {
+          return JSON.parse(line) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .find((entry) => entry?.route === "/api/meal-plans/generate");
+
+    assert.ok(access, "the generate request must produce an access log line");
+    for (const field of [
+      "contextMs",
+      "upstreamMs",
+      "validationMs",
+      "generationMs",
+      "generationAttempts",
+    ]) {
+      assert.ok(field in access, `expected ${field} in the access log`);
+    }
+
+    const serialized = JSON.stringify(access);
+    assert.ok(!serialized.includes("nvapi-test-key"), "no key in logs");
+    assert.ok(!serialized.includes("Chicken and rice"), "no upstream text in logs");
   });
 
   it("recovers when the model returns valid JSON only on the retry", async () => {

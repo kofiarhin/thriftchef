@@ -6,6 +6,7 @@ import { createNvidiaGenerator, extractJsonObject } from "./nvidiaClient";
 import { parseMealPlanRequest } from "./mealPlanSchemas";
 import { PlanRejectedError } from "./mealPlanValidator";
 import type {
+  GenerationTiming,
   PlanGeneratorInput,
   SelectableProduct,
 } from "./mealPlanTypes";
@@ -173,6 +174,127 @@ describe("createNvidiaGenerator", () => {
       assert.equal(error.status, 504);
       assert.equal(error.code, "AI_TIMEOUT");
       assert.ok(!error.message.includes(API_KEY));
+      return true;
+    });
+  });
+
+  /**
+   * The whole point of the two-minute budget is that it is the *whole* budget.
+   * Retrying an abort would turn one configured wait into several, so a timeout
+   * is terminal no matter how many transient retries are configured.
+   */
+  it("never retries a timeout, even when retries are configured", async () => {
+    let calls = 0;
+
+    const generate = createNvidiaGenerator({
+      config: { ...CONFIG, timeoutMs: 20, maxRetries: 3 },
+      maxContextProducts: 120,
+      fetchImpl: (_url, init) => {
+        calls += 1;
+        return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        });
+      },
+    });
+
+    await assert.rejects(generate(input()), (error: unknown) => {
+      assert.ok(error instanceof ApiError);
+      assert.equal(error.code, "AI_TIMEOUT");
+      return true;
+    });
+
+    assert.equal(calls, 1, "a timeout must cost exactly one upstream attempt");
+  });
+
+  it("stops before calling upstream when the deadline has already passed", async () => {
+    let calls = 0;
+
+    const generate = createNvidiaGenerator({
+      config: CONFIG,
+      maxContextProducts: 120,
+      fetchImpl: async () => {
+        calls += 1;
+        return jsonResponse(VALID_PLAN);
+      },
+    });
+
+    await assert.rejects(
+      generate(input({ deadlineAt: Date.now() - 1 })),
+      (error: unknown) =>
+        error instanceof ApiError && error.code === "AI_TIMEOUT",
+    );
+
+    assert.equal(calls, 0, "an exhausted budget must not start a new request");
+  });
+
+  it("bounds the attempt to the time left before the deadline", async () => {
+    const started = Date.now();
+
+    const generate = createNvidiaGenerator({
+      // A ten-second per-attempt timeout must not outlive a 50ms deadline.
+      config: { ...CONFIG, timeoutMs: 10_000, maxRetries: 0 },
+      maxContextProducts: 120,
+      fetchImpl: (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    });
+
+    await assert.rejects(
+      generate(input({ deadlineAt: Date.now() + 50 })),
+      (error: unknown) =>
+        error instanceof ApiError && error.code === "AI_TIMEOUT",
+    );
+
+    assert.ok(
+      Date.now() - started < 2_000,
+      "the deadline, not the per-attempt timeout, must end the wait",
+    );
+  });
+
+  it("reports timing for the attempt it made", async () => {
+    const timings: GenerationTiming[] = [];
+
+    const generate = createNvidiaGenerator({
+      config: CONFIG,
+      maxContextProducts: 120,
+      fetchImpl: async () => jsonResponse(VALID_PLAN),
+    });
+
+    await generate(
+      input({
+        onTiming: (timing) => timings.push(timing),
+      }),
+    );
+
+    assert.equal(timings.length, 1);
+    assert.equal(timings[0].attempt, 1);
+    assert.equal(timings[0].outcome, "ok");
+    assert.ok(typeof timings[0].upstreamMs === "number");
+    assert.ok(typeof timings[0].contextMs === "number");
+  });
+
+  it("keeps no secret and no upstream text in a reported timeout", async () => {
+    const generate = createNvidiaGenerator({
+      config: { ...CONFIG, timeoutMs: 20, maxRetries: 0 },
+      maxContextProducts: 120,
+      fetchImpl: (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    });
+
+    await assert.rejects(generate(input()), (error: unknown) => {
+      assert.ok(error instanceof ApiError);
+      const serialized = JSON.stringify(error.toBody());
+      assert.ok(!serialized.includes(API_KEY));
+      assert.ok(!serialized.includes(CONFIG.apiUrl));
       return true;
     });
   });

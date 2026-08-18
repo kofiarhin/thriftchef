@@ -19,7 +19,7 @@ describe("loadConfig", () => {
     assert.equal(config.mongodbUri, "mongodb://localhost:27017/thriftchef");
     assert.equal(config.nvidia.model, MINIMAL.NVIDIA_MODEL);
     assert.equal(config.catalogueStaleAfterHours, 72);
-    assert.equal(config.mealPlanMaxContextProducts, 120);
+    assert.equal(config.mealPlanMaxContextProducts, 80);
     assert.equal(config.rateLimit.windowMs, 60_000);
     assert.equal(config.rateLimit.max, 10);
     assert.equal(config.aldi.storeId, "belper-de56-1ar");
@@ -63,8 +63,28 @@ describe("loadConfig", () => {
     });
 
     assert.equal(config.nvidia.model, "meta/llama-3.3-70b-instruct");
-    assert.equal(config.nvidia.timeoutMs, 30_000);
-    assert.equal(config.nvidia.maxRetries, 1);
+    assert.equal(config.nvidia.timeoutMs, 120_000);
+    assert.equal(config.nvidia.maxRetries, 0);
+  });
+
+  /**
+   * A 49B model writing a full week of recipes needs well over 30 seconds, so
+   * the default must give it the whole two-minute window. Retries default to
+   * off: a retried timeout would multiply that window rather than shorten it.
+   */
+  it("defaults the AI budget to the full two-minute window with no network retry", () => {
+    const config = loadConfig(MINIMAL);
+
+    assert.equal(config.nvidia.timeoutMs, 120_000);
+    assert.equal(config.nvidia.maxRetries, 0);
+  });
+
+  it("caps the configurable AI timeout at two minutes", () => {
+    assert.throws(
+      () => loadConfig({ ...MINIMAL, AI_REQUEST_TIMEOUT_MS: "180000" }),
+      (error: unknown) =>
+        error instanceof Error && error.message.includes("AI_REQUEST_TIMEOUT_MS"),
+    );
   });
 
   it("reports every missing required variable at once", () => {
