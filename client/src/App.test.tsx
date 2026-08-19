@@ -440,7 +440,7 @@ describe("App", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /back/i }));
     expect(
-      screen.getByRole("heading", { name: /set your weekly budget/i }),
+      screen.getByRole("heading", { name: /set your budget and household/i }),
     ).toHaveFocus();
   });
 
@@ -925,11 +925,10 @@ describe("option cards", () => {
     renderWithProviders(<App />);
 
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
-    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await userEvent.click(screen.getByText(/add optional details/i));
 
-    const optional = screen.getByRole("group", { name: /optional details/i });
-    expect(within(optional).getByLabelText(/cuisine preferences/i)).toBeInTheDocument();
-    expect(within(optional).getByLabelText(/disliked ingredients/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/cuisine preferences/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/disliked ingredients/i)).toBeInTheDocument();
   });
 
   it("keeps the allergen safety detail available in a compact disclosure", async () => {
@@ -937,8 +936,7 @@ describe("option cards", () => {
     renderWithProviders(<App />);
 
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
-    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
-
+    await userEvent.click(screen.getByText(/add allergies/i));
     await userEvent.click(screen.getByText(/how allergen data is worked out/i));
 
     expect(screen.getByText(/read the label before you cook/i)).toBeInTheDocument();
