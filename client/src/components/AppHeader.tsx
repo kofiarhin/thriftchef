@@ -89,6 +89,11 @@ export function AppHeader({
             <a
               key={target.id}
               href={`#${target.id}`}
+              onClick={(event) => {
+                if (target.id !== "planner") return;
+                event.preventDefault();
+                onPlanClick();
+              }}
               className="rounded-lg px-3 py-2 text-sm font-medium text-ink-muted transition hover:bg-surface-raised hover:text-ink"
             >
               {target.label}
@@ -135,7 +140,12 @@ export function AppHeader({
                 <li key={target.id}>
                   <a
                     href={`#${target.id}`}
-                    onClick={() => setIsMenuOpen(false)}
+                    onClick={(event) => {
+                      setIsMenuOpen(false);
+                      if (target.id !== "planner") return;
+                      event.preventDefault();
+                      onPlanClick();
+                    }}
                     className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink-muted transition hover:bg-surface-raised hover:text-ink"
                   >
                     {target.label}
