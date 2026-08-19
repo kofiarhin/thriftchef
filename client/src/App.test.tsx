@@ -61,6 +61,7 @@ function mockApi(handlers: RouteHandlers = {}): void {
 }
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/");
   generateCalls.length = 0;
   replaceCalls.length = 0;
   productSearchCalls.length = 0;
