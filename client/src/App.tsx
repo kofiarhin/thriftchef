@@ -67,7 +67,7 @@ export function App() {
   // The submitted request is kept so "Regenerate" repeats it exactly.
   const [lastRequest, setLastRequest] = useState<MealPlanRequest | null>(null);
   const [plan, setPlan] = useState<MealPlanResponse | null>(null);
-  const [isPlannerMode, setIsPlannerMode] = useState(false);
+  const [isPlannerMode, setIsPlannerMode] = useState(() => window.location.hash === "#planner");
   const plannerRef = useRef<HTMLElement>(null);
 
   const catalogue = useQuery({
