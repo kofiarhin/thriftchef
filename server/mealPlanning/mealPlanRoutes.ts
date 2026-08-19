@@ -14,7 +14,8 @@ export function createMealPlanRoutes(
 ): Router {
   const router = Router();
 
-  // Only the generation route is limited: it is the one that costs an AI call.
+  // Generation is bounded but not free: it still burns CPU and reads the
+  // catalogue, so the limit stays now that the model is gone.
   router.post(
     "/generate",
     createRateLimiter({

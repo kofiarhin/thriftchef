@@ -192,4 +192,61 @@ describe("parseMealPlanRequest", () => {
       "mealsPerDay",
     ]);
   });
+
+  it("defaults budgetTargetPercent to 80 when it is omitted", () => {
+    assert.equal(parseMealPlanRequest(VALID).budgetTargetPercent, 80);
+  });
+
+  it("accepts each documented budget target preset", () => {
+    for (const percent of [50, 65, 80]) {
+      assert.equal(
+        parseMealPlanRequest({ ...VALID, budgetTargetPercent: percent })
+          .budgetTargetPercent,
+        percent,
+      );
+    }
+  });
+
+  it("rejects a budget target that is not a documented preset", () => {
+    assert.deepEqual(fieldsFor({ ...VALID, budgetTargetPercent: 70 }), [
+      "budgetTargetPercent",
+    ]);
+    assert.deepEqual(fieldsFor({ ...VALID, budgetTargetPercent: "80" }), [
+      "budgetTargetPercent",
+    ]);
+  });
+
+  it("defaults mustHaveProductIds to an empty list", () => {
+    assert.deepEqual(parseMealPlanRequest(VALID).mustHaveProductIds, []);
+  });
+
+  it("de-duplicates must-have product ids while preserving the order sent", () => {
+    const request = parseMealPlanRequest({
+      ...VALID,
+      mustHaveProductIds: [" b-2 ", "a-1", "b-2"],
+    });
+
+    assert.deepEqual(request.mustHaveProductIds, ["b-2", "a-1"]);
+  });
+
+  it("rejects blank or malformed must-have product ids", () => {
+    assert.deepEqual(fieldsFor({ ...VALID, mustHaveProductIds: ["   "] }), [
+      "mustHaveProductIds",
+    ]);
+    assert.deepEqual(fieldsFor({ ...VALID, mustHaveProductIds: [42] }), [
+      "mustHaveProductIds",
+    ]);
+    assert.deepEqual(
+      fieldsFor({ ...VALID, mustHaveProductIds: ["has space"] }),
+      ["mustHaveProductIds"],
+    );
+  });
+
+  it("rejects more than twelve must-have products", () => {
+    const ids = Array.from({ length: 13 }, (_, index) => `p-${index}`);
+
+    assert.deepEqual(fieldsFor({ ...VALID, mustHaveProductIds: ids }), [
+      "mustHaveProductIds",
+    ]);
+  });
 });

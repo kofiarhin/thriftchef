@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { ApiError } from "../http/errors";
 import { parseMealPlanRequest } from "./mealPlanSchemas";
+import { classifyIngredientRoles } from "./ingredientRoles";
 import { validateAndPricePlan } from "./mealPlanValidator";
 import type { MealPlanRequest, SelectableProduct } from "./mealPlanTypes";
 
@@ -20,6 +21,11 @@ function product(
     allergens: [],
     dietaryInfo: null,
     safetyStatus: "inferred",
+    roles: classifyIngredientRoles({
+      name: `Product ${productId}`,
+      description: null,
+      categoryPaths: [["Food Cupboard", "Rice, Pasta & Noodles"]],
+    }),
     productUrl: `https://www.aldi.co.uk/product/${productId}`,
     lastSeenAt: new Date("2026-08-13T00:00:00.000Z"),
     ...overrides,
@@ -76,8 +82,11 @@ function rejectionReason(raw: unknown, ctx = context()): string {
     return "ACCEPTED";
   } catch (error) {
     assert.ok(error instanceof ApiError, "expected an ApiError");
-    assert.equal(error.status, 422);
-    assert.equal(error.code, "AI_INVALID_RESPONSE");
+    // A rejection defaults to an internal fault: the planner builds these
+    // plans, so a failure here is the engine's mistake, not the user's. The
+    // replace route, whose plan comes from the client, remaps it to a 400.
+    assert.equal(error.status, 500);
+    assert.equal(error.code, "PLANNER_INTERNAL_ERROR");
     return (error.details as { reason: string }).reason;
   }
 }

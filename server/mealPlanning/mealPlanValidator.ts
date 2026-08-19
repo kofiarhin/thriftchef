@@ -66,9 +66,16 @@ export interface PricedPlan {
   productsUsed: number;
 }
 
+/**
+ * A plan failed validation. The same validator guards two very different
+ * callers, so the caller decides what the failure means: engine output that
+ * fails is an internal defect (500), while a plan the client submitted for
+ * replacement is simply a bad request (400). The default below is the safe one
+ * for an unhandled escape — never blame the user for the planner's mistake.
+ */
 export class PlanRejectedError extends ApiError {
   constructor(readonly reason: PlanRejectionReason, message: string) {
-    super(422, "AI_INVALID_RESPONSE", message, { reason });
+    super(500, "PLANNER_INTERNAL_ERROR", message, { reason });
     this.name = "PlanRejectedError";
   }
 }

@@ -4,9 +4,6 @@ import { loadConfig } from "./env";
 
 const MINIMAL: Record<string, string> = {
   MONGODB_URI: "mongodb://localhost:27017/thriftchef",
-  NVIDIA_API_KEY: "test-key",
-  NVIDIA_API_URL: "https://integrate.api.nvidia.com/v1/chat/completions",
-  NVIDIA_MODEL: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
 };
 
 describe("loadConfig", () => {
@@ -17,12 +14,18 @@ describe("loadConfig", () => {
     assert.equal(config.port, 5000);
     assert.equal(config.clientOrigin, "http://localhost:5173");
     assert.equal(config.mongodbUri, "mongodb://localhost:27017/thriftchef");
-    assert.equal(config.nvidia.model, MINIMAL.NVIDIA_MODEL);
     assert.equal(config.catalogueStaleAfterHours, 72);
-    assert.equal(config.mealPlanMaxContextProducts, 80);
     assert.equal(config.rateLimit.windowMs, 60_000);
     assert.equal(config.rateLimit.max, 10);
     assert.equal(config.aldi.storeId, "belper-de56-1ar");
+  });
+
+  /**
+   * The whole point of the local planner: a developer can clone, set a database
+   * URI and generate a meal plan. No API key, no account, no model.
+   */
+  it("needs only a database URI to start", () => {
+    assert.doesNotThrow(() => loadConfig(MINIMAL));
   });
 
   it("fails fast when a required variable is missing", () => {
@@ -48,64 +51,70 @@ describe("loadConfig", () => {
     assert.ok(!error.message.includes("not-a-port"));
   });
 
-  it("always requires NVIDIA credentials", () => {
-    assert.throws(
-      () => loadConfig({ MONGODB_URI: MINIMAL.MONGODB_URI }),
-      (error: unknown) =>
-        error instanceof Error && error.message.includes("NVIDIA_API_KEY"),
-    );
+  it("defaults every planner bound to its documented value", () => {
+    const config = loadConfig(MINIMAL);
 
+    assert.equal(config.mealPlanEngine.maxProducts, 80);
+    assert.equal(config.mealPlanEngine.candidateLimit, 24);
+    assert.equal(config.mealPlanEngine.beamWidth, 32);
+    assert.equal(config.mealPlanEngine.maxRecipeVariants, 6);
+    assert.equal(config.mealPlanEngine.timeoutMs, 1_500);
+  });
+
+  it("accepts planner bounds inside their documented ranges", () => {
     const config = loadConfig({
       ...MINIMAL,
-      NVIDIA_API_KEY: "secret-key",
-      NVIDIA_API_URL: "https://integrate.api.nvidia.com/v1/chat/completions",
-      NVIDIA_MODEL: "meta/llama-3.3-70b-instruct",
+      MEAL_PLAN_MAX_PRODUCTS: "40",
+      MEAL_PLAN_CANDIDATE_LIMIT: "8",
+      MEAL_PLAN_BEAM_WIDTH: "16",
+      MEAL_PLAN_MAX_RECIPE_VARIANTS: "3",
+      MEAL_PLAN_ENGINE_TIMEOUT_MS: "800",
     });
 
-    assert.equal(config.nvidia.model, "meta/llama-3.3-70b-instruct");
-    assert.equal(config.nvidia.timeoutMs, 120_000);
-    assert.equal(config.nvidia.maxRetries, 0);
+    assert.equal(config.mealPlanEngine.maxProducts, 40);
+    assert.equal(config.mealPlanEngine.candidateLimit, 8);
+    assert.equal(config.mealPlanEngine.beamWidth, 16);
+    assert.equal(config.mealPlanEngine.maxRecipeVariants, 3);
+    assert.equal(config.mealPlanEngine.timeoutMs, 800);
   });
 
   /**
-   * A 49B model writing a full week of recipes needs well over 30 seconds, so
-   * the default must give it the whole two-minute window. Retries default to
-   * off: a retried timeout would multiply that window rather than shorten it.
+   * The bounds exist so a misconfiguration cannot turn a bounded search into an
+   * unbounded one. Rejecting out-of-range values at startup is what makes the
+   * latency guarantee hold.
    */
-  it("defaults the AI budget to the full two-minute window with no network retry", () => {
-    const config = loadConfig(MINIMAL);
+  it("rejects a planner bound outside its range", () => {
+    const outOfRange: Array<[string, string]> = [
+      ["MEAL_PLAN_MAX_PRODUCTS", "500"],
+      ["MEAL_PLAN_MAX_PRODUCTS", "10"],
+      ["MEAL_PLAN_CANDIDATE_LIMIT", "128"],
+      ["MEAL_PLAN_CANDIDATE_LIMIT", "2"],
+      ["MEAL_PLAN_BEAM_WIDTH", "256"],
+      ["MEAL_PLAN_BEAM_WIDTH", "4"],
+      ["MEAL_PLAN_MAX_RECIPE_VARIANTS", "50"],
+      ["MEAL_PLAN_MAX_RECIPE_VARIANTS", "0"],
+      ["MEAL_PLAN_ENGINE_TIMEOUT_MS", "60000"],
+      ["MEAL_PLAN_ENGINE_TIMEOUT_MS", "10"],
+    ];
 
-    assert.equal(config.nvidia.timeoutMs, 120_000);
-    assert.equal(config.nvidia.maxRetries, 0);
-  });
-
-  it("caps the configurable AI timeout at two minutes", () => {
-    assert.throws(
-      () => loadConfig({ ...MINIMAL, AI_REQUEST_TIMEOUT_MS: "180000" }),
-      (error: unknown) =>
-        error instanceof Error && error.message.includes("AI_REQUEST_TIMEOUT_MS"),
-    );
-  });
-
-  it("reports every missing required variable at once", () => {
-    const error = (() => {
-      try {
-        loadConfig({});
-        return null;
-      } catch (thrown) {
-        return thrown as Error;
-      }
-    })();
-
-    assert.ok(error);
-    for (const key of [
-      "MONGODB_URI",
-      "NVIDIA_API_KEY",
-      "NVIDIA_API_URL",
-      "NVIDIA_MODEL",
-    ]) {
-      assert.ok(error.message.includes(key), `expected ${key} in the message`);
+    for (const [key, value] of outOfRange) {
+      assert.throws(
+        () => loadConfig({ ...MINIMAL, [key]: value }),
+        (error: unknown) => error instanceof Error && error.message.includes(key),
+        `${key}=${value} should have been rejected`,
+      );
     }
+  });
+
+  it("no longer accepts or requires any model configuration", () => {
+    const config = loadConfig({
+      ...MINIMAL,
+      NVIDIA_API_KEY: "should-be-ignored",
+      AI_REQUEST_TIMEOUT_MS: "180000",
+    });
+
+    assert.ok(!Object.keys(config).includes("nvidia"));
+    assert.equal(config.mealPlanEngine.timeoutMs, 1_500);
   });
 
   it("parses booleans and bounded integers", () => {
@@ -113,11 +122,11 @@ describe("loadConfig", () => {
       ...MINIMAL,
       ALDI_HEADLESS: "true",
       ALDI_MAX_PRODUCTS_PER_CATEGORY: "25",
-      MEAL_PLAN_MAX_CONTEXT_PRODUCTS: "40",
+      MEAL_PLAN_MAX_PRODUCTS: "40",
     });
 
     assert.equal(config.aldi.headless, true);
     assert.equal(config.aldi.maxProductsPerCategory, 25);
-    assert.equal(config.mealPlanMaxContextProducts, 40);
+    assert.equal(config.mealPlanEngine.maxProducts, 40);
   });
 });

@@ -274,7 +274,122 @@ describe("selectProducts", () => {
       "pricePence",
       "productId",
       "productUrl",
+      "roles",
       "safetyStatus",
+    ]);
+  });
+
+  it("retains cheap, mid and dearer options inside one culinary role", () => {
+    // Twelve chicken products spanning the whole price range, in a selection
+    // far too small to hold them all. Cheapness ranking alone would take the
+    // twelve cheapest and leave the planner nothing to spend a budget on.
+    const chicken = [150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700].map(
+      (pricePence, index) =>
+        candidate({
+          retailerProductId: `chicken-${index}`,
+          name: `Chicken Breast Fillets ${index}`,
+          categoryPaths: [["Fresh Food", "Poultry"]],
+          pricePence,
+        }),
+    );
+
+    const selected = selectProducts(chicken, request(), { maxProducts: 6 }).products;
+    const prices = selected.map((product) => product.pricePence).sort((a, b) => a - b);
+
+    assert.ok(prices.length > 0, "no poultry survived selection");
+    assert.ok(
+      prices[0] <= 250,
+      `selection kept no cheap option: ${prices.join(", ")}`,
+    );
+    assert.ok(
+      prices[prices.length - 1] >= 450,
+      `selection kept no dearer option: ${prices.join(", ")}`,
+    );
+    assert.ok(
+      new Set(prices).size >= 3,
+      `selection collapsed onto one price band: ${prices.join(", ")}`,
+    );
+  });
+
+  it("is deterministic across identical inputs", () => {
+    const catalogue = [200, 900, 350].map((pricePence, index) =>
+      candidate({
+        retailerProductId: `stable-${index}`,
+        name: `Chicken Breast Fillets ${index}`,
+        categoryPaths: [["Fresh Food", "Poultry"]],
+        pricePence,
+      }),
+    );
+
+    assert.deepEqual(
+      selectProducts(catalogue, request(), { maxProducts: 2 }).products,
+      selectProducts(catalogue, request(), { maxProducts: 2 }).products,
+    );
+  });
+
+  it("forces a must-have product past the selection cap", () => {
+    const filler = Array.from({ length: 40 }, (_, index) =>
+      candidate({ retailerProductId: `filler-${index}`, name: `Fusilli Pasta ${index}` }),
+    );
+    const wanted = candidate({
+      retailerProductId: "wanted-1",
+      name: "Luxury Scottish Salmon Fillets",
+      categoryPaths: [["Fresh Food", "Fish & Seafood"]],
+      pricePence: 1_200,
+    });
+
+    const result = selectProducts([...filler, wanted], request(), {
+      maxProducts: 5,
+      mustHaveProductIds: ["wanted-1"],
+    });
+
+    assert.ok(
+      result.products.some((product) => product.productId === "wanted-1"),
+      "the must-have product was dropped by the selection cap",
+    );
+    assert.equal(result.products.length, 5, "the cap must still bound the selection");
+    assert.deepEqual(result.mustHaveIssues, []);
+  });
+
+  it("does not let a must-have product bypass an allergy filter", () => {
+    const unsafe = candidate({
+      retailerProductId: "unsafe-1",
+      name: "Peanut Butter",
+      normalizedAllergens: ["peanuts"],
+    });
+
+    const result = selectProducts(
+      [unsafe, candidate()],
+      request({ allergies: ["peanuts"] } as Partial<MealPlanRequest>),
+      { maxProducts: 20, mustHaveProductIds: ["unsafe-1"] },
+    );
+
+    assert.ok(!result.products.some((product) => product.productId === "unsafe-1"));
+    assert.deepEqual(result.mustHaveIssues, [
+      { productId: "unsafe-1", productName: "Peanut Butter", reason: "allergy" },
+    ]);
+  });
+
+  it("does not let a must-have product bypass a dislike or a safety exclusion", () => {
+    const disliked = candidate({
+      retailerProductId: "disliked-1",
+      name: "Mushroom Soup",
+    });
+    const unsafe = candidate({
+      retailerProductId: "unpriced-1",
+      name: "Mystery Item",
+      pricePence: 0,
+    });
+
+    const result = selectProducts(
+      [disliked, unsafe, candidate()],
+      request({ dislikedIngredients: ["mushroom"] } as Partial<MealPlanRequest>),
+      { maxProducts: 20, mustHaveProductIds: ["disliked-1", "unpriced-1"] },
+    );
+
+    assert.deepEqual(result.mustHaveIssues, [
+      { productId: "disliked-1", productName: "Mushroom Soup", reason: "dislike" },
+      { productId: "unpriced-1", productName: "Mystery Item", reason: "unavailable" },
     ]);
   });
 });

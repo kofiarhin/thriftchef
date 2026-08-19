@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiRequestError } from "./api/http";
 import {
@@ -8,7 +8,12 @@ import {
   type ReplaceMealInput,
 } from "./api/mealPlans";
 import type { MealPlanRequest, MealPlanResponse, MealType } from "./api/types";
+import { AppFooter } from "./components/AppFooter";
+import { AppHeader } from "./components/AppHeader";
 import { ConstraintForm } from "./components/ConstraintForm";
+import { HeroSection } from "./components/HeroSection";
+import { HowItWorks } from "./components/HowItWorks";
+import { Icon } from "./components/Icon";
 import { MealPlanResults } from "./components/MealPlanResults";
 import { PlanError } from "./components/PlanError";
 import { PlanSkeleton } from "./components/PlanSkeleton";
@@ -19,6 +24,29 @@ import {
   type ConstraintFormState,
   type ValidationIssues,
 } from "./constraints";
+
+/** The seed is a signed 32-bit integer server-side, so it wraps rather than grows. */
+const MAX_VARIATION_SEED = 2_147_483_647;
+
+function withNextSeed(request: MealPlanRequest): MealPlanRequest {
+  return {
+    ...request,
+    variationSeed: request.variationSeed >= MAX_VARIATION_SEED ? 0 : request.variationSeed + 1,
+  };
+}
+
+/**
+ * "No alternative exists" is a different situation from "the request failed",
+ * and telling the user to try again when nothing else can be built would send
+ * them round a loop that cannot end.
+ */
+function describeReplacementFailure(error: unknown): string {
+  if (error instanceof ApiRequestError && error.code === "NO_REPLACEMENT_AVAILABLE") {
+    return "No other meal fits this day within your constraints and budget. Your current plan is unchanged.";
+  }
+
+  return "This meal could not be replaced. Your current plan is unchanged. Try again.";
+}
 
 /** Field errors the server reported, mapped back onto form controls. */
 function serverIssuesFrom(error: unknown): ValidationIssues {
@@ -39,6 +67,7 @@ export function App() {
   // The submitted request is kept so "Regenerate" repeats it exactly.
   const [lastRequest, setLastRequest] = useState<MealPlanRequest | null>(null);
   const [plan, setPlan] = useState<MealPlanResponse | null>(null);
+  const plannerRef = useRef<HTMLElement>(null);
 
   const catalogue = useQuery({
     queryKey: ["catalogue-status"],
@@ -61,17 +90,37 @@ export function App() {
     onSuccess: setPlan,
   });
 
-  const submit = (request: MealPlanRequest): void => {
+  const run = (request: MealPlanRequest): void => {
     setLastRequest(request);
     setPlan(null);
     planMutation.mutate(request);
   };
 
+  const submit = (request: MealPlanRequest): void => run(request);
+
+  /**
+   * The planner is deterministic, so repeating a request unchanged repeats the
+   * week exactly. Asking for a different week means asking for a different
+   * seed — that is what "Regenerate" is.
+   */
   const regenerate = (): void => {
-    if (lastRequest) {
-      setPlan(null);
-      planMutation.mutate(lastRequest);
-    }
+    if (lastRequest) run(withNextSeed(lastRequest));
+  };
+
+  /**
+   * A retry after a failed request is different: when the request never reached
+   * the server the user has not seen a plan for this seed yet, so re-sending it
+   * unchanged is what they asked for. Any other failure did reach the server,
+   * and repeating the same seed would reproduce the same failure.
+   */
+  const retry = (): void => {
+    if (!lastRequest) return;
+
+    const outcomeUnknown =
+      planMutation.error instanceof ApiRequestError &&
+      planMutation.error.code === "NETWORK_ERROR";
+
+    run(outcomeUnknown ? lastRequest : withNextSeed(lastRequest));
   };
 
   const replaceSelectedMeal = (day: number, mealType: MealType): void => {
@@ -79,54 +128,76 @@ export function App() {
     replaceMutation.mutate({ request: lastRequest, plan, day, mealType });
   };
 
+  /**
+   * The header and the hero both point here. Focus moves as well as the
+   * viewport, so a keyboard or screen-reader user arrives where a sighted user
+   * is looking. `scrollIntoView` is called optionally: jsdom has no layout and
+   * does not implement it.
+   */
+  const focusPlanner = (): void => {
+    const planner = plannerRef.current;
+    if (!planner) return;
+
+    planner.focus();
+    planner.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  };
+
   const isGenerating = planMutation.isPending;
 
   return (
-    <div className="min-h-screen">
-      <header className="print-hidden border-b border-line bg-surface-raised">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-baseline justify-between gap-2 px-4 py-5 sm:px-6">
-          <div>
-            <h1 className="text-xl font-semibold text-ink">ThriftChef</h1>
-            <p className="text-sm text-ink-muted">
-              Weekly meal plans and one Aldi shopping list, built to a budget.
-            </p>
-          </div>
-          <p className="text-sm text-ink-muted">Aldi UK · single store</p>
-        </div>
-      </header>
+    <div className="flex min-h-screen flex-col">
+      <AppHeader
+        status={catalogue.data}
+        isLoading={catalogue.isLoading}
+        error={catalogue.error as Error | null}
+        onPlanClick={focusPlanner}
+      />
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className={showForm ? "grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]" : ""}>
-          <div className="min-w-0">
-            {showForm ? (
-              <section aria-labelledby="constraints-heading">
-                <h2 id="constraints-heading" className="text-2xl font-semibold text-ink">
+      <main className="flex-1">
+        {showForm ? <HeroSection onPlanClick={focusPlanner} /> : null}
+
+        <section
+          id="planner"
+          ref={plannerRef}
+          tabIndex={-1}
+          aria-label="Planner"
+          className="mx-auto max-w-6xl scroll-mt-24 px-4 py-10 outline-none sm:px-6 sm:py-14"
+        >
+          {showForm ? (
+            <section aria-labelledby="constraints-heading">
+              <div className="print-hidden">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+                  The planner
+                </p>
+                <h2
+                  id="constraints-heading"
+                  className="mt-2 text-3xl font-semibold tracking-tight text-ink"
+                >
                   Plan your week
                 </h2>
-                <p className="mt-1 text-sm text-ink-muted">
-                  Set your budget and constraints. Every plan is priced from real
-                  Aldi products.
+                <p className="mt-1.5 max-w-lg text-sm text-ink-muted">
+                  Four short steps. Everything is priced from real Aldi products.
                 </p>
+              </div>
 
-                <div className="mt-6">
-                  <ConstraintForm
-                    state={formState}
-                    onStateChange={setFormState}
-                    onSubmit={submit}
-                    isGenerating={isGenerating}
-                    serverIssues={serverIssuesFrom(planMutation.error)}
-                  />
-                </div>
-              </section>
-            ) : null}
-
-            {!showForm ? <div>
+              <div className="mt-7">
+                <ConstraintForm
+                  state={formState}
+                  onStateChange={setFormState}
+                  onSubmit={submit}
+                  isGenerating={isGenerating}
+                  serverIssues={serverIssuesFrom(planMutation.error)}
+                />
+              </div>
+            </section>
+          ) : (
+            <div>
               {isGenerating ? <PlanSkeleton /> : null}
 
               {!isGenerating && planMutation.isError ? (
                 <PlanError
                   error={planMutation.error}
-                  onRetry={regenerate}
+                  onRetry={retry}
                   onEditConstraints={() => {
                     setShowForm(true);
                     planMutation.reset();
@@ -144,29 +215,61 @@ export function App() {
                   isReplacing={replaceMutation.isPending}
                 />
               ) : null}
+
               {replaceMutation.isError ? (
-                <div role="alert" className="mt-4 rounded-xl border border-danger bg-danger-surface p-4 text-sm text-danger-ink">
-                  This meal could not be replaced. Your current plan is unchanged. Try again.
+                <div
+                  role="alert"
+                  className="mt-4 flex items-start gap-2.5 rounded-xl border border-danger bg-danger-surface p-4 text-sm text-danger-ink"
+                >
+                  <span className="mt-0.5 shrink-0">
+                    <Icon name="alert-circle" size={16} />
+                  </span>
+                  {describeReplacementFailure(replaceMutation.error)}
                 </div>
               ) : null}
-            </div> : null}
 
-            {!isGenerating && !plan && !planMutation.isError && !showForm ? (
-              <p className="text-sm text-ink-muted">
-                No plan yet. Open the form to set your constraints.
-              </p>
-            ) : null}
+              {!isGenerating && !plan && !planMutation.isError ? (
+                <p className="text-sm text-ink-muted">
+                  No plan yet. Open the form to set your constraints.
+                </p>
+              ) : null}
+            </div>
+          )}
+        </section>
+
+        <HowItWorks />
+
+        <section
+          id="catalogue"
+          aria-labelledby="catalogue-section-heading"
+          className="print-hidden border-t border-line/70"
+        >
+          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+              Data source
+            </p>
+            <h2
+              id="catalogue-section-heading"
+              className="mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl"
+            >
+              Catalogue
+            </h2>
+            <p className="mt-1.5 max-w-lg text-sm text-ink-muted">
+              Plans are only as current as the products behind them.
+            </p>
+
+            <div className="mt-6 max-w-md">
+              <StatusPanel
+                status={catalogue.data}
+                isLoading={catalogue.isLoading}
+                error={catalogue.error as Error | null}
+              />
+            </div>
           </div>
-
-          {showForm ? <div className="print-hidden">
-            <StatusPanel
-              status={catalogue.data}
-              isLoading={catalogue.isLoading}
-              error={catalogue.error as Error | null}
-            />
-          </div> : null}
-        </div>
+        </section>
       </main>
+
+      <AppFooter />
     </div>
   );
 }

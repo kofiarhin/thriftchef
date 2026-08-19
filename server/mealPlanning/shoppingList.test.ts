@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { consolidateShoppingList } from "./shoppingList";
+import { classifyIngredientRoles } from "./ingredientRoles";
 import type { SelectableProduct } from "./mealPlanTypes";
 
 function product(
@@ -18,6 +19,11 @@ function product(
     allergens: [],
     dietaryInfo: null,
     safetyStatus: "inferred",
+    roles: classifyIngredientRoles({
+      name: `Product ${productId}`,
+      description: null,
+      categoryPaths: [["Food Cupboard", "Rice, Pasta & Noodles"]],
+    }),
     productUrl: `https://www.aldi.co.uk/product/${productId}`,
     imageUrl: `https://cdn.aldi.test/${productId}.jpg`,
     lastSeenAt: new Date("2026-08-13T00:00:00.000Z"),

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ShoppingListGroup } from "../api/types";
 import { formatPence } from "../format";
+import { Icon } from "./Icon";
 
 interface ShoppingListProps {
   groups: ShoppingListGroup[];
@@ -24,11 +25,14 @@ export function ShoppingList({ groups, totalPence }: ShoppingListProps) {
     <section aria-labelledby="shopping-list-heading" className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">Take it to Aldi</p>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-brand">
+            <Icon name="basket" size={14} />
+            Take it to Aldi
+          </p>
           <h3 id="shopping-list-heading" className="mt-2 text-2xl font-semibold text-ink">Shopping list</h3>
           <p className="mt-1 text-sm text-ink-muted">{checked.size} of {itemCount} items checked</p>
         </div>
-        <div className="rounded-xl border border-brand/40 bg-brand-soft px-5 py-3 text-right">
+        <div className="rounded-2xl border border-brand/40 bg-brand-soft px-5 py-3 text-right">
           <p className="text-xs uppercase tracking-wide text-ink-muted">Whole basket</p>
           <p className="text-2xl font-semibold tabular-nums text-ink">{formatPence(totalPence)}</p>
         </div>
@@ -36,9 +40,13 @@ export function ShoppingList({ groups, totalPence }: ShoppingListProps) {
 
       <div className="space-y-3">
         {groups.map((group) => (
-          <details key={group.category} open className="rounded-xl border border-line bg-surface-raised">
-            <summary className="cursor-pointer px-4 py-4 text-sm font-semibold uppercase tracking-wide text-ink">
-              {group.category} <span className="ml-2 font-normal text-ink-muted">{group.items.length}</span>
+          <details key={group.category} open className="print-break-inside-avoid rounded-xl border border-line bg-surface-raised">
+            <summary className="flex cursor-pointer items-center gap-2 px-4 py-4 text-sm font-semibold uppercase tracking-wide text-ink">
+              <Icon name="price-tag" size={14} />
+              {group.category}
+              <span className="ml-1 rounded-full bg-surface-sunken px-2 py-0.5 text-xs font-normal text-ink-muted">
+                {group.items.length}
+              </span>
             </summary>
             <ul className="border-t border-line">
               {group.items.map((item) => {

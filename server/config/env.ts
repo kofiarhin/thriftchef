@@ -3,17 +3,26 @@
  * tested without mutating `process.env`.
  *
  * Failure messages name the offending variable and never repeat its value:
- * a bad `MONGODB_URI` or `NVIDIA_API_KEY` would otherwise leak a secret into
- * logs and crash traces.
+ * a bad `MONGODB_URI` would otherwise leak a secret into logs and crash traces.
  */
 
 export type NodeEnv = "development" | "test" | "production";
-export interface NvidiaConfig {
-  apiKey: string;
-  apiUrl: string;
-  model: string;
+
+/**
+ * Bounds on the local planning engine. Every one of them caps work rather than
+ * quality: the search is finite by construction, so no request can run away.
+ */
+export interface MealPlanEngineConfig {
+  /** Products the selector hands the planner. */
+  maxProducts: number;
+  /** Complete weeks validated and priced before a winner is chosen. */
+  candidateLimit: number;
+  /** Partial states kept between search stages. */
+  beamWidth: number;
+  /** Distinct fillings enumerated per recipe template. */
+  maxRecipeVariants: number;
+  /** Wall-clock ceiling, checked between stages. */
   timeoutMs: number;
-  maxRetries: number;
 }
 
 export interface AppConfig {
@@ -21,10 +30,9 @@ export interface AppConfig {
   port: number;
   clientOrigin: string;
   mongodbUri: string;
-  nvidia: NvidiaConfig;
+  mealPlanEngine: MealPlanEngineConfig;
   rateLimit: { windowMs: number; max: number };
   catalogueStaleAfterHours: number;
-  mealPlanMaxContextProducts: number;
   mealPlanDefaultSnacks: boolean;
   logLevel: string;
   aldi: {
@@ -149,24 +157,6 @@ export function loadConfig(source: EnvSource): AppConfig {
     port: collector.integer("PORT", 5000, { min: 1, max: 65_535 }),
     clientOrigin: collector.string("CLIENT_ORIGIN", "http://localhost:5173"),
     mongodbUri: collector.requiredString("MONGODB_URI"),
-    nvidia: {
-      apiKey: collector.requiredString("NVIDIA_API_KEY"),
-      apiUrl: collector.requiredString("NVIDIA_API_URL"),
-      model: collector.requiredString("NVIDIA_MODEL"),
-      // The total budget for one generation, not a per-attempt allowance. A
-      // 49B model writing a week of recipes needs well over 30 seconds, and
-      // the request is bounded by this figure however many attempts it makes.
-      timeoutMs: collector.integer("AI_REQUEST_TIMEOUT_MS", 120_000, {
-        min: 1_000,
-        max: 120_000,
-      }),
-      // Transient upstream failures only. Timeouts are never retried, so this
-      // cannot multiply the budget above.
-      maxRetries: collector.integer("AI_MAX_RETRIES", 0, {
-        min: 0,
-        max: 3,
-      }),
-    },
     rateLimit: {
       windowMs: collector.integer("MEAL_PLAN_RATE_LIMIT_WINDOW_MS", 60_000, {
         min: 1_000,
@@ -182,14 +172,32 @@ export function loadConfig(source: EnvSource): AppConfig {
       72,
       { min: 1, max: 8_760 },
     ),
-    // 80 products keeps every food group represented while cutting roughly a
-    // third off the prompt: fewer input tokens is less time before the model
-    // starts writing, and the plan only ever shops from a handful of them.
-    mealPlanMaxContextProducts: collector.integer(
-      "MEAL_PLAN_MAX_CONTEXT_PRODUCTS",
-      80,
-      { min: 10, max: 500 },
-    ),
+    // 80 products keeps every food group represented while keeping the search
+    // small. The plan only ever shops from a handful of them.
+    mealPlanEngine: {
+      maxProducts: collector.integer("MEAL_PLAN_MAX_PRODUCTS", 80, {
+        min: 20,
+        max: 200,
+      }),
+      candidateLimit: collector.integer("MEAL_PLAN_CANDIDATE_LIMIT", 24, {
+        min: 4,
+        max: 64,
+      }),
+      beamWidth: collector.integer("MEAL_PLAN_BEAM_WIDTH", 32, {
+        min: 8,
+        max: 128,
+      }),
+      maxRecipeVariants: collector.integer("MEAL_PLAN_MAX_RECIPE_VARIANTS", 6, {
+        min: 1,
+        max: 12,
+      }),
+      // Generous: the engine finishes a normal week in tens of milliseconds, so
+      // reaching this ceiling means something is genuinely wrong.
+      timeoutMs: collector.integer("MEAL_PLAN_ENGINE_TIMEOUT_MS", 1_500, {
+        min: 250,
+        max: 5_000,
+      }),
+    },
     mealPlanDefaultSnacks: collector.boolean("MEAL_PLAN_DEFAULT_SNACKS", false),
     logLevel: collector.string("LOG_LEVEL", "info"),
     aldi: {

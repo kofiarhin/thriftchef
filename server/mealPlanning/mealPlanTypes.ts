@@ -4,6 +4,8 @@
  * array so validation and the UI read from the same source as the types.
  */
 
+import type { IngredientRole } from "./ingredientRoles";
+
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
 
@@ -72,6 +74,44 @@ export type PantryBasic = (typeof PANTRY_BASICS)[number];
 
 export const PLAN_DAYS = 7;
 
+/**
+ * How much of the maximum budget a plan should aim to use. Presented to the
+ * user as Tight / Balanced / Use my budget. A preset is a soft target: the
+ * plan is preferred near it, but the maximum is what is actually enforced.
+ */
+export const BUDGET_TARGET_PERCENTS = [50, 65, 80] as const;
+export type BudgetTargetPercent = (typeof BUDGET_TARGET_PERCENTS)[number];
+
+export const DEFAULT_BUDGET_TARGET_PERCENT: BudgetTargetPercent = 80;
+
+/** The most must-have products one plan may be pinned to. */
+export const MAX_MUST_HAVE_PRODUCTS = 12;
+
+/** The resolved spending shape of one request, in pence. */
+export interface BudgetTarget {
+  percent: BudgetTargetPercent;
+  targetPence: number;
+  lowerPreferredPence: number;
+  upperPreferredPence: number;
+  /** The weekly budget. Never exceeded, whatever the target says. */
+  hardMaximumPence: number;
+}
+
+export interface BudgetUtilization {
+  targetPercent: BudgetTargetPercent;
+  targetPence: number;
+  actualPence: number;
+  actualPercent: number;
+  withinPreferredRange: boolean;
+}
+
+/** Where in the week a must-have product was actually used. */
+export interface MustHaveUsage {
+  productId: string;
+  productName: string;
+  usedIn: Array<{ day: number; mealType: MealType; recipeId: string }>;
+}
+
 export interface MealPlanRequest {
   budgetPence: number;
   householdSize: number;
@@ -82,7 +122,20 @@ export interface MealPlanRequest {
   allergies: Allergen[];
   dislikedIngredients: string[];
   pantryBasics: PantryBasic[];
+  /**
+   * Chooses between equally valid weeks. Identical request, catalogue, engine
+   * version and seed always produce an identical plan; "Regenerate" increments
+   * it rather than relying on a model's randomness.
+   */
+  variationSeed: number;
   storeId?: string;
+  /** How much of `budgetPence` the plan should aim to use. */
+  budgetTargetPercent: BudgetTargetPercent;
+  /**
+   * Catalogue products the user has decided to buy this week. Hard
+   * constraints: every one of them must be bought and used by a recipe.
+   */
+  mustHaveProductIds: string[];
 }
 
 export type BudgetStatus =
@@ -165,45 +218,38 @@ export interface MealPlanResponse {
   recipes: Recipe[];
   shoppingList: ShoppingListGroup[];
   productCoverage: ProductCoverage;
-}
-
-/** One upstream attempt, timed. Carries no prompt text and no response body. */
-export interface GenerationTiming {
-  /** 1-based attempt within a single generator call. */
-  attempt: number;
-  /** Selecting products and building the prompt. */
-  contextMs: number;
-  /** Time spent waiting on the model. */
-  upstreamMs: number;
-  /** Recovering a JSON object from the model's message. */
-  parseMs: number;
-  outcome: "ok" | "timeout" | "upstream-error" | "invalid-json";
-}
-
-export interface PlanGeneratorInput {
-  request: MealPlanRequest;
-  products: SelectableProduct[];
-  /** Present on the second attempt, describing why the first was unusable. */
-  retry?: { reason: string; previousTotalPence?: number };
-  replacement?: {
-    day: number;
-    mealType: MealType;
-    currentPlan: { days: MealPlanDay[]; recipes: Recipe[] };
-  };
-  /**
-   * Epoch milliseconds after which this generation must stop. Shared by every
-   * attempt for one request, so a repair cannot extend the promised wait.
-   */
-  deadlineAt?: number;
-  /** Called once per upstream attempt, for the request's access log. */
-  onTiming?: (timing: GenerationTiming) => void;
+  budgetUtilization: BudgetUtilization;
+  mustHaveUsage: MustHaveUsage[];
 }
 
 /**
- * Returns untrusted plan output. Mock and live generators share this contract
- * so both are validated by exactly the same code path.
+ * The untrusted plan shape a planner emits, before validation and pricing.
+ * Declared here rather than beside any one planner so the engine, the
+ * validator and the tests share a single definition.
  */
-export type PlanGenerator = (input: PlanGeneratorInput) => Promise<unknown>;
+export interface GeneratedIngredient {
+  productId: string;
+  quantity: string;
+  packages: number;
+}
+
+export interface GeneratedRecipe {
+  id: string;
+  title: string;
+  mealType: MealType;
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  appliances: Appliance[];
+  ingredients: GeneratedIngredient[];
+  pantryItems: PantryBasic[];
+  steps: string[];
+}
+
+export interface GeneratedPlan {
+  days: Array<{ day: number; meals: Array<{ mealType: MealType; recipeId: string }> }>;
+  recipes: GeneratedRecipe[];
+}
 
 /**
  * The projection every planner works from. Deliberately narrower than
@@ -224,4 +270,62 @@ export interface SelectableProduct {
   productUrl: string;
   imageUrl?: string | null;
   lastSeenAt: Date;
+  /**
+   * Culinary roles, computed once during selection. Recipe slots are filled by
+   * role, so carrying them here keeps the classifier off the search's hot path.
+   */
+  roles: IngredientRole[];
+}
+
+/* ------------------------------------------------------------------ engine */
+
+/** Weighted soft-score components. Diagnostics only; never sent to a client. */
+export interface ScoreBreakdown {
+  budgetFit: number;
+  ingredientReuse: number;
+  recipeVariety: number;
+  preferenceMatch: number;
+  cuisineMatch: number;
+  practicality: number;
+  foodGroupBalance: number;
+}
+
+export interface EngineDiagnostics {
+  engineVersion: string;
+  durationMs: number;
+  recipesConsidered: number;
+  candidatesGenerated: number;
+  candidatesValid: number;
+  selectedScore: number;
+  scoreBreakdown: ScoreBreakdown;
+}
+
+export interface EngineResult {
+  plan: GeneratedPlan;
+  diagnostics: EngineDiagnostics;
+}
+
+export interface GenerateEngineInput {
+  request: MealPlanRequest;
+  products: SelectableProduct[];
+  variationSeed: number;
+}
+
+export interface ReplaceMealEngineInput {
+  request: MealPlanRequest;
+  currentPlan: GeneratedPlan;
+  day: number;
+  mealType: MealType;
+  products: SelectableProduct[];
+  variationSeed: number;
+}
+
+/**
+ * The single planning collaborator the controller depends on. Generation and
+ * replacement are separate operations because they search different spaces,
+ * but they share every constraint, template and score.
+ */
+export interface MealPlanEngine {
+  generate(input: GenerateEngineInput): Promise<EngineResult>;
+  replaceMeal(input: ReplaceMealEngineInput): Promise<EngineResult>;
 }

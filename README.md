@@ -7,34 +7,43 @@ consolidated Aldi shopping list priced from real catalogue data.
 ## How it works
 
 ```
-Aldi crawl  ->  MongoDB catalogue  ->  product selector  ->  AI context
-                                            |                    |
-                                            v                    v
-                                     safety + allergy      NVIDIA generator
-                                       filtering
-                                            |                    |
+Aldi crawl  ->  MongoDB catalogue  ->  product selector  ->  role classifier
+                                            |                       |
+                                            v                       v
+                                     safety + allergy        recipe templates
+                                       filtering                    |
+                                            |                       v
+                                            |              bounded beam search
+                                            |                       |
                                             +--------> validator + pricing
                                                               |
                                                               v
                                                      7-day plan + basket
 ```
 
-The generator proposes recipes and product IDs. It never decides prices.
-The server validates every plan against the approved product set and computes
-the basket total itself, so a model cannot invent a product or a price.
+Planning is local, deterministic and bounded. No model sits in the request
+path: no API key, no network call, no retry loop. The planner classifies every
+product by culinary role, fills curated recipe templates from products that
+genuinely fit those roles, builds a capped pool of complete weeks, prices each
+one from catalogue records, discards anything over budget, and returns the best
+of what survives.
+
+The same catalogue, request, engine version and variation seed always produce
+the same plan. "Regenerate" asks for a different week by sending a new seed.
 
 ## Requirements
 
 - Node.js 22 or newer
 - MongoDB (local or hosted)
 - Playwright browsers for crawling (`npx playwright install chromium`)
-- An NVIDIA API key for meal generation
+
+No API key is required. Meal planning runs entirely on this machine.
 
 ## Setup
 
 ```bash
 npm install
-cp .env.example .env      # then fill in MongoDB and NVIDIA values
+cp .env.example .env      # then set MONGODB_URI
 npx playwright install chromium
 ```
 
@@ -85,58 +94,73 @@ npm run typecheck
 npm run test:unit    # backend only
 npm run test:client  # frontend only
 npm run build        # typecheck + production client build
+npm run benchmark:planner   # planner latency; deliberately not part of npm test
 ```
 
-## NVIDIA generation
+`benchmark:planner` reports median, p95 and max planning time plus candidate
+counts over an 80-product fixture. It sits outside `npm test` on purpose:
+wall-clock thresholds vary too much between machines to gate CI on, so the
+automated suites assert bounded operation counts instead.
 
-All user-facing meal generation uses NVIDIA. Supply these credentials:
+## The planning engine
+
+Meal plans come from `server/mealPlanning/mealPlanEngine.ts`:
+
+1. **Select** - `productSelector.ts` removes ineligible, unpriced,
+   allergen-conflicting and disliked products, then caps the rest across food
+   groups so one aisle cannot take the whole selection.
+2. **Classify** - `ingredientRoles.ts` assigns each product its culinary roles
+   (`poultry`, `bread`, `yogurt`, and so on) from its name, description and
+   category path. Anything it cannot place is `unknown`.
+3. **Fill templates** - `recipeTemplates.ts` holds 36 curated templates, each
+   declaring its ingredient slots by role. **A required slot is filled by a
+   product carrying an accepted role, or the template is discarded.** Nothing is
+   substituted across roles, and an `unknown` product can never fill a slot.
+   That rule is what stops a plan pairing pasta with pate for breakfast.
+4. **Search** - a deterministic beam search assembles complete weeks, bounded by
+   the five configuration values below.
+5. **Validate and price** - every candidate goes through `mealPlanValidator.ts`
+   and `shoppingList.ts`. Prices come only from catalogue records, and weekly
+   demand is consolidated before packs are rounded up, so reusing an ingredient
+   costs one pack rather than one per meal. A candidate over budget cannot enter
+   the scoring pool.
+6. **Score and choose** - surviving weeks are scored on budget fit, ingredient
+   reuse, variety, preference and cuisine match, practicality and food-group
+   breadth, then ordered by a total tie-break so the winner never depends on
+   input order.
+
+The engine never loops until something scores well: it evaluates a fixed,
+bounded pool and returns the best valid plan in it. Scores stay internal - they
+appear in logs and diagnostics, never in a response. `foodGroupBalance` measures
+breadth of shopping, not nutrition, and must not be read as dietary advice.
+
+### Bounds
 
 ```bash
-NVIDIA_API_KEY=...
-NVIDIA_API_URL=https://integrate.api.nvidia.com/v1/chat/completions
-NVIDIA_MODEL=nvidia/llama-3.3-nemotron-super-49b-v1.5
+MEAL_PLAN_MAX_PRODUCTS=80         # 20-200
+MEAL_PLAN_CANDIDATE_LIMIT=24      # 4-64
+MEAL_PLAN_BEAM_WIDTH=32           # 8-128
+MEAL_PLAN_MAX_RECIPE_VARIANTS=6   # 1-12
+MEAL_PLAN_ENGINE_TIMEOUT_MS=1500  # 250-5000
 ```
 
-Missing credentials fail at startup with a message naming the variables —
-never their values. The deterministic mock planner is test-only and is never a
-runtime fallback.
+Out-of-range values are rejected at startup. These bounds are what make the
+latency guarantee hold, so a misconfiguration must not silently relax them.
 
-Live output goes through exactly the same validator as the mock planner. If a
-plan is invalid or over budget the server regenerates once, then returns a
-controlled error rather than a bad plan.
+### Variation seed
 
-### Timing and the generation budget
+`variationSeed` is an optional request field: an integer from 0 to 2147483647,
+defaulting to 0. It chooses between equally valid weeks. The client sends 0
+first and increments it when the user regenerates. A retry after a **network**
+failure re-sends the same seed, because the outcome of that request is unknown
+and the user has not yet seen its plan.
 
-A 49B model writing a full week of recipes needs well over 30 seconds, so the
-defaults give it the whole window:
+### Logging
 
-```bash
-AI_REQUEST_TIMEOUT_MS=120000   # total budget for one request, max 120000
-AI_MAX_RETRIES=0               # transient upstream failures only
-MEAL_PLAN_MAX_CONTEXT_PRODUCTS=80
-```
-
-`AI_REQUEST_TIMEOUT_MS` is the budget for the **whole** request, not an
-allowance each attempt claims afresh. Two rules keep it honest:
-
-- a timeout is never retried, whatever `AI_MAX_RETRIES` says, so one configured
-  wait cannot silently become two;
-- the validation-repair attempt shares the same deadline, and is skipped when
-  less than a quarter of the window remains — the original `422` is returned
-  rather than a `504` the repair was always going to hit.
-
-`AI_MAX_RETRIES` still covers genuinely transient upstream failures (`5xx`,
-`429`, connection errors), which fail fast and do not consume the window.
-
-To keep responses inside that budget the prompt asks for at most three distinct
-recipes per meal type, repeated across the seven days — the same shape the mock
-planner has always produced, and about half the output tokens of a week of
-unique recipes.
-
-Each generation logs its own timings on the request's access log line
-(`contextMs`, `upstreamMs`, `parseMs`, `validationMs`, `generationMs`,
-`generationAttempts`, `upstreamAttempts`). Durations and counts only: no prompt
-text, no response body, no credentials.
+Each request logs `engineVersion`, `engineMs`, `recipesConsidered`,
+`candidatesGenerated`, `candidatesValid`, `selectedScore`, `productsUsed` and
+the basket total on its access log line. Counts and durations only: never a
+recipe, a product name, a constraint, or a request body.
 
 ## API
 
@@ -156,12 +180,14 @@ recovery action:
 
 | Status | Code | Meaning |
 | --- | --- | --- |
-| 400 | `INVALID_MEAL_PLAN_REQUEST` | Bad constraints; `details` lists the fields |
-| 409 | `CATALOGUE_CONSTRAINT_CONFLICT` | Budget or filters cannot be satisfied |
-| 422 | `AI_INVALID_RESPONSE` | Generator failed twice |
-| 429 | `RATE_LIMITED` | AI route limit exceeded |
+| 400 | `INVALID_MEAL_PLAN_REQUEST` | Bad constraints, or an invalid plan submitted for replacement; `details` lists the fields |
+| 409 | `CATALOGUE_CONSTRAINT_CONFLICT` | Filters leave too little to plan from, or no recipe can be built for a requested meal type |
+| 409 | `NO_AFFORDABLE_PLAN` | Valid weeks exist but all exceed the budget; `details.minimumEstimatedPence` gives the cheapest |
+| 409 | `NO_REPLACEMENT_AVAILABLE` | No distinct, affordable alternative for that meal |
+| 429 | `RATE_LIMITED` | Meal plan route limit exceeded |
+| 500 | `PLANNER_INTERNAL_ERROR` | The planner produced a week its own validator rejected - a bug, never the user's fault |
 | 503 | `CATALOGUE_UNAVAILABLE` | No catalogue data; run the crawl |
-| 504 | `AI_TIMEOUT` | Upstream did not respond in time |
+| 503 | `PLANNER_CAPACITY_EXCEEDED` | The bounded search hit its deadline; retryable |
 
 ## Allergen safety
 
@@ -197,10 +223,13 @@ presented as an allergen-safety tool.
 
 ## Known limitations
 
-- **Mock planner recipes are structural, not culinary.** It fills templates
-  with the cheapest product in each food group, so combinations can be odd
-  (the shape, pricing and shopping list are correct). It exists to make the
-  pipeline testable without AI; use `nvidia` mode for realistic recipes.
+- **Variety is bounded by the template library.** 36 curated templates cover
+  breakfast, lunch, dinner and snacks, with vegetarian and no-cook options in
+  every meal type. Adding templates widens the menu without touching the
+  algorithm; a thin catalogue narrows it.
+- **Role classification is keyword-based** over Aldi names, categories and
+  descriptions. It is deliberately conservative: an unrecognised product stays
+  `unknown` and is simply never used, rather than being guessed into a recipe.
 - Single Aldi store, configured by `ALDI_STORE_ID`. Users cannot pick a store.
 - Plans are generated fresh and never persisted. No accounts, no history.
 - The rate limiter is in-memory, so it is per-instance. Running more than one
@@ -219,7 +248,13 @@ server/
   db/connect.ts            MongoDB lifecycle
   http/                    Error shape, request logging, rate limiting
   catalogue/               Aldi crawler, allergen inference, status endpoint
-  mealPlanning/            Selection, context, prompt, AI client, validator
+  mealPlanning/            Selection, roles, templates, engine, validator
+    ingredientRoles.ts     Catalogue text -> culinary roles
+    recipeTemplates.ts     36 curated templates + static validation
+    recipeVariants.ts      Slot filling, quantity scaling, rendering
+    planScorer.ts          Weighted components and tie-breaking
+    mealPlanEngine.ts      Bounded beam search, budget gate, replacement
+    plannerBenchmark.ts    Local latency harness
   models/Product.ts        Catalogue schema
 client/src/
   api/                     HTTP client; types imported from the server

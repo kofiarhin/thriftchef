@@ -19,6 +19,17 @@
   --color-brand: oklch(74% 0.15 155);
   --color-brand-soft: oklch(30% 0.055 155);
   --color-on-brand: oklch(17% 0.03 155);
+  /* Two extra brand stops, for gradients and the logo mark only. Both keep the
+     same hue so a gradient between them never drifts off-brand. */
+  --color-brand-light: oklch(84% 0.13 165);
+  --color-brand-deep: oklch(58% 0.14 152);
+
+  /* Depth: a narrow sunken shadow and the brand glow under primary buttons */
+  --shadow-elevated: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.22);
+  --shadow-brand-glow: 0 6px 18px oklch(74% 0.15 155 / 0.18);
+
+  /* 400px is below the narrowest phone; option cards stay one-up until then. */
+  --breakpoint-xs: 26rem;
 
   /* Warnings: the inferred-allergen and stale-catalogue notices */
   --color-warning: oklch(52% 0.09 75);
@@ -53,6 +64,52 @@ body {
 }
 
 /**
+ * Sections and cards fade up once on entry. It is decoration, so it is removed
+ * entirely — not merely shortened — when the user has asked for less motion.
+ */
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.reveal {
+  animation: reveal-up 0.45s ease-out both;
+}
+
+/**
+ * Selection is signalled by a tick and a border as well as colour, but in
+ * forced-colours mode the brand border is replaced by the system palette and
+ * the two states can collapse. An explicit outline keeps them apart.
+ */
+@media (forced-colors: active) {
+  [data-selected="true"] {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/**
  * Printing is the one place the dark theme is wrong: a shopping list is taken
  * to a shop on paper. The tokens are flipped back to light for print only.
  */
@@ -68,6 +125,8 @@ body {
     --color-brand: oklch(45% 0.13 155);
     --color-brand-soft: white;
     --color-on-brand: white;
+    --color-brand-light: oklch(45% 0.13 155);
+    --color-brand-deep: oklch(45% 0.13 155);
     --color-warning: oklch(60% 0.09 75);
     --color-warning-surface: white;
     --color-warning-ink: oklch(30% 0.07 75);
@@ -88,4 +147,19 @@ body {
   .print-break-inside-avoid {
     break-inside: avoid;
   }
+
+  /* Shown only on paper: the plan needs a title once the header is gone. */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Shadows and gradients cost ink and add nothing to a printed list. */
+  * {
+    box-shadow: none !important;
+    background-image: none !important;
+  }
+}
+
+.print-only {
+  display: none;
 }

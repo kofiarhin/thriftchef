@@ -17,7 +17,7 @@ async function main(): Promise<void> {
         message: "thriftchef-api listening",
         port: config.port,
         nodeEnv: config.nodeEnv,
-        mealPlanGenerator: "nvidia",
+        mealPlanner: "local-engine",
       }),
     );
   });

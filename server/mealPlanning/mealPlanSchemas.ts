@@ -1,13 +1,17 @@
 import { ApiError } from "../http/errors";
 import {
   APPLIANCES,
+  BUDGET_TARGET_PERCENTS,
   COOKING_APPLIANCES,
+  DEFAULT_BUDGET_TARGET_PERCENT,
+  MAX_MUST_HAVE_PRODUCTS,
   MEAL_PREFERENCES,
   MEAL_TYPES,
   PANTRY_BASICS,
   UK_ALLERGENS,
   type Allergen,
   type Appliance,
+  type BudgetTargetPercent,
   type MealPlanRequest,
   type MealPlanResponse,
   type MealPreference,
@@ -87,7 +91,16 @@ const ALLOWED_KEYS = new Set([
   "dislikedIngredients",
   "pantryBasics",
   "storeId",
+  "variationSeed",
+  "budgetTargetPercent",
+  "mustHaveProductIds",
 ]);
+
+/**
+ * Catalogue ids are retailer product codes, so anything with whitespace or
+ * markup in it never matched a product and is a client defect worth reporting.
+ */
+const PRODUCT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 class RequestValidator {
   readonly issues: FieldIssue[] = [];
@@ -166,6 +179,67 @@ class RequestValidator {
     }
 
     return allowed.filter((entry) => selected.has(entry));
+  }
+
+  /**
+   * The budget target is a closed set rather than a free percentage: three
+   * presets are what the UI offers, and an arbitrary number would imply a
+   * precision the search cannot honour.
+   */
+  budgetTargetPercent(field: string, value: unknown): BudgetTargetPercent {
+    if (value === undefined) return DEFAULT_BUDGET_TARGET_PERCENT;
+
+    if (
+      typeof value !== "number" ||
+      !(BUDGET_TARGET_PERCENTS as readonly number[]).includes(value)
+    ) {
+      this.add(
+        field,
+        `${field} must be one of: ${BUDGET_TARGET_PERCENTS.join(", ")}.`,
+      );
+      return DEFAULT_BUDGET_TARGET_PERCENT;
+    }
+
+    return value as BudgetTargetPercent;
+  }
+
+  /**
+   * Duplicates are the user clicking twice, not a second request for the same
+   * product, so they are folded away. Order is preserved because the engine
+   * assigns must-haves to meal types in the order they were chosen, and a
+   * stable order is what keeps that assignment deterministic.
+   */
+  productIdList(field: string, value: unknown, max: number): string[] {
+    if (value === undefined) return [];
+
+    if (!Array.isArray(value)) {
+      this.add(field, `${field} must be an array.`);
+      return [];
+    }
+
+    if (value.length > max) {
+      this.add(field, `${field} may contain at most ${max} products.`);
+      return [];
+    }
+
+    const ids: string[] = [];
+
+    for (const entry of value) {
+      if (typeof entry !== "string") {
+        this.add(field, `${field} must contain only product id strings.`);
+        return [];
+      }
+
+      const trimmed = entry.trim();
+      if (!PRODUCT_ID_PATTERN.test(trimmed)) {
+        this.add(field, `${field} contains an id that is not a product id.`);
+        return [];
+      }
+
+      if (!ids.includes(trimmed)) ids.push(trimmed);
+    }
+
+    return ids;
   }
 
   freeTextList(field: string, value: unknown): string[] {
@@ -282,6 +356,16 @@ export function parseMealPlanRequest(body: unknown): MealPlanRequest {
     );
   }
 
+  const budgetTargetPercent = validator.budgetTargetPercent(
+    "budgetTargetPercent",
+    input.budgetTargetPercent,
+  );
+  const mustHaveProductIds = validator.productIdList(
+    "mustHaveProductIds",
+    input.mustHaveProductIds,
+    MAX_MUST_HAVE_PRODUCTS,
+  );
+
   const cuisinePreferences = validator.freeTextList(
     "cuisinePreferences",
     input.cuisinePreferences,
@@ -290,6 +374,16 @@ export function parseMealPlanRequest(body: unknown): MealPlanRequest {
     "dislikedIngredients",
     input.dislikedIngredients,
   );
+
+  // Regeneration sends a new seed rather than hoping for a different answer:
+  // the engine is deterministic, so the same seed must give the same week.
+  const variationSeed =
+    input.variationSeed === undefined
+      ? 0
+      : validator.integer("variationSeed", input.variationSeed, {
+          min: 0,
+          max: 2_147_483_647,
+        });
 
   let storeId: string | undefined;
   if (input.storeId !== undefined) {
@@ -318,6 +412,9 @@ export function parseMealPlanRequest(body: unknown): MealPlanRequest {
     allergies,
     dislikedIngredients,
     pantryBasics,
+    variationSeed,
+    budgetTargetPercent,
+    mustHaveProductIds,
     ...(storeId ? { storeId } : {}),
   };
 }

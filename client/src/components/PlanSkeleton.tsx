@@ -6,23 +6,24 @@ function Block({ className }: { className: string }) {
  * Announced politely rather than assertively: a screen reader user needs to
  * know work is underway without the whole skeleton being read out.
  *
- * The wait quoted here matches the server's AI budget. Understating it teaches
- * people to reload a request that is still working.
+ * The wait quoted here matches what the local planner actually takes. Planning
+ * is a bounded search over the catalogue, measured in milliseconds, so quoting
+ * minutes would teach people to expect a wait that no longer exists.
  */
 export function PlanSkeleton() {
   return (
     <div role="status" aria-live="polite" className="space-y-8">
       <span className="sr-only">
-        Generating your meal plan. Writing a full week of recipes usually takes
-        under a minute and can take up to two minutes.
+        Building your week from current Aldi prices. This should take a few
+        seconds.
       </span>
 
       <p aria-hidden="true" className="text-sm text-ink-muted">
-        Building your week from real Aldi prices. This usually takes under a
-        minute, and can take up to two minutes.
+        Building your week from current Aldi prices. This should take a few
+        seconds.
       </p>
 
-      <div aria-hidden="true" className="grid gap-4 rounded-lg border border-line bg-surface-raised p-5 sm:grid-cols-3">
+      <div aria-hidden="true" className="grid gap-4 rounded-2xl border border-line bg-surface-raised p-5 sm:grid-cols-3">
         {[0, 1, 2].map((index) => (
           <div key={index} className="space-y-2">
             <Block className="h-3 w-24" />
@@ -37,7 +38,7 @@ export function PlanSkeleton() {
           {Array.from({ length: 7 }, (_, index) => (
             <div
               key={index}
-              className="space-y-2 rounded-lg border border-line bg-surface-raised p-4"
+              className="space-y-2 rounded-2xl border border-line bg-surface-raised p-4"
             >
               <Block className="h-3 w-16" />
               <Block className="h-4 w-full" />
@@ -53,7 +54,7 @@ export function PlanSkeleton() {
           {[0, 1].map((index) => (
             <div
               key={index}
-              className="space-y-3 rounded-lg border border-line bg-surface-raised p-5"
+              className="space-y-3 rounded-2xl border border-line bg-surface-raised p-5"
             >
               <Block className="h-4 w-48" />
               <Block className="h-3 w-full" />

@@ -4,6 +4,13 @@ import type { AppConfig } from "../config/env";
 import { ApiError } from "../http/errors";
 import { addLogContext } from "../http/requestId";
 import {
+  describeUtilization,
+  isMateriallyBelowTarget,
+  resolveBudgetTarget,
+  underTargetWarning,
+} from "./budgetTarget";
+import { createMealPlanEngine } from "./mealPlanEngine";
+import {
   parseMealPlanRequest,
   parseMealReplacementRequest,
 } from "./mealPlanSchemas";
@@ -12,7 +19,6 @@ import {
   validateAndPricePlan,
   type PricedPlan,
 } from "./mealPlanValidator";
-import { createNvidiaGenerator } from "./nvidiaClient";
 import {
   fetchCandidateProducts,
   selectProducts,
@@ -20,11 +26,12 @@ import {
   type SelectionResult,
 } from "./productSelector";
 import type {
-  GenerationTiming,
+  BudgetTarget,
+  EngineDiagnostics,
+  MealPlanEngine,
   MealPlanRequest,
   MealPlanResponse,
-  PlanGenerator,
-  PlanGeneratorInput,
+  MustHaveUsage,
   SelectableProduct,
 } from "./mealPlanTypes";
 
@@ -33,20 +40,20 @@ const MIN_PRODUCTS_FOR_PLAN = 3;
 
 export interface MealPlanDependencies {
   loadProducts: (storeId: string) => Promise<CandidateProduct[]>;
-  generate: PlanGenerator;
+  engine: MealPlanEngine;
   now: () => Date;
   newPlanId: () => string;
 }
 
 export function defaultDependencies(config: AppConfig): MealPlanDependencies {
-  const generate = createNvidiaGenerator({
-    config: config.nvidia,
-    maxContextProducts: config.mealPlanMaxContextProducts,
-  });
-
   return {
     loadProducts: fetchCandidateProducts,
-    generate,
+    engine: createMealPlanEngine({
+      beamWidth: config.mealPlanEngine.beamWidth,
+      candidateLimit: config.mealPlanEngine.candidateLimit,
+      maxRecipeVariants: config.mealPlanEngine.maxRecipeVariants,
+      timeoutMs: config.mealPlanEngine.timeoutMs,
+    }),
     now: () => new Date(),
     newPlanId: () => randomUUID(),
   };
@@ -114,112 +121,191 @@ function assertUsableSelection(
   );
 }
 
-/**
- * A repair is a second upstream call, so it only runs while a worthwhile slice
- * of the budget is left. Below this share of the window a repair would almost
- * certainly time out, and a controlled 422 tells the user more than a 504 that
- * was inevitable.
- */
-const MIN_REPAIR_BUDGET_SHARE = 0.25;
-
-interface GenerationOutcome {
-  priced: PricedPlan;
-  attempts: number;
-  regenerated: boolean;
-  timings: GenerationTiming[];
-  /** Time spent validating and pricing, across every attempt. */
-  validationMs: number;
+/** Reads back to the user in the order they chose the products. */
+function describeMustHaveIssue(reason: string): string {
+  if (reason === "allergy") return "conflicts with an allergy you declared";
+  if (reason === "dislike") return "matches an ingredient you asked to avoid";
+  return "is not currently available or priced in the Aldi catalogue";
 }
 
 /**
- * Runs the generator, validates, and allows exactly one repair attempt — for
- * invalid output or for an over-budget basket. A second failure is reported
- * rather than retried, so a broken generator cannot loop at the user's expense.
- *
- * Every attempt shares one deadline: the configured AI timeout is the budget
- * for the whole request, not an allowance each attempt may claim afresh.
+ * A must-have id that matches no catalogue product is a malformed selection
+ * rather than a planning conflict: the client sent an id that never existed,
+ * so there is nothing for the user to trade off.
  */
-async function generateValidPlan(
-  dependencies: MealPlanDependencies,
+function assertMustHaveProductsExist(
+  candidates: CandidateProduct[],
+  mustHaveProductIds: string[],
+): void {
+  if (mustHaveProductIds.length === 0) return;
+
+  // A map, not a scan per id: the catalogue is thousands of products and this
+  // runs on every request.
+  const known = new Set(candidates.map((candidate) => candidate.retailerProductId));
+  const missing = mustHaveProductIds.filter((productId) => !known.has(productId));
+
+  if (missing.length === 0) return;
+
+  throw ApiError.mustHaveProductNotFound(
+    "Some of the products you asked to include are not in the current Aldi catalogue.",
+    {
+      productIds: missing,
+      suggestions: [
+        "Search for the product again and re-select it.",
+        "The catalogue may have been refreshed since you chose it.",
+      ],
+    },
+  );
+}
+
+/**
+ * A must-have the user's own constraints forbid. Never silently dropped: the
+ * user has to decide which of the two choices they meant.
+ */
+function assertMustHavesAreAllowed(selection: SelectionResult): void {
+  if (selection.mustHaveIssues.length === 0) return;
+
+  throw ApiError.mustHaveConstraintConflict(
+    "Some of the products you asked to include cannot be used with your other choices.",
+    {
+      products: selection.mustHaveIssues.map((issue) => ({
+        productId: issue.productId,
+        productName: issue.productName,
+        reason: issue.reason,
+      })),
+      causes: selection.mustHaveIssues.map(
+        (issue) => `${issue.productName} ${describeMustHaveIssue(issue.reason)}.`,
+      ),
+      suggestions: [
+        "Remove the product from your must-have list.",
+        "Remove the allergy or disliked ingredient it conflicts with.",
+      ],
+    },
+  );
+}
+
+/**
+ * Checked before the search runs. A selection that already costs more than the
+ * whole week is unanswerable, and spending a search proving it wastes the
+ * user's time as well as the server's.
+ */
+function assertMustHavesFitBudget(
+  products: SelectableProduct[],
+  request: MealPlanRequest,
+): void {
+  if (request.mustHaveProductIds.length === 0) return;
+
+  const byId = new Map(products.map((product) => [product.productId, product]));
+  const subtotalPence = request.mustHaveProductIds.reduce(
+    (total, productId) => total + (byId.get(productId)?.pricePence ?? 0),
+    0,
+  );
+
+  if (subtotalPence <= request.budgetPence) return;
+
+  throw ApiError.mustHaveProductsOverBudget(
+    "The products you asked to include cost more than your whole weekly budget.",
+    {
+      budgetPence: request.budgetPence,
+      mustHaveSubtotalPence: subtotalPence,
+      suggestions: [
+        `Increase the budget to at least £${(subtotalPence / 100).toFixed(2)}.`,
+        "Remove one of the must-have products.",
+      ],
+    },
+  );
+}
+
+/**
+ * Where each must-have product ended up. Resolved entirely from the priced
+ * plan and the catalogue snapshot — nothing the client said about a product's
+ * name or price is read here.
+ */
+function mustHaveUsageFor(
+  priced: PricedPlan,
+  products: SelectableProduct[],
+  mustHaveProductIds: string[],
+): MustHaveUsage[] {
+  if (mustHaveProductIds.length === 0) return [];
+
+  const productsById = new Map(products.map((product) => [product.productId, product]));
+  const recipesById = new Map(priced.recipes.map((recipe) => [recipe.id, recipe]));
+
+  return mustHaveProductIds.map((productId) => ({
+    productId,
+    productName: productsById.get(productId)?.name ?? productId,
+    usedIn: priced.days.flatMap((day) =>
+      day.meals
+        .filter((meal) => recipesById.get(meal.recipeId)?.productIds.includes(productId))
+        .map((meal) => ({
+          day: day.day,
+          mealType: meal.mealType,
+          recipeId: meal.recipeId,
+        })),
+    ),
+  }));
+}
+
+/**
+ * The engine already treats must-have coverage as a hard gate, so a failure
+ * here is an engine defect rather than anything the user can act on. Re-checked
+ * anyway: the promise that a chosen product is in the basket is the whole
+ * feature, and a promise is worth re-reading.
+ */
+function assertMustHavesWereUsed(
+  usage: MustHaveUsage[],
+  priced: PricedPlan,
+): void {
+  const bought = new Set(
+    priced.shoppingList.flatMap((group) => group.items.map((item) => item.productId)),
+  );
+
+  const missing = usage.filter(
+    (entry) => entry.usedIn.length === 0 || !bought.has(entry.productId),
+  );
+
+  if (missing.length === 0) return;
+
+  throw ApiError.plannerInternal(
+    "The planner produced a week that left out a product you asked to include.",
+  );
+}
+
+/**
+ * The final validation pass over the engine's own output. Defence in depth: the
+ * engine already validates every candidate, so a rejection here means an engine
+ * regression slipped past its own gate, and the response contract must not
+ * carry it to the browser.
+ */
+function validateEngineOutput(
+  plan: unknown,
   request: MealPlanRequest,
   products: SelectableProduct[],
-  budget: { deadlineAt: number; minRepairMs: number },
-): Promise<GenerationOutcome> {
-  const productsById = new Map(products.map((product) => [product.productId, product]));
-  const context = { request, products: productsById };
-  const timings: GenerationTiming[] = [];
-  const onTiming = (timing: GenerationTiming): void => {
-    timings.push(timing);
-  };
-
-  let firstRejection: PlanRejectedError | null = null;
-  let retry: PlanGeneratorInput["retry"];
-  let validationMs = 0;
-
-  const canRepair = (): boolean =>
-    budget.deadlineAt - Date.now() >= budget.minRepairMs;
-
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
-    let priced: PricedPlan;
-
-    try {
-      const raw = await dependencies.generate({
-        request,
-        products,
-        retry,
-        deadlineAt: budget.deadlineAt,
-        onTiming,
-      });
-
-      const validationStarted = Date.now();
-      try {
-        priced = validateAndPricePlan(raw, context);
-      } finally {
-        validationMs += Date.now() - validationStarted;
-      }
-    } catch (error) {
-      if (!(error instanceof PlanRejectedError) || attempt === 2) throw error;
-      if (!canRepair()) throw error;
-
-      firstRejection = error;
-      retry = { reason: error.reason };
-      continue;
+): PricedPlan {
+  try {
+    return validateAndPricePlan(plan, {
+      request,
+      products: new Map(products.map((product) => [product.productId, product])),
+    });
+  } catch (error) {
+    if (error instanceof PlanRejectedError) {
+      throw ApiError.plannerInternal(
+        "The planner produced a week that failed its own validation.",
+      );
     }
-
-    if (priced.budgetStatus !== "over-budget" || attempt === 2 || !canRepair()) {
-      return {
-        priced,
-        attempts: attempt,
-        regenerated: attempt > 1,
-        timings,
-        validationMs,
-      };
-    }
-
-    retry = {
-      reason: "OVER_BUDGET",
-      previousTotalPence: priced.estimatedTotalPence,
-    };
+    throw error;
   }
-
-  /* c8 ignore next */
-  throw firstRejection ?? ApiError.unprocessable("Plan generation did not settle.");
 }
 
-/** Sums the per-attempt timings into the fields the access log records. */
-function summarize(timings: GenerationTiming[]): Record<string, number> {
-  return {
-    contextMs: timings.reduce((total, entry) => total + entry.contextMs, 0),
-    upstreamMs: timings.reduce((total, entry) => total + entry.upstreamMs, 0),
-    parseMs: timings.reduce((total, entry) => total + entry.parseMs, 0),
-    upstreamAttempts: timings.length,
-  };
-}
-
+/**
+ * The engine gates the budget internally, so reaching this with an over-budget
+ * basket would be a bug rather than a user problem. It is still checked: the
+ * displayed total is a promise, and a promise is worth re-reading.
+ */
 function assertWithinBudget(priced: PricedPlan, request: MealPlanRequest): void {
   if (priced.budgetStatus !== "over-budget") return;
 
-  throw ApiError.conflict(
+  throw ApiError.noAffordablePlan(
     "The cheapest plan we could build for these constraints costs more than the budget.",
     {
       budgetPence: request.budgetPence,
@@ -233,6 +319,70 @@ function assertWithinBudget(priced: PricedPlan, request: MealPlanRequest): void 
   );
 }
 
+function staleCatalogueWarning(
+  candidates: CandidateProduct[],
+  config: AppConfig,
+  now: Date,
+): string | null {
+  const seenAt = newestSeenAt(candidates);
+  if (!seenAt) return null;
+
+  const staleAfterMs = config.catalogueStaleAfterHours * 60 * 60 * 1000;
+  if (now.getTime() - seenAt.getTime() <= staleAfterMs) return null;
+
+  return `The Aldi catalogue was last refreshed on ${seenAt.toISOString().slice(0, 10)}. Prices and availability may have changed since.`;
+}
+
+function buildResponse(
+  priced: PricedPlan,
+  request: MealPlanRequest,
+  selection: SelectionResult,
+  warnings: string[],
+  dependencies: MealPlanDependencies,
+  budgetTarget: BudgetTarget,
+  mustHaveUsage: MustHaveUsage[],
+): MealPlanResponse {
+  return {
+    planId: dependencies.newPlanId(),
+    generatedAt: dependencies.now().toISOString(),
+    currency: "GBP",
+    budgetPence: request.budgetPence,
+    estimatedTotalPence: priced.estimatedTotalPence,
+    budgetStatus: priced.budgetStatus,
+    assumptions: [
+      ...priced.assumptions,
+      `Recipes are scaled for a household of ${request.householdSize}.`,
+      "Prices are the Aldi shelf prices recorded at the last catalogue crawl and exclude offers.",
+    ],
+    warnings,
+    days: priced.days,
+    recipes: priced.recipes,
+    shoppingList: priced.shoppingList,
+    productCoverage: {
+      productsConsidered: selection.productsConsidered,
+      productsUsed: priced.productsUsed,
+      excludedForAllergies: selection.excludedForAllergies,
+      excludedForSafety: selection.excludedForSafety,
+    },
+    budgetUtilization: describeUtilization(budgetTarget, priced.estimatedTotalPence),
+    mustHaveUsage,
+  };
+}
+
+/** Counts and durations only — never a recipe, a product name or a constraint. */
+function engineLogFields(
+  diagnostics: EngineDiagnostics,
+): Record<string, string | number> {
+  return {
+    engineVersion: diagnostics.engineVersion,
+    engineMs: diagnostics.durationMs,
+    recipesConsidered: diagnostics.recipesConsidered,
+    candidatesGenerated: diagnostics.candidatesGenerated,
+    candidatesValid: diagnostics.candidatesValid,
+    selectedScore: diagnostics.selectedScore,
+  };
+}
+
 export function createMealPlanHandler(
   config: AppConfig,
   dependencies: MealPlanDependencies,
@@ -240,76 +390,74 @@ export function createMealPlanHandler(
   return async (request: Request, response: Response): Promise<void> => {
     const planRequest = parseMealPlanRequest(request.body);
     const storeId = planRequest.storeId ?? config.aldi.storeId;
+    const budgetTarget = resolveBudgetTarget(
+      planRequest.budgetPence,
+      planRequest.budgetTargetPercent,
+    );
 
     const candidates = await dependencies.loadProducts(storeId);
+    assertMustHaveProductsExist(candidates, planRequest.mustHaveProductIds);
+
     const selection = selectProducts(candidates, planRequest, {
-      maxProducts: config.mealPlanMaxContextProducts,
+      maxProducts: config.mealPlanEngine.maxProducts,
+      mustHaveProductIds: planRequest.mustHaveProductIds,
     });
 
     assertUsableSelection(candidates, selection, planRequest);
+    assertMustHavesAreAllowed(selection);
+    assertMustHavesFitBudget(selection.products, planRequest);
 
+    // One call. The engine evaluates a bounded internal pool of complete weeks,
+    // so there is nothing here to retry: a second identical call would search
+    // exactly the same space and reach the same answer.
     const started = Date.now();
-    const { priced, attempts, regenerated, timings, validationMs } =
-      await generateValidPlan(dependencies, planRequest, selection.products, {
-        deadlineAt: started + config.nvidia.timeoutMs,
-        minRepairMs: config.nvidia.timeoutMs * MIN_REPAIR_BUDGET_SHARE,
-      });
+    const { plan, diagnostics } = await dependencies.engine.generate({
+      request: planRequest,
+      products: selection.products,
+      variationSeed: planRequest.variationSeed,
+    });
 
+    const priced = validateEngineOutput(plan, planRequest, selection.products);
     assertWithinBudget(priced, planRequest);
 
+    const mustHaveUsage = mustHaveUsageFor(
+      priced,
+      selection.products,
+      planRequest.mustHaveProductIds,
+    );
+    assertMustHavesWereUsed(mustHaveUsage, priced);
+
     const warnings = [...selection.warnings];
+    const stale = staleCatalogueWarning(candidates, config, dependencies.now());
+    if (stale) warnings.push(stale);
 
-    const seenAt = newestSeenAt(candidates);
-    const staleAfterMs = config.catalogueStaleAfterHours * 60 * 60 * 1000;
-    if (seenAt && dependencies.now().getTime() - seenAt.getTime() > staleAfterMs) {
-      warnings.push(
-        `The Aldi catalogue was last refreshed on ${seenAt.toISOString().slice(0, 10)}. Prices and availability may have changed since.`,
-      );
+    // Non-blocking: the plan is valid and affordable, the user simply asked for
+    // a richer week than the catalogue and their constraints could build.
+    if (isMateriallyBelowTarget(budgetTarget, priced.estimatedTotalPence)) {
+      warnings.push(underTargetWarning(budgetTarget, priced.estimatedTotalPence));
     }
 
-    if (regenerated) {
-      warnings.push(
-        "The first generated plan did not meet the constraints, so it was regenerated.",
-      );
-    }
-
-    const assumptions = [
-      ...priced.assumptions,
-      `Recipes are scaled for a household of ${planRequest.householdSize}.`,
-      "Prices are the Aldi shelf prices recorded at the last catalogue crawl and exclude offers.",
-    ];
-
-    const body: MealPlanResponse = {
-      planId: dependencies.newPlanId(),
-      generatedAt: dependencies.now().toISOString(),
-      currency: "GBP",
-      budgetPence: planRequest.budgetPence,
-      estimatedTotalPence: priced.estimatedTotalPence,
-      budgetStatus: priced.budgetStatus,
-      assumptions,
+    const body = buildResponse(
+      priced,
+      planRequest,
+      selection,
       warnings,
-      days: priced.days,
-      recipes: priced.recipes,
-      shoppingList: priced.shoppingList,
-      productCoverage: {
-        productsConsidered: selection.productsConsidered,
-        productsUsed: priced.productsUsed,
-        excludedForAllergies: selection.excludedForAllergies,
-        excludedForSafety: selection.excludedForSafety,
-      },
-    };
+      dependencies,
+      budgetTarget,
+      mustHaveUsage,
+    );
 
-    // Timings only: durations and counts, never prompt or response text.
     addLogContext(response, {
       storeId,
-      generator: "nvidia",
+      generator: "engine",
       generationMs: Date.now() - started,
-      generationAttempts: attempts,
-      validationMs,
-      ...summarize(timings),
+      ...engineLogFields(diagnostics),
       productsConsidered: selection.productsConsidered,
       productsUsed: priced.productsUsed,
       estimatedTotalPence: priced.estimatedTotalPence,
+      budgetTargetPercent: planRequest.budgetTargetPercent,
+      mustHaveCount: planRequest.mustHaveProductIds.length,
+      outcome: "generated",
     });
 
     response.json(body);
@@ -320,20 +468,11 @@ function rawPlanFromResponse(plan: MealPlanResponse): unknown {
   return { days: plan.days, recipes: plan.recipes };
 }
 
-function replacementRecipeFrom(raw: unknown): Record<string, unknown> {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-    throw new PlanRejectedError("INVALID_RECIPE", "The replacement was not an object.");
-  }
-
-  const recipe = (raw as Record<string, unknown>).recipe;
-  if (typeof recipe !== "object" || recipe === null || Array.isArray(recipe)) {
-    throw new PlanRejectedError("INVALID_RECIPE", "The replacement contained no recipe.");
-  }
-
-  return recipe as Record<string, unknown>;
-}
-
-/** Replaces one meal while validating the submitted plan and the replacement. */
+/**
+ * Replaces one meal. The submitted plan is untrusted client input, so it is
+ * validated before anything is changed — and a rejection there is a bad request
+ * rather than a planner failure.
+ */
 export function createMealReplacementHandler(
   config: AppConfig,
   dependencies: MealPlanDependencies,
@@ -342,137 +481,84 @@ export function createMealReplacementHandler(
     const replacementRequest = parseMealReplacementRequest(httpRequest.body);
     const { request: planRequest, plan, day, mealType } = replacementRequest;
     const storeId = planRequest.storeId ?? config.aldi.storeId;
+    const budgetTarget = resolveBudgetTarget(
+      planRequest.budgetPence,
+      planRequest.budgetTargetPercent,
+    );
+
     const candidates = await dependencies.loadProducts(storeId);
+    assertMustHaveProductsExist(candidates, planRequest.mustHaveProductIds);
+
     const selection = selectProducts(candidates, planRequest, {
-      maxProducts: config.mealPlanMaxContextProducts,
+      maxProducts: config.mealPlanEngine.maxProducts,
+      mustHaveProductIds: planRequest.mustHaveProductIds,
     });
     assertUsableSelection(candidates, selection, planRequest);
+    assertMustHavesAreAllowed(selection);
+    assertMustHavesFitBudget(selection.products, planRequest);
 
-    const productsById = new Map(
+    const products = new Map(
       selection.products.map((product) => [product.productId, product]),
     );
-    const validationContext = { request: planRequest, products: productsById };
-    const current = validateAndPricePlan(rawPlanFromResponse(plan), validationContext);
-    const target = current.days
-      .find((entry) => entry.day === day)
-      ?.meals.find((meal) => meal.mealType === mealType);
 
-    if (!target) {
-      throw ApiError.badRequest(
-        `Day ${day} does not contain a ${mealType} to replace.`,
-        [{ field: "mealType", message: "Choose a meal that exists in the current plan." }],
-        "INVALID_MEAL_PLAN_REQUEST",
-      );
-    }
-
-    let priced: PricedPlan | null = null;
-    let retry: PlanGeneratorInput["retry"];
-    let firstRejection: PlanRejectedError | null = null;
-    const replacementId = `replacement-${dependencies.newPlanId()}`;
-    const started = Date.now();
-    const deadlineAt = started + config.nvidia.timeoutMs;
-    const timings: GenerationTiming[] = [];
-
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
-      // As in generation: both attempts share one budget, so a repair cannot
-      // extend the wait beyond the configured window. The first rejection is
-      // reported rather than the half-built plan that provoked it.
-      if (
-        attempt === 2 &&
-        deadlineAt - Date.now() < config.nvidia.timeoutMs * MIN_REPAIR_BUDGET_SHARE
-      ) {
-        throw firstRejection ?? ApiError.unprocessable("Meal replacement did not settle.");
-      }
-
-      try {
-        const raw = await dependencies.generate({
-          request: planRequest,
-          products: selection.products,
-          retry,
-          deadlineAt,
-          onTiming: (timing) => timings.push(timing),
-          replacement: {
-            day,
-            mealType,
-            currentPlan: { days: current.days, recipes: current.recipes },
-          },
-        });
-        const replacementRecipe = {
-          ...replacementRecipeFrom(raw),
-          id: replacementId,
-          mealType,
-        };
-        const days = current.days.map((entry) => ({
-          day: entry.day,
-          meals: entry.meals.map((meal) => ({
-            mealType: meal.mealType,
-            recipeId:
-              entry.day === day && meal.mealType === mealType
-                ? replacementId
-                : meal.recipeId,
-          })),
-        }));
-        const referencedIds = new Set(
-          days.flatMap((entry) => entry.meals.map((meal) => meal.recipeId)),
+    let current: PricedPlan;
+    try {
+      current = validateAndPricePlan(rawPlanFromResponse(plan), {
+        request: planRequest,
+        products,
+      });
+    } catch (error) {
+      if (error instanceof PlanRejectedError) {
+        throw ApiError.badRequest(
+          "The plan submitted for replacement is not a valid plan for these constraints.",
+          [{ field: "plan", message: "Generate a fresh plan, then replace a meal in it." }],
+          "INVALID_MEAL_PLAN_REQUEST",
         );
-        const recipes = [
-          ...current.recipes.filter((recipe) => referencedIds.has(recipe.id)),
-          replacementRecipe,
-        ];
-        priced = validateAndPricePlan({ days, recipes }, validationContext);
-
-        if (priced.budgetStatus === "over-budget") {
-          throw new PlanRejectedError(
-            "INVALID_RECIPE",
-            "The replacement pushed the basket over budget.",
-          );
-        }
-        break;
-      } catch (error) {
-        if (!(error instanceof PlanRejectedError) || attempt === 2) throw error;
-
-        // Discard the rejected candidate so a later break cannot return it.
-        priced = null;
-        firstRejection = error;
-        retry = { reason: error.reason };
       }
+      throw error;
     }
 
-    if (!priced) throw ApiError.unprocessable("Meal replacement did not settle.");
+    const started = Date.now();
+    const { plan: replacedPlan, diagnostics } = await dependencies.engine.replaceMeal({
+      request: planRequest,
+      currentPlan: { days: current.days, recipes: current.recipes },
+      products: selection.products,
+      variationSeed: planRequest.variationSeed,
+      day,
+      mealType,
+    });
 
-    const body: MealPlanResponse = {
-      planId: dependencies.newPlanId(),
-      generatedAt: dependencies.now().toISOString(),
-      currency: "GBP",
-      budgetPence: planRequest.budgetPence,
-      estimatedTotalPence: priced.estimatedTotalPence,
-      budgetStatus: priced.budgetStatus,
-      assumptions: [
-        ...priced.assumptions,
-        `Recipes are scaled for a household of ${planRequest.householdSize}.`,
-        "Prices are the Aldi shelf prices recorded at the last catalogue crawl and exclude offers.",
-      ],
-      warnings: [...selection.warnings],
-      days: priced.days,
-      recipes: priced.recipes,
-      shoppingList: priced.shoppingList,
-      productCoverage: {
-        productsConsidered: selection.productsConsidered,
-        productsUsed: priced.productsUsed,
-        excludedForAllergies: selection.excludedForAllergies,
-        excludedForSafety: selection.excludedForSafety,
-      },
-    };
+    const priced = validateEngineOutput(replacedPlan, planRequest, selection.products);
+    assertWithinBudget(priced, planRequest);
+
+    const mustHaveUsage = mustHaveUsageFor(
+      priced,
+      selection.products,
+      planRequest.mustHaveProductIds,
+    );
+    assertMustHavesWereUsed(mustHaveUsage, priced);
+
+    const body = buildResponse(
+      priced,
+      planRequest,
+      selection,
+      [...selection.warnings],
+      dependencies,
+      budgetTarget,
+      mustHaveUsage,
+    );
 
     addLogContext(response, {
       storeId,
-      generator: "nvidia",
+      generator: "engine",
       operation: "replace-meal",
       generationMs: Date.now() - started,
-      ...summarize(timings),
+      ...engineLogFields(diagnostics),
       productsConsidered: selection.productsConsidered,
       productsUsed: priced.productsUsed,
+      outcome: "replaced",
     });
+
     response.json(body);
   };
 }

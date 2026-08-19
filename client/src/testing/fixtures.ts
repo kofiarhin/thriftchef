@@ -1,4 +1,8 @@
-import type { CatalogueStatus, MealPlanResponse } from "../api/types";
+import type {
+  CatalogueStatus,
+  MealPlanResponse,
+  ProductSearchResponse,
+} from "../api/types";
 
 export const CATALOGUE_STATUS: CatalogueStatus = {
   retailer: "aldi-uk",
@@ -17,6 +21,14 @@ export const MEAL_PLAN: MealPlanResponse = {
   budgetPence: 7000,
   estimatedTotalPence: 6420,
   budgetStatus: "within-budget",
+  budgetUtilization: {
+    targetPercent: 80,
+    targetPence: 5600,
+    actualPence: 6420,
+    actualPercent: 92,
+    withinPreferredRange: false,
+  },
+  mustHaveUsage: [],
   assumptions: ["Recipes are scaled for a household of 2."],
   warnings: [
     "Aldi does not publish allergen data, so allergens were inferred. Always check the label on the packaging.",
@@ -106,4 +118,51 @@ export const MEAL_PLAN: MealPlanResponse = {
     excludedForAllergies: 0,
     excludedForSafety: 74,
   },
+};
+
+export const PRODUCT_SEARCH_PAGE: ProductSearchResponse = {
+  items: [
+    {
+      id: "p-chicken-breast",
+      name: "Chicken Breast Fillets",
+      category: "Fresh Food",
+      pricePence: 389,
+      packageSize: "650g",
+      unitPrice: "£5.98 per kg",
+      imageUrl: null,
+      available: true,
+    },
+    {
+      id: "p-basmati-rice",
+      name: "Basmati Rice",
+      category: "Food Cupboard",
+      pricePence: 179,
+      packageSize: "1kg",
+      unitPrice: "£1.79 per kg",
+      imageUrl: null,
+      available: true,
+    },
+  ],
+  page: 1,
+  limit: 10,
+  total: 2,
+  totalPages: 1,
+};
+
+/** Enough products to reach and exceed the twelve-item must-have limit. */
+export const LARGE_PRODUCT_SEARCH_PAGE: ProductSearchResponse = {
+  items: Array.from({ length: 13 }, (_, index) => ({
+    id: `bulk-${index}`,
+    name: `Bulk Product ${index}`,
+    category: "Food Cupboard",
+    pricePence: 100 + index,
+    packageSize: "500g",
+    unitPrice: null,
+    imageUrl: null,
+    available: true,
+  })),
+  page: 1,
+  limit: 20,
+  total: 13,
+  totalPages: 1,
 };

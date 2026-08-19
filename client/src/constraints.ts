@@ -1,11 +1,18 @@
-import { COOKING_APPLIANCES } from "./api/types";
+import {
+  BUDGET_TARGET_PERCENTS,
+  COOKING_APPLIANCES,
+  DEFAULT_BUDGET_TARGET_PERCENT,
+  MAX_MUST_HAVE_PRODUCTS,
+} from "./api/types";
 import type {
   Allergen,
   Appliance,
+  BudgetTargetPercent,
   MealPlanRequest,
   MealPreference,
   MealType,
   PantryBasic,
+  ProductSearchItem,
 } from "./api/types";
 
 /**
@@ -14,6 +21,8 @@ import type {
  */
 export interface ConstraintFormState {
   budgetPounds: string;
+  /** The share of the maximum the plan should aim to use. */
+  budgetTargetPercent: BudgetTargetPercent;
   householdSize: string;
   mealsPerDay: MealType[];
   mealPreferences: MealPreference[];
@@ -22,10 +31,17 @@ export interface ConstraintFormState {
   allergies: Allergen[];
   dislikedIngredients: string;
   pantryBasics: PantryBasic[];
+  /**
+   * The whole catalogue item, not just its id: the picker shows a name and a
+   * running subtotal. Only the ids are ever sent — the server prices and names
+   * every product from its own catalogue snapshot.
+   */
+  mustHaveProducts: ProductSearchItem[];
 }
 
 export const INITIAL_FORM_STATE: ConstraintFormState = {
   budgetPounds: "70",
+  budgetTargetPercent: DEFAULT_BUDGET_TARGET_PERCENT,
   householdSize: "2",
   mealsPerDay: ["dinner"],
   mealPreferences: [],
@@ -34,11 +50,43 @@ export const INITIAL_FORM_STATE: ConstraintFormState = {
   allergies: [],
   dislikedIngredients: "",
   pantryBasics: [],
+  mustHaveProducts: [],
 };
 
 export const MIN_BUDGET_POUNDS = 10;
 export const MAX_BUDGET_POUNDS = 500;
 export const MAX_FREE_TEXT_LENGTH = 40;
+export const MAX_MUST_HAVE_ITEMS = MAX_MUST_HAVE_PRODUCTS;
+
+/** The three presets, with the wording the form shows for each. */
+export const BUDGET_TARGET_OPTIONS: Array<{
+  percent: BudgetTargetPercent;
+  label: string;
+  description: string;
+}> = [
+  { percent: 50, label: "Tight", description: "Spend about half of the maximum." },
+  { percent: 65, label: "Balanced", description: "Leave a little headroom." },
+  { percent: 80, label: "Use my budget", description: "Aim close to the maximum." },
+];
+
+/**
+ * The target in pence, or null while the budget is not yet a usable number.
+ * The server recomputes this; showing it here is what makes the preset mean
+ * something before the plan is generated.
+ */
+export function targetPenceFor(state: ConstraintFormState): number | null {
+  const budgetPounds = Number(state.budgetPounds);
+  if (!state.budgetPounds.trim() || !Number.isFinite(budgetPounds)) return null;
+
+  return Math.round(budgetPounds * 100 * (state.budgetTargetPercent / 100));
+}
+
+export function mustHaveSubtotalPence(state: ConstraintFormState): number {
+  return state.mustHaveProducts.reduce(
+    (total, product) => total + product.pricePence,
+    0,
+  );
+}
 
 export type FieldName = keyof ConstraintFormState;
 export type ValidationIssues = Partial<Record<FieldName, string>>;
@@ -98,6 +146,14 @@ export function validateConstraints(
     issues.mealsPerDay = "Choose at least one meal to plan each day.";
   }
 
+  if (!BUDGET_TARGET_PERCENTS.includes(state.budgetTargetPercent)) {
+    issues.budgetTargetPercent = "Choose how much of your budget to aim for.";
+  }
+
+  if (state.mustHaveProducts.length > MAX_MUST_HAVE_ITEMS) {
+    issues.mustHaveProducts = `Choose at most ${MAX_MUST_HAVE_ITEMS} must-have products.`;
+  }
+
   // An empty selection is valid and means no-cook. A selection with no cooking
   // appliance in it is a mistake, not a no-cook choice.
   if (
@@ -128,7 +184,11 @@ export function validateConstraints(
     issues,
     request: {
       budgetPence: Math.round(budgetPounds * 100),
+      budgetTargetPercent: state.budgetTargetPercent,
       householdSize,
+      // The first request of a session always asks for seed 0, so the same
+      // constraints give the same week until the user asks to regenerate.
+      variationSeed: 0,
       mealsPerDay: state.mealsPerDay,
       mealPreferences: state.mealPreferences,
       cuisinePreferences,
@@ -136,6 +196,7 @@ export function validateConstraints(
       allergies: state.allergies,
       dislikedIngredients,
       pantryBasics: state.pantryBasics,
+      mustHaveProductIds: state.mustHaveProducts.map((product) => product.id),
     },
   };
 }
@@ -144,6 +205,8 @@ export function validateConstraints(
 export function mapServerFieldToFormField(field: string): FieldName | null {
   const mapping: Record<string, FieldName> = {
     budgetPence: "budgetPounds",
+    budgetTargetPercent: "budgetTargetPercent",
+    mustHaveProductIds: "mustHaveProducts",
     householdSize: "householdSize",
     mealsPerDay: "mealsPerDay",
     mealPreferences: "mealPreferences",

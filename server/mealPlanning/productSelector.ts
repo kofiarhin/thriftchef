@@ -1,4 +1,5 @@
 import { Product, type CatalogueSafetyStatus } from "../models/Product";
+import { classifyIngredientRoles, type IngredientRole } from "./ingredientRoles";
 import {
   allocateAcrossFoodGroups,
   classifyFoodGroup,
@@ -41,6 +42,20 @@ export interface CandidateProduct {
   lastSeenAt: Date;
 }
 
+/**
+ * Why a product the user insisted on cannot be planned with. Never a silent
+ * removal: a must-have the plan cannot honour is reported back with the
+ * product's catalogue name so the user can choose something else.
+ */
+export type MustHaveExclusionReason = "allergy" | "dislike" | "unavailable";
+
+export interface MustHaveIssue {
+  productId: string;
+  /** From the catalogue record, never from the client. */
+  productName: string;
+  reason: MustHaveExclusionReason;
+}
+
 export interface SelectionResult {
   products: SelectableProduct[];
   productsConsidered: number;
@@ -49,10 +64,17 @@ export interface SelectionResult {
   excludedForDislikes: number;
   usesInferredProducts: boolean;
   warnings: string[];
+  /** Must-have products the safety and constraint filters removed. */
+  mustHaveIssues: MustHaveIssue[];
 }
 
 export interface SelectionOptions {
   maxProducts: number;
+  /**
+   * Products the user has committed to buying. Forced into the selection past
+   * the ranking cap, but never past a safety, allergy or dislike filter.
+   */
+  mustHaveProductIds?: string[];
 }
 
 /**
@@ -123,6 +145,91 @@ function rankScore(
   return score;
 }
 
+/**
+ * How many products per price band, per culinary role, are pulled to the front
+ * of the ranking so the food-group cap cannot drop them.
+ */
+const PER_ROLE_BAND_QUOTA = 1;
+
+const PRICE_BANDS = 3;
+
+/**
+ * Only the mid and dear bands are protected. The cheap band needs no help —
+ * ranking already prefers it — and promoting it as well simply refills the cap
+ * with the products that were never at risk, squeezing out the dearer ones
+ * this exists to keep.
+ */
+const FIRST_PROTECTED_BAND = 1;
+
+/**
+ * Reorders a ranked list so each culinary role keeps a cheap, a mid-priced and
+ * a dearer option near the front.
+ *
+ * Ranking rewards cheapness, and a straight cap therefore hands every slot in a
+ * role to its cheapest members. That is fine for a tight week and useless for a
+ * generous one: with nothing dearer in the selection, no amount of scoring can
+ * build a plan that uses a larger budget. Order within a band is left exactly
+ * as ranking left it, so this widens the choice without overruling it.
+ */
+export function retainRolePriceBands(
+  ranked: SelectableProduct[],
+): SelectableProduct[] {
+  const byRole = new Map<IngredientRole, SelectableProduct[]>();
+
+  for (const product of ranked) {
+    for (const role of product.roles) {
+      if (role === "unknown") continue;
+
+      const members = byRole.get(role) ?? [];
+      members.push(product);
+      byRole.set(role, members);
+    }
+  }
+
+  const promoted = new Set<string>();
+
+  // Roles are visited in a fixed order so the promoted set never depends on
+  // Map insertion order, which depends on the catalogue.
+  for (const role of [...byRole.keys()].sort()) {
+    const members = byRole.get(role) ?? [];
+    if (members.length < PRICE_BANDS) continue;
+
+    // Bands split the role's price *range*, not its population. Aldi's price
+    // distribution inside a role is heavily skewed toward the cheap end — 279
+    // poultry products from 29p to £12.29, most of them under £3 — so splitting
+    // by population puts the whole "dearest third" below £3 and promotes
+    // nothing a generous budget could actually spend on.
+    const prices = members.map((product) => product.pricePence);
+    const lowest = Math.min(...prices);
+    const highest = Math.max(...prices);
+    if (highest <= lowest) continue;
+
+    const bandWidth = (highest - lowest) / PRICE_BANDS;
+
+    for (let band = FIRST_PROTECTED_BAND; band < PRICE_BANDS; band += 1) {
+      const from = lowest + band * bandWidth;
+      const to = band === PRICE_BANDS - 1 ? Infinity : lowest + (band + 1) * bandWidth;
+
+      // Inside a band, ranking still decides which products are worth keeping.
+      let taken = 0;
+      for (const product of members) {
+        if (taken >= PER_ROLE_BAND_QUOTA) break;
+        if (product.pricePence < from || product.pricePence >= to) continue;
+
+        promoted.add(product.productId);
+        taken += 1;
+      }
+    }
+  }
+
+  // A stable partition: promoted products keep their relative ranking, and so
+  // does everything else.
+  return [
+    ...ranked.filter((product) => promoted.has(product.productId)),
+    ...ranked.filter((product) => !promoted.has(product.productId)),
+  ];
+}
+
 function toSelectable(product: CandidateProduct): SelectableProduct {
   return {
     productId: product.retailerProductId,
@@ -138,6 +245,11 @@ function toSelectable(product: CandidateProduct): SelectableProduct {
     productUrl: product.productUrl,
     imageUrl: product.imageUrl ?? null,
     lastSeenAt: product.lastSeenAt,
+    roles: classifyIngredientRoles({
+      name: product.name,
+      description: product.description,
+      categoryPaths: product.categoryPaths,
+    }),
   };
 }
 
@@ -162,6 +274,24 @@ export function selectProducts(
     0,
   );
 
+  const mustHaveIds = options.mustHaveProductIds ?? [];
+  const mustHaveSet = new Set(mustHaveIds);
+  const mustHaveIssuesById = new Map<string, MustHaveIssue>();
+
+  function noteMustHaveIssue(
+    product: CandidateProduct,
+    reason: MustHaveExclusionReason,
+  ): void {
+    if (!mustHaveSet.has(product.retailerProductId)) return;
+    if (mustHaveIssuesById.has(product.retailerProductId)) return;
+
+    mustHaveIssuesById.set(product.retailerProductId, {
+      productId: product.retailerProductId,
+      productName: product.name,
+      reason,
+    });
+  }
+
   let excludedForAllergies = 0;
   let excludedForSafety = 0;
   let excludedForDislikes = 0;
@@ -177,21 +307,25 @@ export function selectProducts(
       (safetyStatus !== "verified" && safetyStatus !== "inferred")
     ) {
       excludedForSafety += 1;
+      noteMustHaveIssue(product, "unavailable");
       continue;
     }
 
     if (product.pricePence <= 0) {
       excludedForSafety += 1;
+      noteMustHaveIssue(product, "unavailable");
       continue;
     }
 
     if (product.normalizedAllergens.some((allergen) => allergies.has(allergen))) {
       excludedForAllergies += 1;
+      noteMustHaveIssue(product, "allergy");
       continue;
     }
 
     if (matchesDislike(product, request.dislikedIngredients)) {
       excludedForDislikes += 1;
+      noteMustHaveIssue(product, "dislike");
       continue;
     }
 
@@ -213,17 +347,28 @@ export function selectProducts(
       a.product.productId.localeCompare(b.product.productId),
   );
 
+  const rankedProducts = retainRolePriceBands(ranked.map((entry) => entry.product));
+
+  // Products the user committed to buying are not candidates to be ranked; the
+  // decision is already made. They take their places first, and the cap then
+  // shares out what is left.
+  const forced = rankedProducts.filter((product) => mustHaveSet.has(product.productId));
+  const forcedIds = new Set(forced.map((product) => product.productId));
+
   // Cap by food group rather than by rank alone. Ranking favours cheap
   // cupboard staples, so a straight top-N would hand every slot to tinned
   // goods and leave the planner with no protein, vegetables or dairy.
-  const products = allocateAcrossFoodGroups(
-    ranked.map((entry) => entry.product),
-    {
-      maxItems: options.maxProducts,
-      groupOf: (product) => classifyFoodGroup(product.categoryPaths),
-      includeSnacks: request.mealsPerDay.includes("snack"),
-    },
-  );
+  const products = [
+    ...forced,
+    ...allocateAcrossFoodGroups(
+      rankedProducts.filter((product) => !forcedIds.has(product.productId)),
+      {
+        maxItems: Math.max(0, options.maxProducts - forced.length),
+        groupOf: (product) => classifyFoodGroup(product.categoryPaths),
+        includeSnacks: request.mealsPerDay.includes("snack"),
+      },
+    ),
+  ];
 
   const warnings: string[] = [];
   if (products.some((product) => product.safetyStatus === "inferred")) {
@@ -242,6 +387,11 @@ export function selectProducts(
     excludedForDislikes,
     usesInferredProducts,
     warnings,
+    // Reported in the order the user chose the products, so the message reads
+    // back in the order the selector was given.
+    mustHaveIssues: mustHaveIds
+      .map((productId) => mustHaveIssuesById.get(productId))
+      .filter((issue): issue is MustHaveIssue => issue !== undefined),
   };
 }
 

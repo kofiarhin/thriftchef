@@ -1,4 +1,5 @@
 import { ApiRequestError } from "../api/http";
+import { Icon } from "./Icon";
 
 interface PlanErrorProps {
   error: unknown;
@@ -29,15 +30,25 @@ function describe(error: unknown): { title: string; body: string } {
         title: "Could not build a plan with these constraints",
         body: error.message,
       };
-    case "AI_TIMEOUT":
+    case "NO_AFFORDABLE_PLAN":
       return {
-        title: "Plan generation timed out",
-        body: "The meal plan service did not finish within two minutes. Try again, or reduce the meal types per day so there is less for it to write.",
+        title: "This week costs more than the budget",
+        body: error.message,
       };
-    case "AI_INVALID_RESPONSE":
+    case "NO_REPLACEMENT_AVAILABLE":
       return {
-        title: "Could not generate a valid plan",
-        body: "The generated plan did not meet the rules for your constraints. Try increasing the budget or reducing meal types.",
+        title: "No other meal fits this day",
+        body: "Nothing else can be built for this meal within your constraints and budget. Keep the current meal, or widen the constraints.",
+      };
+    case "PLANNER_CAPACITY_EXCEEDED":
+      return {
+        title: "The planner is busy",
+        body: "The planner ran out of time building your week. Try again in a moment.",
+      };
+    case "PLANNER_INTERNAL_ERROR":
+      return {
+        title: "Could not build a valid plan",
+        body: "Something went wrong inside the planner. Try again, and change a constraint if it keeps happening.",
       };
     case "RATE_LIMITED":
       return { title: "Too many attempts", body: error.message };
@@ -65,10 +76,13 @@ export function PlanError({ error, onRetry, onEditConstraints }: PlanErrorProps)
   return (
     <div
       role="alert"
-      className="rounded-lg border border-danger bg-danger-surface p-5 text-danger-ink"
+      className="rounded-2xl border border-danger bg-danger-surface p-6 text-danger-ink"
     >
-      <h2 className="text-lg font-semibold">{title}</h2>
-      <p className="mt-2 text-sm">{body}</p>
+      <span className="flex size-10 items-center justify-center rounded-xl border border-danger bg-danger-surface">
+        <Icon name="alert-circle" size={20} />
+      </span>
+      <h2 className="mt-4 text-lg font-semibold">{title}</h2>
+      <p className="mt-2 max-w-prose text-sm">{body}</p>
 
       {suggestions.length > 0 ? (
         <ul className="mt-3 list-disc space-y-1 pl-5 text-sm">
@@ -82,8 +96,9 @@ export function PlanError({ error, onRetry, onEditConstraints }: PlanErrorProps)
         <button
           type="button"
           onClick={onEditConstraints}
-          className="rounded-md border border-danger bg-surface-raised px-4 py-2 text-sm font-medium text-ink transition hover:border-danger-strong"
+          className="inline-flex items-center gap-2 rounded-xl border border-danger bg-surface-raised px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-danger-strong"
         >
+          <Icon name="sliders" size={15} />
           Edit constraints
         </button>
 
@@ -91,8 +106,9 @@ export function PlanError({ error, onRetry, onEditConstraints }: PlanErrorProps)
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-md bg-danger-strong px-4 py-2 text-sm font-semibold text-on-danger transition hover:opacity-90"
+            className="inline-flex items-center gap-2 rounded-xl bg-danger-strong px-4 py-2.5 text-sm font-semibold text-on-danger transition hover:brightness-110"
           >
+            <Icon name="refresh" size={15} />
             Try again
           </button>
         ) : null}

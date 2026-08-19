@@ -1,6 +1,11 @@
 import cors from "cors";
 import express, { type Express, type Request, type Response } from "express";
 import { createCatalogueRoutes } from "./catalogue/catalogueRoutes";
+import { createProductRoutes } from "./catalogue/productRoutes";
+import {
+  searchCatalogueProducts,
+  type ProductSearchPort,
+} from "./catalogue/productSearchService";
 import type { AppConfig } from "./config/env";
 import { errorHandler, notFoundHandler } from "./http/errors";
 import { requestContext } from "./http/requestId";
@@ -15,10 +20,12 @@ export const SERVICE_VERSION = "1.0.0";
 
 export interface AppOverrides {
   /**
-   * Lets tests substitute the catalogue loader and plan generator, so the
-   * route can be exercised end to end without MongoDB or an AI call.
+   * Lets tests substitute the catalogue loader and the planning engine, so the
+   * route can be exercised end to end without MongoDB.
    */
   mealPlanDependencies?: Partial<MealPlanDependencies>;
+  /** Lets tests drive catalogue search from a fixture instead of MongoDB. */
+  searchProducts?: ProductSearchPort;
 }
 
 /**
@@ -52,6 +59,10 @@ export function createApp(config: AppConfig, overrides: AppOverrides = {}): Expr
   });
 
   app.use("/api/catalogue", createCatalogueRoutes(config));
+  app.use(
+    "/api/products",
+    createProductRoutes(config, overrides.searchProducts ?? searchCatalogueProducts),
+  );
   app.use(
     "/api/meal-plans",
     createMealPlanRoutes(config, {

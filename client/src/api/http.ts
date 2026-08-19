@@ -34,8 +34,14 @@ export class ApiRequestError extends Error {
       : [];
   }
 
+  /**
+   * A request that never reached the server (status 0) is the most retryable
+   * failure there is — the outcome is simply unknown. Server-side failures are
+   * retryable when they are transient: an overloaded planner or a rate limit.
+   * A 4xx the user must act on is not.
+   */
   get isRetryable(): boolean {
-    return this.status >= 500 || this.status === 429 || this.status === 422;
+    return this.status === 0 || this.status >= 500 || this.status === 429;
   }
 }
 

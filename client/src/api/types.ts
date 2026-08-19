@@ -8,12 +8,16 @@ export type {
   Allergen,
   Appliance,
   BudgetStatus,
+  BudgetTarget,
+  BudgetTargetPercent,
+  BudgetUtilization,
   MealPlanDay,
   MealPlanMeal,
   MealPlanRequest,
   MealPlanResponse,
   MealPreference,
   MealType,
+  MustHaveUsage,
   PantryBasic,
   ProductCoverage,
   Recipe,
@@ -24,7 +28,10 @@ export type {
 
 export {
   APPLIANCES,
+  BUDGET_TARGET_PERCENTS,
   COOKING_APPLIANCES,
+  DEFAULT_BUDGET_TARGET_PERCENT,
+  MAX_MUST_HAVE_PRODUCTS,
   MEAL_PREFERENCES,
   MEAL_TYPES,
   PANTRY_BASICS,
@@ -45,6 +52,11 @@ export interface CatalogueStatus {
     ambiguous: number;
   };
 }
+
+export type {
+  ProductSearchItem,
+  ProductSearchResponse,
+} from "../../../server/catalogue/productSearchService";
 
 export interface FieldIssue {
   field: string;
