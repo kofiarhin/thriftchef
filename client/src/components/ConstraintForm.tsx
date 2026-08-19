@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
 import {
   APPLIANCES,
   MEAL_PREFERENCES,
@@ -43,12 +43,10 @@ interface ConstraintFormProps {
   serverIssues?: ValidationIssues;
 }
 
-const STEPS = ["Budget", "Must-haves", "Food", "Kitchen"] as const;
-const STEP_ICONS: IconName[] = ["wallet", "basket", "leaf", "hob"];
+const STEPS = ["Basics", "Preferences", "Kitchen"] as const;
 const STEP_FIELDS: FieldName[][] = [
   ["budgetPounds", "budgetTargetPercent", "householdSize", "mealsPerDay"],
-  ["mustHaveProducts"],
-  ["mealPreferences", "cuisinePreferences", "allergies", "dislikedIngredients"],
+  ["mustHaveProducts", "mealPreferences", "cuisinePreferences", "allergies", "dislikedIngredients"],
   ["appliances", "pantryBasics"],
 ];
 
@@ -65,18 +63,25 @@ function StepIntro({
   id,
   title,
   detail,
+  headingRef,
 }: {
   eyebrow: string;
   id: string;
   title: string;
   detail?: string;
+  headingRef: Ref<HTMLHeadingElement>;
 }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
         {eyebrow}
       </p>
-      <h3 id={id} className="mt-2 text-xl font-semibold tracking-tight text-ink">
+      <h3
+        id={id}
+        ref={headingRef}
+        tabIndex={-1}
+        className="mt-2 scroll-mt-24 text-xl font-semibold tracking-tight text-ink outline-none"
+      >
         {title}
       </h3>
       {detail ? <p className="mt-1 text-sm text-ink-muted">{detail}</p> : null}
@@ -196,22 +201,39 @@ export function ConstraintForm({
 }: ConstraintFormProps) {
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const hasRenderedRef = useRef(false);
   const validation = validateConstraints(state);
   const issues: ValidationIssues = {
     ...(submitted ? validation.issues : {}),
     ...serverIssues,
   };
 
+  useEffect(() => {
+    if (!hasRenderedRef.current) {
+      hasRenderedRef.current = true;
+      return;
+    }
+
+    const heading = stepHeadingRef.current;
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }, [step]);
+
   const update = <K extends keyof ConstraintFormState>(
     key: K,
     value: ConstraintFormState[K],
   ): void => onStateChange({ ...state, [key]: value });
 
+  const goToStep = (nextStep: number): void => {
+    setSubmitted(false);
+    setStep(Math.max(0, Math.min(STEPS.length - 1, nextStep)));
+  };
+
   const continueToNextStep = (): void => {
     setSubmitted(true);
     if (hasStepIssues(validation.issues, step)) return;
-    setSubmitted(false);
-    setStep((current) => Math.min(STEPS.length - 1, current + 1));
+    goToStep(step + 1);
   };
 
   const handleSubmit = (event: FormEvent): void => {
@@ -229,57 +251,40 @@ export function ConstraintForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <nav aria-label="Planning progress" className="mb-6">
-        <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <nav aria-label="Planning progress" className="mb-5">
+        <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+          <p className="font-semibold text-ink">Step {step + 1} of {STEPS.length}</p>
+          <p className="text-ink-muted">{STEPS[step]}</p>
+        </div>
+        <ol className="grid grid-cols-3 gap-2">
           {STEPS.map((label, index) => (
             <li key={label}>
               <button
                 type="button"
-                onClick={() => index < step && setStep(index)}
+                onClick={() => index < step && goToStep(index)}
                 disabled={index > step || isGenerating}
                 aria-current={index === step ? "step" : undefined}
-                className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-3 text-left transition duration-150 ${
-                  index === step
-                    ? "border-brand bg-brand-soft text-ink"
-                    : index < step
-                      ? "border-line bg-surface-raised text-ink hover:border-ink-muted"
-                      : "border-line/70 bg-surface-sunken text-ink-muted opacity-70"
+                aria-label={`Step ${index + 1}: ${label}`}
+                className={`block h-1.5 w-full rounded-full transition ${ 
+                  index <= step ? "bg-brand" : "bg-line"
                 }`}
               >
-                <span
-                  aria-hidden="true"
-                  className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
-                    index === step
-                      ? "bg-brand text-on-brand"
-                      : "bg-surface-sunken text-ink-muted"
-                  }`}
-                >
-                  {index < step ? (
-                    <Icon name="check" size={15} strokeWidth={2.4} />
-                  ) : (
-                    <Icon name={STEP_ICONS[index]} size={16} />
-                  )}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[0.65rem] font-semibold uppercase tracking-wider text-ink-muted">
-                    Step {index + 1}
-                  </span>
-                  <span className="block truncate text-sm font-semibold">{label}</span>
-                </span>
+                <span className="sr-only">{label}</span>
               </button>
             </li>
           ))}
         </ol>
       </nav>
 
-      <div className="min-h-[25rem] rounded-2xl border border-line bg-surface-raised p-5 shadow-elevated sm:p-8">
+      <div className="min-h-[30rem] rounded-2xl border border-line bg-surface-raised p-5 shadow-elevated sm:p-7">
         {step === 0 ? (
-          <section aria-labelledby="household-step" className="space-y-8">
+          <section aria-labelledby="household-step" className="space-y-6">
             <StepIntro
               eyebrow="Your week"
               id="household-step"
-              title="Start with the essentials"
-              detail="We price every retail pack needed for seven days."
+              title="Set your weekly budget"
+              detail="Tell us what you want to spend and who you are feeding."
+              headingRef={stepHeadingRef}
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -334,27 +339,13 @@ export function ConstraintForm({
         ) : null}
 
         {step === 1 ? (
-          <section aria-labelledby="must-have-step" className="space-y-8">
-            <StepIntro
-              eyebrow="Your basket"
-              id="must-have-step"
-              title="Anything you already want to buy?"
-              detail="Optional. We buy each one and build a recipe around it."
-            />
-            <MustHaveSelector
-              selected={state.mustHaveProducts}
-              onChange={(value) => update("mustHaveProducts", value)}
-              error={issues.mustHaveProducts}
-            />
-          </section>
-        ) : null}
-
-        {step === 2 ? (
-          <section aria-labelledby="food-step" className="space-y-8">
+          <section aria-labelledby="preferences-step" className="space-y-6">
             <StepIntro
               eyebrow="Your food"
-              id="food-step"
+              id="preferences-step"
               title="Make the plan feel like yours"
+              detail="Choose what matters. Everything else can stay at its default."
+              headingRef={stepHeadingRef}
             />
 
             <CheckboxGroup<MealPreference>
@@ -367,25 +358,65 @@ export function ConstraintForm({
               meta={MEAL_PREFERENCE_META}
             />
 
-            <CheckboxGroup<Allergen>
-              legend="Allergies to avoid"
-              hint="Allergen data is inferred, never official. Check the packaging."
-              options={UK_ALLERGENS}
-              selected={state.allergies}
-              onChange={(value) => update("allergies", value)}
-              error={issues.allergies}
-              labels={ALLERGEN_LABELS}
-              meta={ALLERGEN_META}
-              dense
-              footnote={<AllergenSafetyNote />}
-            />
+            <details
+              open={state.mustHaveProducts.length > 0 ? true : undefined}
+              className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
+            >
+              <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
+                <Icon name="basket" size={16} />
+                Add must-have items
+                {state.mustHaveProducts.length > 0
+                  ? ` (${state.mustHaveProducts.length})`
+                  : ""}
+              </summary>
+              <div className="mt-4">
+                <MustHaveSelector
+                  selected={state.mustHaveProducts}
+                  onChange={(value) => update("mustHaveProducts", value)}
+                  error={issues.mustHaveProducts}
+                />
+              </div>
+            </details>
 
-            <fieldset className="rounded-xl border border-line bg-surface-sunken p-4">
-              <legend className="flex items-center gap-2 px-2 text-sm font-semibold text-ink">
-                <Icon name="sliders" size={15} />
-                Optional details
-              </legend>
-              <div className="mt-2 grid gap-4 sm:grid-cols-2">
+            <details
+              open={state.allergies.length > 0 ? true : undefined}
+              className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
+            >
+              <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
+                <Icon name="shield" size={16} />
+                Add allergies
+                {state.allergies.length > 0 ? ` (${state.allergies.length})` : ""}
+              </summary>
+              <div className="mt-4">
+                <CheckboxGroup<Allergen>
+                  legend="Allergies to avoid"
+                  hint="Allergen data is inferred, never official. Check the packaging."
+                  options={UK_ALLERGENS}
+                  selected={state.allergies}
+                  onChange={(value) => update("allergies", value)}
+                  error={issues.allergies}
+                  labels={ALLERGEN_LABELS}
+                  meta={ALLERGEN_META}
+                  dense
+                  footnote={<AllergenSafetyNote />}
+                />
+              </div>
+            </details>
+
+            <details
+              open={
+                Boolean(state.cuisinePreferences.trim()) ||
+                Boolean(state.dislikedIngredients.trim())
+                  ? true
+                  : undefined
+              }
+              className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
+            >
+              <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
+                <Icon name="sliders" size={16} />
+                Add optional details
+              </summary>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <TextField
                   label="Cuisine preferences"
                   hint="Comma separated, for example: Ghanaian, British."
@@ -401,16 +432,17 @@ export function ConstraintForm({
                   error={issues.dislikedIngredients}
                 />
               </div>
-            </fieldset>
+            </details>
           </section>
         ) : null}
 
-        {step === 3 ? (
+        {step === 2 ? (
           <section aria-labelledby="kitchen-step" className="space-y-8">
             <StepIntro
               eyebrow="Your kitchen"
               id="kitchen-step"
               title="Finish your setup"
+              headingRef={stepHeadingRef}
             />
 
             <CheckboxGroup<Appliance>
@@ -452,24 +484,17 @@ export function ConstraintForm({
         ) : null}
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line bg-surface-sunken p-4 sm:px-5">
+      <div className="sticky bottom-0 z-20 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-elevated backdrop-blur sm:px-4">
         <button
           type="button"
-          onClick={() => {
-            setSubmitted(false);
-            setStep((current) => Math.max(0, current - 1));
-          }}
+          onClick={() => goToStep(step - 1)}
           disabled={step === 0 || isGenerating}
           className="rounded-xl border border-line px-5 py-2.5 text-sm font-semibold text-ink transition hover:border-ink-muted disabled:invisible"
         >
           Back
         </button>
 
-        <div className="flex flex-1 flex-wrap items-center justify-end gap-x-5 gap-y-2">
-          <p className="flex items-center gap-2 text-xs text-ink-muted">
-            <Icon name="price-tag" size={14} />
-            Every item is priced from the Aldi catalogue snapshot.
-          </p>
+        <p className="hidden text-xs text-ink-muted sm:block">You can change this later.</p>
           <button
             type="submit"
             disabled={isGenerating}
@@ -482,7 +507,7 @@ export function ConstraintForm({
                 : "Continue"}
             <Icon name="arrow-right" size={16} />
           </button>
-        </div>
+
       </div>
     </form>
   );
