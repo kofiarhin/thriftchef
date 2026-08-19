@@ -265,10 +265,14 @@ export function ConstraintForm({
                 disabled={index > step || isGenerating}
                 aria-current={index === step ? "step" : undefined}
                 aria-label={`Step ${index + 1}: ${label}`}
-                className={`block h-1.5 w-full rounded-full transition ${
-                  index <= step ? "bg-brand" : "bg-line"
-                }`}
+                className="block min-h-11 w-full py-4"
               >
+                <span
+                  aria-hidden="true"
+                  className={`block h-1.5 w-full rounded-full transition ${
+                    index <= step ? "bg-brand" : "bg-line"
+                  }`}
+                />
                 <span className="sr-only">{label}</span>
               </button>
             </li>
