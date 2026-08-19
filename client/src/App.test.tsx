@@ -70,9 +70,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-/** Budget, must-haves and food are all skippable; the kitchen step submits. */
+/** Basics and preferences lead to the final kitchen step. */
 async function submitForm(): Promise<void> {
-  for (let step = 0; step < 3; step += 1) {
+  for (let step = 0; step < 2; step += 1) {
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
   }
   await userEvent.click(screen.getByRole("button", { name: /generate my plan/i }));
@@ -398,7 +398,7 @@ describe("App", () => {
     expect(second.variationSeed).toBe((first.variationSeed as number) + 1);
   });
 
-  it("keeps every form control reachable across the four labelled steps", async () => {
+  it("keeps every form control reachable across three focused steps", async () => {
     mockApi();
     renderWithProviders(<App />);
 
@@ -406,16 +406,41 @@ describe("App", () => {
     expect(
       screen.getByRole("group", { name: /how much of your budget/i }),
     ).toBeInTheDocument();
+
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
-    expect(screen.getByLabelText(/search aldi products/i)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    expect(
+      screen.getByRole("heading", { name: /make the plan feel like yours/i }),
+    ).toHaveFocus();
     expect(screen.getByRole("group", { name: /meal preferences/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText(/add must-have items/i));
+    expect(screen.getByLabelText(/search aldi products/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText(/add allergies/i));
     expect(screen.getByRole("group", { name: /allergies to avoid/i })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByText(/add optional details/i));
     expect(screen.getByLabelText(/cuisine preferences/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/disliked ingredients/i)).toBeInTheDocument();
+
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     expect(screen.getByRole("group", { name: /cooking appliances available/i })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /already have at home/i })).toBeInTheDocument();
+  });
+
+  it("returns focus to each step heading after forward and back navigation", async () => {
+    mockApi();
+    renderWithProviders(<App />);
+
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    expect(
+      screen.getByRole("heading", { name: /make the plan feel like yours/i }),
+    ).toHaveFocus();
+
+    await userEvent.click(screen.getByRole("button", { name: /back/i }));
+    expect(
+      screen.getByRole("heading", { name: /set your weekly budget/i }),
+    ).toHaveFocus();
   });
 
   it("replaces one selected meal through the replacement endpoint", async () => {
@@ -481,6 +506,7 @@ describe("budget target", () => {
 describe("must-have product selection", () => {
   async function openMustHaveStep(): Promise<void> {
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await userEvent.click(screen.getByText(/add must-have items/i));
   }
 
   async function search(term: string): Promise<void> {
@@ -600,7 +626,6 @@ describe("must-have product selection", () => {
       await screen.findByRole("button", { name: /add chicken breast fillets/i }),
     );
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
-    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     await userEvent.click(screen.getByRole("button", { name: /generate my plan/i }));
 
     await waitFor(() => expect(generateCalls).toHaveLength(1));
@@ -615,11 +640,11 @@ describe("must-have product selection", () => {
 
     await userEvent.click(screen.getByRole("radio", { name: /tight — 50%/i }));
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await userEvent.click(screen.getByText(/add must-have items/i));
     await userEvent.type(screen.getByLabelText(/search aldi products/i), "chicken");
     await userEvent.click(
       await screen.findByRole("button", { name: /add chicken breast fillets/i }),
     );
-    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     await userEvent.click(screen.getByRole("button", { name: /generate my plan/i }));
 
@@ -726,6 +751,26 @@ describe("page chrome", () => {
     await userEvent.click(screen.getByRole("button", { name: /plan my week/i }));
 
     expect(document.getElementById("planner")).toHaveFocus();
+  });
+
+  it("shows only the planner while planning and restores the landing page on exit", async () => {
+    mockApi();
+    renderWithProviders(<App />);
+
+    await userEvent.click(screen.getByRole("button", { name: /plan my week/i }));
+
+    expect(screen.getByRole("button", { name: /exit planner/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /how it works/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /exit planner/i }));
+
+    expect(
+      screen.getByRole("heading", { name: /how it works/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo")).toBeInTheDocument();
   });
 
   it("exposes the mobile navigation as an accessible disclosure", async () => {
