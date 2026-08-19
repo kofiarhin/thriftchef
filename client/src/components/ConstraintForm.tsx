@@ -286,7 +286,7 @@ export function ConstraintForm({
             <StepIntro
               eyebrow="Your week"
               id="household-step"
-              title="Set your weekly budget"
+              title="Set your budget and household"
               detail="Tell us what you want to spend and who you are feeding."
               headingRef={stepHeadingRef}
             />
