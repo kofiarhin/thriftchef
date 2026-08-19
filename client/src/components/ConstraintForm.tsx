@@ -24,7 +24,7 @@ import {
   type ValidationIssues,
 } from "../constraints";
 import { formatPence } from "../format";
-import { Icon, type IconName } from "./Icon";
+import { Icon } from "./Icon";
 import { MustHaveSelector } from "./MustHaveSelector";
 import {
   ALLERGEN_META,
@@ -265,7 +265,7 @@ export function ConstraintForm({
                 disabled={index > step || isGenerating}
                 aria-current={index === step ? "step" : undefined}
                 aria-label={`Step ${index + 1}: ${label}`}
-                className={`block h-1.5 w-full rounded-full transition ${ 
+                className={`block h-1.5 w-full rounded-full transition ${
                   index <= step ? "bg-brand" : "bg-line"
                 }`}
               >
@@ -359,7 +359,7 @@ export function ConstraintForm({
             />
 
             <details
-              open={state.mustHaveProducts.length > 0 ? true : undefined}
+              defaultOpen={state.mustHaveProducts.length > 0}
               className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
             >
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
@@ -379,7 +379,7 @@ export function ConstraintForm({
             </details>
 
             <details
-              open={state.allergies.length > 0 ? true : undefined}
+              defaultOpen={state.allergies.length > 0}
               className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
             >
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
@@ -404,11 +404,9 @@ export function ConstraintForm({
             </details>
 
             <details
-              open={
+              defaultOpen={
                 Boolean(state.cuisinePreferences.trim()) ||
                 Boolean(state.dislikedIngredients.trim())
-                  ? true
-                  : undefined
               }
               className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
             >
