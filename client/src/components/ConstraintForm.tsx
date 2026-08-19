@@ -363,7 +363,6 @@ export function ConstraintForm({
             />
 
             <details
-              defaultOpen={state.mustHaveProducts.length > 0}
               className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
             >
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
@@ -383,7 +382,6 @@ export function ConstraintForm({
             </details>
 
             <details
-              defaultOpen={state.allergies.length > 0}
               className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
             >
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
@@ -408,10 +406,6 @@ export function ConstraintForm({
             </details>
 
             <details
-              defaultOpen={
-                Boolean(state.cuisinePreferences.trim()) ||
-                Boolean(state.dislikedIngredients.trim())
-              }
               className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
             >
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
