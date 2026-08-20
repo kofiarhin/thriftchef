@@ -212,14 +212,62 @@ presented as an allergen-safety tool.
 
 ## Deployment
 
-- Backend: set every variable from `.env.example`, expose `PORT`, allow the
-  MongoDB network path, and use `GET /api/health` as the health check. Run with
-  `npm start` (`tsx server/server.ts`).
-- Frontend: `npm run build:client` emits `dist/client`. Serve it statically.
-  Set `CLIENT_ORIGIN` to the deployed origin — CORS is unrestricted only in
-  development.
-- If the frontend is served from a different origin, set `VITE_API_BASE_URL` at
-  build time.
+The API and the client deploy separately: a Node process for Express, a static
+bundle for the Vite client. They talk over CORS, so exactly two variables tie
+them together — `CLIENT_ORIGIN` on the API and `VITE_API_BASE_URL` on the client.
+
+### Build scripts
+
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Server watcher and Vite dev server together |
+| `npm run build:server` | Compiles `server/` to `dist/server` (`tsconfig.server.json`) |
+| `npm run build:client` | Emits the static client to `dist/client` |
+| `npm run build` | Complete production build: client typecheck, then both builds |
+| `npm test` | Typecheck, server tests, client tests |
+| `npm run typecheck` | Server and client typechecking |
+| `npm start` | Runs the compiled server with Node (`dist/server/server.js`) |
+
+`tsx` is a development dependency only. It runs the watcher, the benchmark and
+the crawler; it is never a production runtime. Tests and testing fixtures are
+excluded from the emitted server build.
+
+### Backend (Heroku)
+
+`Procfile` declares `web: npm start`, and `heroku-postbuild` compiles the server
+before the dyno starts. `engines.node` pins Node 22.x. Use the Node.js buildpack
+and `GET /api/health` as the health check.
+
+Config variables to set:
+
+- `NODE_ENV=production`
+- `MONGODB_URI` — set through the Heroku dashboard or an interactive prompt, so
+  the credential never lands in a shell history or a build log
+- `CLIENT_ORIGIN` — the exact deployed client origin, no trailing slash
+- any optional meal-planner tuning variables from `.env.example`
+
+Do **not** set `PORT`; Heroku supplies it and the server reads it.
+
+Do not run the Aldi crawler on a production dyno. Populate the catalogue from a
+trusted machine against the same database.
+
+### Frontend (Vercel)
+
+`vercel.json` pins the static deployment: framework `vite`, install `npm ci`,
+build `npm run build:client`, output `dist/client`. The Express API is **not**
+deployed as a Vercel Function.
+
+Set one production variable:
+
+- `VITE_API_BASE_URL` — the API origin, with no trailing slash and no `/api`
+  suffix. The client appends `/api/...` itself.
+
+Leave it unset locally: the Vite dev server proxies `/api` to the local API, so
+no deployment URL is ever compiled into the source.
+
+Because CORS names exactly one origin in production, set the API's
+`CLIENT_ORIGIN` to the canonical client origin once it is known, and restart the
+API. It is never widened to `*`.
 
 ## Known limitations
 

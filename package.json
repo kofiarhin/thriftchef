@@ -7,10 +7,12 @@
     "dev": "concurrently -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "tsx watch server/server.ts",
     "dev:client": "vite",
-    "build": "npm run typecheck && npm run build:client",
+    "build": "npm run typecheck:client && npm run build:server && npm run build:client",
+    "build:server": "tsc -p tsconfig.server.json",
     "build:client": "vite build",
+    "heroku-postbuild": "npm run build:server",
     "preview": "vite preview",
-    "start": "tsx server/server.ts",
+    "start": "node dist/server/server.js",
     "test": "npm run typecheck && npm run test:unit && npm run test:client",
     "test:unit": "tsx --test \"server/**/*.test.ts\"",
     "test:client": "vitest run",
@@ -24,6 +26,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
     "cors": "^2.8.6",
