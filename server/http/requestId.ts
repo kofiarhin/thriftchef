@@ -2,6 +2,19 @@ import { randomUUID } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
 /**
+ * The path, with the query string removed.
+ *
+ * `originalUrl` carries the query, and the query carries product searches and
+ * postcodes: `/api/products?search=gluten%20free%20bread` puts a dietary
+ * requirement into an access log. The route is what diagnostics need; the
+ * values are not.
+ */
+export function safeRoute(originalUrl: string): string {
+  const separator = originalUrl.indexOf("?");
+  return separator === -1 ? originalUrl : originalUrl.slice(0, separator);
+}
+
+/**
  * Correlates the access log line with any error logged later in the same
  * request. Logs record the route and outcome only — never the request body,
  * which carries the user's household and dietary details.
@@ -25,7 +38,7 @@ export function requestContext(
         level: "info",
         requestId,
         method: request.method,
-        route: request.originalUrl,
+        route: safeRoute(request.originalUrl),
         status: response.statusCode,
         durationMs: Math.round(durationMs),
         ...(response.locals.logContext as Record<string, unknown> | undefined),

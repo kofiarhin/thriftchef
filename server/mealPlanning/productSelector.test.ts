@@ -33,6 +33,8 @@ function candidate(overrides: Partial<CandidateProduct> = {}): CandidateProduct 
     eligibleForPlanning: true,
     productUrl: "https://www.aldi.co.uk/product/x",
     lastSeenAt: new Date("2026-08-13T00:00:00.000Z"),
+    lastCheckedAt: new Date("2026-08-13T00:00:00.000Z"),
+    lastCrawlRunId: "selector-test-run",
     ...overrides,
   };
 }

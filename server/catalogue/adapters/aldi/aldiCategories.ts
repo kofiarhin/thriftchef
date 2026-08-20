@@ -1,9 +1,7 @@
-export interface AldiCategory {
-  key: string;
-  url: string;
-  categoryPath: string[];
-  enabled: boolean;
-}
+import type { RetailerCategory } from "../../contracts/retailerCategory";
+
+/** Aldi's categories are ordinary retailer categories; the alias is for readability. */
+export type AldiCategory = RetailerCategory;
 
 /**
  * Category URLs confirmed from the aldi.co.uk `/products` navigation.

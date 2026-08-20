@@ -12,6 +12,9 @@ import type { MealPlanRequest, SelectableProduct } from "../mealPlanning/mealPla
 
 const SEEN_AT = new Date("2026-08-18T06:00:00.000Z");
 
+/** Fixed so plan provenance is reproducible in the baseline snapshot. */
+export const FIXTURE_CRAWL_RUN_ID = "fixture-crawl-run";
+
 function item(
   id: string,
   name: string,
@@ -35,6 +38,8 @@ function item(
     productUrl: `https://www.aldi.co.uk/product/${id}`,
     imageUrl: null,
     lastSeenAt: SEEN_AT,
+    lastCheckedAt: SEEN_AT,
+    lastCrawlRunId: FIXTURE_CRAWL_RUN_ID,
     ...overrides,
   };
 }

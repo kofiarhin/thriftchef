@@ -4,6 +4,7 @@ import { createApp, type AppOverrides } from "../app";
 import { ApiError } from "../http/errors";
 import { startTestServer, testConfig } from "../testing/httpTestServer";
 import { SEARCHABLE_CATALOGUE } from "../testing/catalogueFixtures";
+import { ALDI_SCOPE } from "../testing/scopeFixtures";
 import { parseProductSearchQuery } from "./productSearchController";
 import {
   buildSearchFilter,
@@ -14,7 +15,7 @@ import {
 
 function params(overrides: Partial<ProductSearchParams> = {}): ProductSearchParams {
   return {
-    storeId: "belper-de56-1ar",
+    scope: ALDI_SCOPE,
     search: "",
     category: null,
     page: 1,
@@ -26,6 +27,7 @@ function params(overrides: Partial<ProductSearchParams> = {}): ProductSearchPara
 const WITH_CATALOGUE: AppOverrides = {
   searchProducts: async (searchParams) =>
     searchProductsInMemory(SEARCHABLE_CATALOGUE, searchParams),
+  resolveScope: async () => ALDI_SCOPE,
 };
 
 async function withServer(
@@ -43,7 +45,7 @@ async function withServer(
 
 describe("parseProductSearchQuery", () => {
   it("defaults to the first page of twenty", () => {
-    const parsed = parseProductSearchQuery({}, "belper-de56-1ar");
+    const parsed = parseProductSearchQuery({}, ALDI_SCOPE);
 
     assert.equal(parsed.page, 1);
     assert.equal(parsed.limit, 20);
@@ -52,17 +54,14 @@ describe("parseProductSearchQuery", () => {
   });
 
   it("trims and collapses the search term", () => {
-    const parsed = parseProductSearchQuery(
-      { search: "  chicken   breast " },
-      "belper-de56-1ar",
-    );
+    const parsed = parseProductSearchQuery({ search: "  chicken   breast " }, ALDI_SCOPE);
 
     assert.equal(parsed.search, "chicken breast");
   });
 
   it("rejects a limit above the documented maximum", () => {
     assert.throws(
-      () => parseProductSearchQuery({ limit: "51" }, "belper-de56-1ar"),
+      () => parseProductSearchQuery({ limit: "51" }, ALDI_SCOPE),
       (error: unknown) => {
         assert.ok(error instanceof ApiError);
         assert.equal(error.status, 400);
@@ -73,13 +72,13 @@ describe("parseProductSearchQuery", () => {
 
   it("rejects pagination that is not a whole number", () => {
     for (const query of [{ page: "0" }, { page: "1.5" }, { page: "abc" }, { limit: "0" }]) {
-      assert.throws(() => parseProductSearchQuery(query, "belper-de56-1ar"), ApiError);
+      assert.throws(() => parseProductSearchQuery(query, ALDI_SCOPE), ApiError);
     }
   });
 
   it("rejects a repeated parameter rather than guessing which one was meant", () => {
     assert.throws(
-      () => parseProductSearchQuery({ search: ["a", "b"] }, "belper-de56-1ar"),
+      () => parseProductSearchQuery({ search: ["a", "b"] }, ALDI_SCOPE),
       ApiError,
     );
   });

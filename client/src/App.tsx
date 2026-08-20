@@ -61,8 +61,30 @@ function serverIssuesFrom(error: unknown): ValidationIssues {
   return issues;
 }
 
-export function App() {
-  const [formState, setFormState] = useState<ConstraintFormState>(INITIAL_FORM_STATE);
+export interface AppProps {
+  /**
+   * Form values seeded from the saved household profile.
+   *
+   * Optional so the planner still renders standalone with its own defaults —
+   * which is what the existing behaviour is, and what its tests exercise.
+   */
+  defaults?: Partial<ConstraintFormState>;
+  /**
+   * Publishes each generated or revised plan to whatever owns it outside the
+   * planner — the router's plan context, in the routed app.
+   *
+   * Optional so the planner still works standalone, which is what its own
+   * tests exercise. Without it the week, recipe and shopping routes would have
+   * no plan to show, because this component holds it in local state.
+   */
+  onPlanChange?: (plan: MealPlanResponse, request: MealPlanRequest) => void;
+}
+
+export function App({ defaults, onPlanChange }: AppProps = {}) {
+  const [formState, setFormState] = useState<ConstraintFormState>(() => ({
+    ...INITIAL_FORM_STATE,
+    ...defaults,
+  }));
   const [showForm, setShowForm] = useState(true);
   // The submitted request is kept so "Regenerate" repeats it exactly.
   const [lastRequest, setLastRequest] = useState<MealPlanRequest | null>(null);
@@ -78,9 +100,10 @@ export function App() {
   const planMutation = useMutation<MealPlanResponse, unknown, MealPlanRequest>({
     mutationFn: generateMealPlan,
     onMutate: () => setShowForm(false),
-    onSuccess: (nextPlan) => {
+    onSuccess: (nextPlan, submitted) => {
       setPlan(nextPlan);
       setShowForm(false);
+      onPlanChange?.(nextPlan, submitted);
     },
     onError: (error) => {
       if (Object.keys(serverIssuesFrom(error)).length > 0) setShowForm(true);
@@ -88,7 +111,11 @@ export function App() {
   });
   const replaceMutation = useMutation<MealPlanResponse, unknown, ReplaceMealInput>({
     mutationFn: replaceMeal,
-    onSuccess: setPlan,
+    onSuccess: (revised, submitted) => {
+      setPlan(revised);
+      // A swap reprices the whole basket, so the shopping list has to follow.
+      onPlanChange?.(revised, submitted.request);
+    },
   });
 
   const run = (request: MealPlanRequest): void => {

@@ -28,7 +28,6 @@ import {
   type PricedPlan,
 } from "./mealPlanValidator";
 import {
-  PLAN_DAYS,
   type BudgetTarget,
   type GenerateEngineInput,
   type GeneratedPlan,
@@ -98,9 +97,9 @@ interface BeamState {
  * week. Computed here rather than after scheduling so a state's basket cost is
  * known before it is expanded.
  */
-function cookCounts(count: number): number[] {
-  const base = Math.floor(PLAN_DAYS / count);
-  const remainder = PLAN_DAYS % count;
+function cookCounts(count: number, days: number): number[] {
+  const base = Math.floor(days / count);
+  const remainder = days % count;
 
   return Array.from({ length: count }, (_, index) => base + (index < remainder ? 1 : 0));
 }
@@ -370,9 +369,10 @@ export function assignMustHaves(
 function addUsage(
   usage: Map<string, number>,
   variants: RecipeVariant[],
+  cookingDays: number,
 ): Map<string, number> {
   const next = new Map(usage);
-  const counts = cookCounts(variants.length);
+  const counts = cookCounts(variants.length, cookingDays);
 
   variants.forEach((variant, index) => {
     for (const slot of variant.filledSlots) {
@@ -515,10 +515,20 @@ function stateSignature(choices: MealTypeChoice[]): string {
     .join("|");
 }
 
-/** Turns a completed state into the untrusted plan shape the validator reads. */
-function toPlan(state: BeamState, seed: number): GeneratedPlan {
-  const days = Array.from({ length: PLAN_DAYS }, (_, index) => {
-    const day = index + 1;
+/**
+ * Turns a completed state into the untrusted plan shape the validator reads.
+ *
+ * Days come from the request rather than from a fixed week. A household that
+ * cooks on Monday, Wednesday and Saturday gets three days numbered 1, 3 and 6
+ * — not a seven-day plan with four blanks in it, which would then have to be
+ * priced and explained away everywhere downstream.
+ */
+function toPlan(state: BeamState, seed: number, cookingDays: number[]): GeneratedPlan {
+  const days = cookingDays.map((day, index) => {
+    // Rotation is driven by position in the selected list, not by the calendar
+    // date, so three cooking days alternate across three recipes rather than
+    // landing on whatever the weekday number happens to be modulo the count.
+    const slot = index + 1;
 
     return {
       day,
@@ -526,7 +536,7 @@ function toPlan(state: BeamState, seed: number): GeneratedPlan {
         mealType: choice.mealType,
         recipeId: recipeForDay(
           choice.variants,
-          day,
+          slot,
           seed % Math.max(1, choice.variants.length),
         ).recipe.id,
       })),
@@ -872,7 +882,7 @@ export function createMealPlanEngine(options: EngineOptions): MealPlanEngine {
       for (const state of beam) {
         for (const variants of sets) {
           const choices = [...state.choices, { mealType: stage.mealType, variants }];
-          const usage = addUsage(state.usage, variants);
+          const usage = addUsage(state.usage, variants, request.cookingDays.length);
 
           next.push({
             choices,
@@ -896,7 +906,9 @@ export function createMealPlanEngine(options: EngineOptions): MealPlanEngine {
       }
     }
 
-    const plans = beam.slice(0, options.candidateLimit).map((state) => toPlan(state, variationSeed));
+    const plans = beam
+      .slice(0, options.candidateLimit)
+      .map((state) => toPlan(state, variationSeed, request.cookingDays));
     const { affordable, cheapestOverBudget, validCount, missingMustHaveCount } = assess(
       plans,
       variantsById,

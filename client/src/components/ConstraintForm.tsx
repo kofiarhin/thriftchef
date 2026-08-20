@@ -192,6 +192,144 @@ function AllergenSafetyNote() {
   );
 }
 
+import { WeeklyMoodPicker } from "../features/weeklyPlan/WeeklyMoodPicker";
+
+const WEEKDAY_LABELS = [
+  { day: 1, short: "Mon", long: "Monday" },
+  { day: 2, short: "Tue", long: "Tuesday" },
+  { day: 3, short: "Wed", long: "Wednesday" },
+  { day: 4, short: "Thu", long: "Thursday" },
+  { day: 5, short: "Fri", long: "Friday" },
+  { day: 6, short: "Sat", long: "Saturday" },
+  { day: 7, short: "Sun", long: "Sunday" },
+];
+
+/**
+ * Which days the household actually cooks.
+ *
+ * A plan for seven days when someone eats out on Fridays wastes a meal and the
+ * food it was going to buy, so this is a real constraint rather than a
+ * presentational filter — the planner builds only the days chosen here.
+ */
+function CookingDaysChoice({
+  value,
+  onChange,
+  error,
+}: {
+  value: number[];
+  onChange: (value: number[]) => void;
+  error?: string;
+}) {
+  function toggle(day: number): void {
+    const next = value.includes(day)
+      ? value.filter((entry) => entry !== day)
+      : [...value, day];
+
+    onChange(next.sort((a, b) => a - b));
+  }
+
+  return (
+    <fieldset>
+      <legend className="text-sm font-semibold text-ink">Days you cook</legend>
+      <p className="mt-1 text-xs text-ink-muted">
+        We only plan meals — and only buy food — for the days you pick.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {WEEKDAY_LABELS.map((weekday) => (
+          <label
+            key={weekday.day}
+            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm ${
+              value.includes(weekday.day)
+                ? "border-brand bg-brand-surface font-semibold text-ink"
+                : "border-line text-ink-muted"
+            }`}
+          >
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={value.includes(weekday.day)}
+              onChange={() => toggle(weekday.day)}
+              aria-label={weekday.long}
+            />
+            <span aria-hidden="true">{weekday.short}</span>
+          </label>
+        ))}
+      </div>
+
+      {error ? (
+        <p role="alert" className="mt-2 text-xs text-danger-ink">
+          {error}
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
+/**
+ * A ceiling on any single recipe.
+ *
+ * Distinct from the "quick" preference on the next step: this one is a refusal
+ * — no recipe over the limit is ever offered — while "quick" only nudges the
+ * scoring. Conflating them would quietly narrow the menu for everyone who
+ * simply likes fast dinners.
+ */
+function CookingTimeChoice({
+  value,
+  onChange,
+  error,
+}: {
+  value: number | null;
+  onChange: (value: number | null) => void;
+  error?: string;
+}) {
+  const options: Array<{ minutes: number | null; label: string }> = [
+    { minutes: 30, label: "Up to 30 min" },
+    { minutes: 45, label: "Up to 45 min" },
+    { minutes: 60, label: "Up to an hour" },
+    { minutes: null, label: "No limit" },
+  ];
+
+  return (
+    <fieldset>
+      <legend className="text-sm font-semibold text-ink">
+        Longest a meal may take
+      </legend>
+      <p className="mt-1 text-xs text-ink-muted">
+        Preparation and cooking together. Nothing longer will be suggested.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {options.map((option) => (
+          <label
+            key={option.label}
+            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm ${
+              value === option.minutes
+                ? "border-brand bg-brand-surface font-semibold text-ink"
+                : "border-line text-ink-muted"
+            }`}
+          >
+            <input
+              type="radio"
+              name="max-total-minutes"
+              className="sr-only"
+              checked={value === option.minutes}
+              onChange={() => onChange(option.minutes)}
+            />
+            {option.label}
+          </label>
+        ))}
+      </div>
+
+      {error ? (
+        <p role="alert" className="mt-2 text-xs text-danger-ink">
+          {error}
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
 export function ConstraintForm({
   state,
   onStateChange,
@@ -332,12 +470,29 @@ export function ConstraintForm({
 
             <CheckboxGroup<MealType>
               legend="Meals to plan each day"
-              hint="Every selected meal is planned for all seven days."
+              hint="Every selected meal is planned for each day you cook."
               options={MEAL_TYPES}
               selected={state.mealsPerDay}
               onChange={(value) => update("mealsPerDay", value)}
               error={issues.mealsPerDay}
               meta={MEAL_TYPE_META}
+            />
+
+            <CookingDaysChoice
+              value={state.cookingDays}
+              onChange={(value) => update("cookingDays", value)}
+              error={issues.cookingDays}
+            />
+
+            <CookingTimeChoice
+              value={state.maxTotalMinutes}
+              onChange={(value) => update("maxTotalMinutes", value)}
+              error={issues.maxTotalMinutes}
+            />
+
+            <WeeklyMoodPicker
+              selected={state.weeklyMoods}
+              onChange={(value) => update("weeklyMoods", value)}
             />
           </section>
         ) : null}

@@ -10,14 +10,18 @@
 import type { QueryFilter } from "mongoose";
 import { Product, type ProductRecord } from "../models/Product";
 import { primaryCategory } from "../mealPlanning/productCategories";
-
-const RETAILER = "aldi-uk" as const;
+import type { ResolvedCatalogueScope } from "./core/retailerTypes";
 
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 50;
 
 export interface ProductSearchParams {
-  storeId: string;
+  /**
+   * The retailer and store the search runs inside. A scope rather than a store
+   * id: the picker feeds must-have products straight into a plan, so a search
+   * that could cross retailers would be a route for contaminating a basket.
+   */
+  scope: ResolvedCatalogueScope;
   /** Already trimmed and collapsed; an empty string means "browse". */
   search: string;
   category: string | null;
@@ -169,8 +173,8 @@ export function buildSearchFilter(
   params: ProductSearchParams,
 ): QueryFilter<ProductRecord> {
   const filter: QueryFilter<ProductRecord> = {
-    retailer: RETAILER,
-    storeId: params.storeId,
+    retailer: params.scope.retailerSlug,
+    storeId: params.scope.storeSlug,
     available: true,
   };
 

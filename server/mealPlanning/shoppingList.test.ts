@@ -185,6 +185,36 @@ describe("consolidateShoppingList", () => {
       totalPricePence: 100,
       productUrl: "https://www.aldi.co.uk/product/a",
       imageUrl: "https://cdn.aldi.test/a.jpg",
+      alreadyOwned: false,
     });
+  });
+
+  it("keeps an owned product on the list but charges nothing for it", () => {
+    const result = consolidateShoppingList(
+      [
+        { productId: "a", packages: 1 },
+        { productId: "b", packages: 1 },
+      ],
+      catalogue(product("a"), product("b")),
+      { ownedProductIds: ["a"] },
+    );
+
+    const items = result.groups.flatMap((group) => group.items);
+    const owned = items.find((item) => item.productId === "a");
+    const bought = items.find((item) => item.productId === "b");
+
+    assert.ok(owned, "an owned product must still appear, or the recipe cannot be cooked");
+    assert.equal(owned.alreadyOwned, true);
+    assert.equal(owned.totalPricePence, 0);
+    assert.equal(owned.quantity, 1, "the quantity the week needs is still shown");
+
+    assert.ok(bought);
+    assert.equal(bought.alreadyOwned, false);
+
+    assert.equal(
+      result.totalPence,
+      bought.totalPricePence,
+      "only what is actually bought counts toward the basket",
+    );
   });
 });

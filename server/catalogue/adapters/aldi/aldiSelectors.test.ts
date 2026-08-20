@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  buildListingPageUrl,
+  canonicalizeUrl,
   extractHighestPageNumber,
   extractProductId,
   parsePricePence,
-} from "./aldiCrawler";
+} from "./aldiSelectors";
 
 describe("extractHighestPageNumber", () => {
   it("returns 1 when the listing advertises no further pages", () => {
@@ -24,10 +26,7 @@ describe("extractHighestPageNumber", () => {
   });
 
   it("ignores malformed page parameters", () => {
-    assert.equal(
-      extractHighestPageNumber(["?page=abc", "?page=", "?page=4"]),
-      4,
-    );
+    assert.equal(extractHighestPageNumber(["?page=abc", "?page=", "?page=4"]), 4);
   });
 
   it("reads page when it is not the first query parameter", () => {
@@ -67,5 +66,61 @@ describe("extractProductId", () => {
       null,
     );
     assert.equal(extractProductId("https://www.aldi.co.uk/"), null);
+  });
+
+  it("is not derived from the product name", () => {
+    // Two crawls of one product with different marketing copy must remain one
+    // product, so identity must come from the numeric suffix alone.
+    assert.equal(
+      extractProductId("https://www.aldi.co.uk/product/carrots-000000000000262686"),
+      extractProductId(
+        "https://www.aldi.co.uk/product/carrots-new-recipe-000000000000262686",
+      ),
+    );
+  });
+});
+
+describe("canonicalizeUrl", () => {
+  it("resolves a relative href against the page", () => {
+    assert.equal(
+      canonicalizeUrl("/product/carrots-000000000000262686", "https://www.aldi.co.uk/x"),
+      "https://www.aldi.co.uk/product/carrots-000000000000262686",
+    );
+  });
+
+  it("strips tracking parameters and fragments", () => {
+    assert.equal(
+      canonicalizeUrl(
+        "https://www.aldi.co.uk/product/a-000000000000262686?utm_source=email&utm_medium=cpc#reviews",
+      ),
+      "https://www.aldi.co.uk/product/a-000000000000262686",
+    );
+  });
+
+  it("keeps a parameter the catalogue actually needs", () => {
+    assert.equal(
+      canonicalizeUrl("https://www.aldi.co.uk/products/x/k/1?page=3"),
+      "https://www.aldi.co.uk/products/x/k/1?page=3",
+    );
+  });
+
+  it("returns null for something that is not a URL", () => {
+    assert.equal(canonicalizeUrl("not a url"), null);
+  });
+});
+
+describe("buildListingPageUrl", () => {
+  it("adds a page parameter", () => {
+    assert.equal(
+      buildListingPageUrl("https://www.aldi.co.uk/products/x/k/1", 4),
+      "https://www.aldi.co.uk/products/x/k/1?page=4",
+    );
+  });
+
+  it("replaces an existing page parameter rather than repeating it", () => {
+    assert.equal(
+      buildListingPageUrl("https://www.aldi.co.uk/products/x/k/1?page=2", 5),
+      "https://www.aldi.co.uk/products/x/k/1?page=5",
+    );
   });
 });

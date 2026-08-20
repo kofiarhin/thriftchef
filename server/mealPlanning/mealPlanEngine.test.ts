@@ -635,10 +635,10 @@ describe("must-have products", () => {
       mealsPerDay: ["dinner"],
       mustHaveProductIds: [RICE],
     });
-    const cap = { maxProducts: 20 };
-
-    // A cap this tight is decided entirely by ranking, and ranking has no
-    // reason to keep any one product.
+    // Tight enough that food-group allocation spends every slot on proteins,
+    // vegetables and the cheapest staple. Ranking has no reason to keep rice,
+    // which is exactly the situation a must-have has to survive.
+    const cap = { maxProducts: 8 };
     const unforced = selectProducts(ALDI_CATALOGUE, request, cap).products;
     assert.ok(
       !unforced.some((product) => product.productId === RICE),

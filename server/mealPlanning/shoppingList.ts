@@ -29,6 +29,18 @@ function compareCategories(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
+export interface ConsolidateOptions {
+  /**
+   * Catalogue products the household already has.
+   *
+   * They stay on the list — a recipe that silently drops an ingredient is a
+   * recipe you cannot cook — but they are marked and contribute nothing to the
+   * total. Removing them entirely would also break the promise that the
+   * shopping list explains the whole week.
+   */
+  ownedProductIds?: string[];
+}
+
 /**
  * Turns per-recipe product usage into the basket the user actually buys.
  *
@@ -40,7 +52,9 @@ function compareCategories(a: string, b: string): number {
 export function consolidateShoppingList(
   usages: ProductUsage[],
   products: Map<string, SelectableProduct>,
+  options: ConsolidateOptions = {},
 ): ConsolidatedShoppingList {
+  const owned = new Set(options.ownedProductIds ?? []);
   const packagesByProduct = new Map<string, number>();
   const unknownProductIds: string[] = [];
 
@@ -68,7 +82,11 @@ export function consolidateShoppingList(
     if (!product) continue;
 
     const quantity = Math.max(1, Math.ceil(Number(packages.toFixed(4))));
-    const totalPricePence = product.pricePence * quantity;
+    const alreadyOwned = owned.has(productId);
+    // An owned product is priced at zero rather than omitted, so the line still
+    // shows what the week needs while the basket only charges for what is
+    // actually being bought.
+    const totalPricePence = alreadyOwned ? 0 : product.pricePence * quantity;
     totalPence += totalPricePence;
 
     const items = itemsByCategory.get(product.category) ?? [];
@@ -82,6 +100,7 @@ export function consolidateShoppingList(
       totalPricePence,
       productUrl: product.productUrl,
       imageUrl: product.imageUrl ?? null,
+      alreadyOwned,
     });
     itemsByCategory.set(product.category, items);
   }

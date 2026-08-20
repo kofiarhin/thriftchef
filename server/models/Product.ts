@@ -1,4 +1,5 @@
-import { model, models, Schema, type Model } from "mongoose";
+import { model, models, Schema, type Model, type Types } from "mongoose";
+import { SLUG_PATTERN } from "../catalogue/core/retailerTypes";
 
 /**
  * "verified" means the retailer published ingredients and allergen advice.
@@ -13,8 +14,27 @@ export type CatalogueSafetyStatus =
   | "ambiguous";
 
 export interface ProductRecord {
-  retailer: "aldi-uk";
+  _id: Types.ObjectId;
+  /**
+   * The retailer slug. Kept as the primary key half it always was: every
+   * existing document is written under it, the unique index is built on it,
+   * and the public API accepts it. No longer a closed union — retailers are
+   * records now, so a new supermarket is a row rather than a schema change.
+   */
+  retailer: string;
+  /** The store slug, unchanged. `retailerRef`/`storeRef` are its id twin. */
   storeId: string;
+
+  /**
+   * The ObjectId half of the dual key, added additively.
+   *
+   * Optional because every document written before the migration lacks it and
+   * backfilling is a separate, restartable step. Offers join on these; nothing
+   * reads them until the backfill has run.
+   */
+  retailerRef?: Types.ObjectId | null;
+  storeRef?: Types.ObjectId | null;
+
   retailerProductId: string;
   canonicalKey: string;
   name: string;
@@ -48,10 +68,14 @@ const productSchema = new Schema<ProductRecord>(
     retailer: {
       type: String,
       required: true,
-      enum: ["aldi-uk"],
+      trim: true,
+      lowercase: true,
+      match: SLUG_PATTERN,
       index: true,
     },
     storeId: { type: String, required: true, trim: true, index: true },
+    retailerRef: { type: Schema.Types.ObjectId, default: null, ref: "Retailer" },
+    storeRef: { type: Schema.Types.ObjectId, default: null, ref: "RetailStore" },
     retailerProductId: { type: String, required: true, trim: true },
     canonicalKey: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
@@ -95,6 +119,12 @@ productSchema.index(
 productSchema.index(
   { retailer: 1, storeId: 1, available: 1, eligibleForPlanning: 1 },
   { name: "catalogue_planning_lookup" },
+);
+
+// Resolving a product from an offer, and the offer backfill's own lookup.
+productSchema.index(
+  { retailerRef: 1, retailerProductId: 1 },
+  { name: "product_by_retailer_ref", sparse: true },
 );
 
 export const Product: Model<ProductRecord> =

@@ -14,6 +14,19 @@ export function generateMealPlan(
   });
 }
 
+/**
+ * Reopens a saved plan.
+ *
+ * Returns the snapshot the plan was generated from, not a fresh calculation:
+ * the catalogue moves, and a shopping list that reprices itself between the
+ * kitchen and the shop is worse than none.
+ */
+export function fetchMealPlan(planId: string): Promise<MealPlanResponse> {
+  return apiRequest<MealPlanResponse>(
+    `/api/meal-plans/${encodeURIComponent(planId)}`,
+  );
+}
+
 export interface ReplaceMealInput {
   request: MealPlanRequest;
   plan: MealPlanResponse;

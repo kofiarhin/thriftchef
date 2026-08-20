@@ -72,7 +72,30 @@ export const PANTRY_BASICS = [
 ] as const;
 export type PantryBasic = (typeof PANTRY_BASICS)[number];
 
+/**
+ * A full week, and the default when a request names no cooking days.
+ *
+ * No longer a hard gate: the validator checks the plan against the days that
+ * were *requested*, not against seven. A request that selects all seven days
+ * still behaves exactly as it always did, which is what keeps every existing
+ * plan reproducible.
+ */
 export const PLAN_DAYS = 7;
+
+/** ISO weekdays: 1 is Monday, 7 is Sunday. */
+export const ALL_COOKING_DAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+
+export const MIN_COOKING_DAY = 1;
+export const MAX_COOKING_DAY = 7;
+
+/**
+ * The cooking-time ceilings the UI offers. A request may send any value in
+ * range; these are what the client presents.
+ */
+export const COOKING_TIME_LIMITS = [30, 45, 60] as const;
+
+export const MIN_TOTAL_MINUTES = 10;
+export const MAX_TOTAL_MINUTES = 240;
 
 /**
  * How much of the maximum budget a plan should aim to use. Presented to the
@@ -128,7 +151,31 @@ export interface MealPlanRequest {
    * it rather than relying on a model's randomness.
    */
   variationSeed: number;
+  /**
+   * The retailer this plan is built from. Optional in the wire format so an
+   * older client keeps working against the configured default, but always
+   * resolved to exactly one retailer and store before any catalogue is read.
+   */
+  retailerId?: string;
   storeId?: string;
+  /**
+   * The days of the week the household actually cooks, as ISO weekdays.
+   * Always populated after validation — an omitted list means the whole week,
+   * which is what every plan generated before this field existed assumed.
+   */
+  cookingDays: number[];
+  /**
+   * Hard ceiling on `prepMinutes + cookMinutes` for any single recipe.
+   * Undefined means no limit, which is the pre-existing behaviour.
+   */
+  maxTotalMinutes?: number;
+  /**
+   * Catalogue products the household already has. They still appear in
+   * recipes and still satisfy ingredient demand; they are simply not bought
+   * again. Distinct from `pantryBasics`, which are generic staples rather
+   * than specific catalogue products.
+   */
+  ownedProductIds: string[];
   /** How much of `budgetPence` the plan should aim to use. */
   budgetTargetPercent: BudgetTargetPercent;
   /**
@@ -191,6 +238,11 @@ export interface ShoppingListItem {
   totalPricePence: number;
   productUrl: string;
   imageUrl: string | null;
+  /**
+   * True when the household already has this product. It stays on the list so
+   * the recipe still makes sense, but contributes nothing to the total.
+   */
+  alreadyOwned: boolean;
 }
 
 export interface ShoppingListGroup {
@@ -205,9 +257,29 @@ export interface ProductCoverage {
   excludedForSafety: number;
 }
 
+/**
+ * Where a plan's products and prices came from.
+ *
+ * Recorded on every response and stored with every saved plan. Without it,
+ * "which catalogue was this priced against?" is unanswerable the moment a
+ * crawl runs, and a stale basket is indistinguishable from a fresh one.
+ */
+export interface CatalogueProvenance {
+  retailerId: string;
+  retailerSlug: string;
+  retailerName: string;
+  storeId: string;
+  storeSlug: string;
+  storeName: string;
+  crawlRunId: string | null;
+  catalogueUpdatedAt: string | null;
+}
+
 export interface MealPlanResponse {
   planId: string;
   generatedAt: string;
+  /** The one retailer and store every product in this plan came from. */
+  catalogue: CatalogueProvenance;
   currency: "GBP";
   budgetPence: number;
   estimatedTotalPence: number;
@@ -220,6 +292,8 @@ export interface MealPlanResponse {
   productCoverage: ProductCoverage;
   budgetUtilization: BudgetUtilization;
   mustHaveUsage: MustHaveUsage[];
+  /** The days this plan actually covers, as ISO weekdays, ascending. */
+  cookingDays: number[];
 }
 
 /**

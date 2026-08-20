@@ -2,7 +2,11 @@ import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { ApiError } from "../http/errors";
 import { addLogContext } from "../http/requestId";
-import { parseStoreId } from "./catalogueController";
+import {
+  resolveScopeFromQuery,
+  type ScopeResolver,
+} from "./catalogueController";
+import type { ResolvedCatalogueScope } from "./core/retailerTypes";
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -63,10 +67,10 @@ function positiveInteger(
 
 export function parseProductSearchQuery(
   query: Request["query"],
-  defaultStoreId: string,
+  scope: ResolvedCatalogueScope,
 ): ProductSearchParams {
   return {
-    storeId: parseStoreId(query.storeId, defaultStoreId),
+    scope,
     // An empty search term is a browse, not an error.
     search: singleString("search", query.search) ?? "",
     category: singleString("category", query.category) || null,
@@ -78,13 +82,19 @@ export function parseProductSearchQuery(
 export function createProductSearchHandler(
   config: AppConfig,
   search: ProductSearchPort,
+  resolveScope: ScopeResolver = resolveScopeFromQuery,
 ) {
   return async (request: Request, response: Response): Promise<void> => {
-    const params = parseProductSearchQuery(request.query, config.aldi.storeId);
+    // The picker feeds must-have and already-owned products straight into a
+    // plan, so search is scoped exactly as planning is. An unscoped search
+    // would be a side door into a mixed basket.
+    const scope = await resolveScope(request, config);
+    const params = parseProductSearchQuery(request.query, scope);
     const page = await search(params);
 
     addLogContext(response, {
-      storeId: params.storeId,
+      retailer: scope.retailerSlug,
+      storeId: scope.storeSlug,
       hasSearchTerm: params.search.length > 0 ? 1 : 0,
       page: params.page,
       limit: params.limit,

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { ALDI_SCOPE } from "../testing/scopeFixtures";
 import { summarizeCatalogue, type CatalogueCountRow } from "./catalogueService";
 
 const NOW = new Date("2026-08-13T12:00:00.000Z");
-const OPTIONS = { storeId: "belper-de56-1ar", now: NOW, staleAfterHours: 72 };
+const OPTIONS = { scope: ALDI_SCOPE, now: NOW, staleAfterHours: 72 };
 
 function row(overrides: Partial<CatalogueCountRow>): CatalogueCountRow {
   return {
@@ -20,7 +21,8 @@ describe("summarizeCatalogue", () => {
     const status = summarizeCatalogue([], OPTIONS);
 
     assert.equal(status.retailer, "aldi-uk");
-    assert.equal(status.storeId, "belper-de56-1ar");
+    assert.equal(status.storeSlug, "belper-de56-1ar");
+    assert.equal(status.retailer, "aldi-uk");
     assert.equal(status.availableProducts, 0);
     assert.equal(status.eligibleProducts, 0);
     assert.equal(status.lastCheckedAt, null);

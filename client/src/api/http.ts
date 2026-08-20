@@ -90,5 +90,12 @@ export async function apiRequest<T>(
 
   if (!response.ok) throw await toError(response);
 
+  // A 204 has no body, and calling `json()` on one throws. Endpoints that
+  // succeed without returning anything — recording feedback, for instance —
+  // are otherwise indistinguishable from a failure.
+  if (response.status === 204 || response.headers.get("content-length") === "0") {
+    return undefined as T;
+  }
+
   return (await response.json()) as T;
 }

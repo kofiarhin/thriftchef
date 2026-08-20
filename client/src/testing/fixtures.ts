@@ -16,6 +16,17 @@ export const CATALOGUE_STATUS: CatalogueStatus = {
 
 export const MEAL_PLAN: MealPlanResponse = {
   planId: "plan-1",
+  catalogue: {
+    retailerId: "000000000000000000000a1d",
+    retailerSlug: "aldi-uk",
+    retailerName: "Aldi UK",
+    storeId: "000000000000000000005702",
+    storeSlug: "belper-de56-1ar",
+    storeName: "Aldi Belper",
+    crawlRunId: "fixture-crawl-run",
+    catalogueUpdatedAt: "2026-08-18T06:00:00.000Z",
+  },
+  cookingDays: [1, 2, 3, 4, 5, 6, 7],
   generatedAt: "2026-08-13T09:00:00.000Z",
   currency: "GBP",
   budgetPence: 7000,
@@ -92,6 +103,7 @@ export const MEAL_PLAN: MealPlanResponse = {
           totalPricePence: 1050,
           productUrl: "https://www.aldi.co.uk/product/prot1",
           imageUrl: "https://cdn.aldi.test/prot1.jpg",
+          alreadyOwned: false,
         },
       ],
     },
@@ -108,6 +120,7 @@ export const MEAL_PLAN: MealPlanResponse = {
           totalPricePence: 290,
           productUrl: "https://www.aldi.co.uk/product/stap1",
           imageUrl: "https://cdn.aldi.test/stap1.jpg",
+          alreadyOwned: false,
         },
       ],
     },

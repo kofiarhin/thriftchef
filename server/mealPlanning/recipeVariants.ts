@@ -163,6 +163,17 @@ export function buildRecipeVariants(input: BuildVariantsInput): RecipeVariant[] 
   if (maxVariants < 1) return [];
   if (template.mealType && !request.mealsPerDay.includes(template.mealType)) return [];
 
+  // The cooking-time ceiling is a hard constraint, discarded at the template
+  // rather than scored later: a household that said "nothing over 30 minutes"
+  // has told us what they can do on a weeknight, not what they would prefer.
+  // `quick` stays a scoring preference — the two are different requests.
+  if (
+    request.maxTotalMinutes !== undefined &&
+    template.prepMinutes + template.cookMinutes > request.maxTotalMinutes
+  ) {
+    return [];
+  }
+
   // Appliances are a hard constraint: the validator rejects any recipe needing
   // one the household does not own, so an unusable template is discarded here.
   if (

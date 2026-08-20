@@ -47,6 +47,43 @@ cp .env.example .env      # then set MONGODB_URI
 npx playwright install chromium
 ```
 
+## Catalogue ownership and migration
+
+Products belong to a **retailer** and a **store**. Every catalogue query is
+scoped by both, so a plan cannot contain products from two supermarkets.
+
+Set the records up once:
+
+```bash
+npm run catalogue:bootstrap      # creates the retailer + store records
+npm run catalogue:backfill       # gives every product a store-scoped offer
+npm run catalogue:backfill -- --compare   # proves both read paths agree
+```
+
+Then move `CATALOGUE_READ_SOURCE=offers` in `.env`. Every step is additive,
+idempotent and restartable; no legacy field is dropped, so rolling back is a
+configuration change:
+
+```bash
+# back to reading legacy product fields
+CATALOGUE_READ_SOURCE=legacy
+npm run catalogue:backfill -- --rollback   # optional: remove the offers too
+```
+
+### Availability reconciliation
+
+Retiring products that have left the shelf is the only destructive write in the
+catalogue, and it is refused unless the crawl that triggered it can show it saw
+the whole shop: a `full` run, a trusted completion, a verified store selection,
+every category finished, and a failure rate under 10%. A bounded, failed,
+cancelled or interrupted crawl **never** reconciles.
+
+If a sweep goes wrong it is reversible by run id, without a database restore:
+
+```bash
+npm run catalogue:undo-reconciliation <crawlRunId>
+```
+
 ## Populate the catalogue
 
 Planning needs product data. The crawler is the only way to get it.
@@ -85,6 +122,28 @@ npm run dev:client   # web app only
 
 Open http://localhost:5173. The Vite dev server proxies `/api` to the backend,
 so no CORS configuration is needed locally.
+
+## What has and has not been run
+
+Everything below has been exercised locally against throwaway databases:
+
+| | |
+| --- | --- |
+| Unit and integration suites | run, passing |
+| Migration sequence | rehearsed end to end (`npm run catalogue:verify`) |
+| Application in a browser | driven at mobile and desktop (`npm run verify:browser`) |
+| Adapter extraction | driven against saved HTML in real Chromium |
+
+**Not performed, and deliberately so:**
+
+- **No production crawl.** `npm run aldi:crawl` has not been run against a live
+  site by the work that built this.
+- **No production database was touched.** Every verification creates its own
+  in-memory MongoDB on an ephemeral port and discards it; none of them read
+  `MONGODB_URI`.
+- **`CATALOGUE_READ_SOURCE` has not been switched to `offers` anywhere.** The
+  comparison step must pass against real data first.
+- **No retailer has been activated beyond Aldi**, and no deployment was made.
 
 ## Verify
 
@@ -167,9 +226,17 @@ recipe, a product name, a constraint, or a request body.
 | Route | Purpose |
 | --- | --- |
 | `GET /api/health` | Liveness check |
-| `GET /api/catalogue/status?storeId=` | Product counts, freshness, safety breakdown |
-| `POST /api/meal-plans/generate` | Generate a validated, priced seven-day plan |
-| `POST /api/meal-plans/replace` | Replace one meal while preserving the other six days |
+| `GET /api/retailers?countryCode=GB` | Supermarkets, and whether each is selectable |
+| `GET /api/retailers/:retailerId/stores` | Stores, always scoped to their retailer |
+| `GET /api/catalogue/status?retailerId=&storeId=` | Product counts, freshness, safety breakdown |
+| `GET /api/products?search=` | Catalogue search, scoped to one retailer and store |
+| `POST /api/meal-plans/generate` | Generate a validated, priced plan for the selected days |
+| `GET /api/meal-plans/:planId` | Reopen a saved plan from its stored snapshot |
+| `POST /api/meal-plans/:planId/replace` | Replace one meal, preserving the others |
+| `POST /api/meal-plans/replace` | The same, with the plan in the body (kept for shipped clients) |
+
+Admin routes under `/api/admin` are read-only and disabled by default; see
+**Deployment**.
 
 Failures share one shape and a closed set of codes, so the UI can map each to a
 recovery action:
@@ -184,7 +251,11 @@ recovery action:
 | 409 | `CATALOGUE_CONSTRAINT_CONFLICT` | Filters leave too little to plan from, or no recipe can be built for a requested meal type |
 | 409 | `NO_AFFORDABLE_PLAN` | Valid weeks exist but all exceed the budget; `details.minimumEstimatedPence` gives the cheapest |
 | 409 | `NO_REPLACEMENT_AVAILABLE` | No distinct, affordable alternative for that meal |
-| 429 | `RATE_LIMITED` | Meal plan route limit exceeded |
+| 404 | `RETAILER_NOT_FOUND` / `STORE_NOT_FOUND` | Unknown supermarket, or a store that retailer does not own |
+| 404 | `PLAN_NOT_FOUND` | The plan is unknown or past its retention period |
+| 409 | `RETAILER_NOT_ACTIVE` | The supermarket exists but is not selectable right now |
+| 409 | `CATALOGUE_STALE` | The catalogue is past this retailer's freshness policy |
+| 429 | `RATE_LIMITED` | Operational abuse throttle, not a user quota |
 | 500 | `PLANNER_INTERNAL_ERROR` | The planner produced a week its own validator rejected - a bug, never the user's fault |
 | 503 | `CATALOGUE_UNAVAILABLE` | No catalogue data; run the crawl |
 | 503 | `PLANNER_CAPACITY_EXCEEDED` | The bounded search hit its deadline; retryable |
@@ -226,6 +297,13 @@ them together — `CLIENT_ORIGIN` on the API and `VITE_API_BASE_URL` on the clie
 | `npm run build` | Complete production build: client typecheck, then both builds |
 | `npm test` | Typecheck, server tests, client tests |
 | `npm run typecheck` | Server and client typechecking |
+| `npm run baseline:record` | Re-records the planner regression snapshot |
+| `npm run catalogue:bootstrap` | Creates retailer and store records (idempotent) |
+| `npm run catalogue:backfill` | Backfills store-scoped offers; `--compare`, `--rollback` |
+| `npm run catalogue:undo-reconciliation` | Reverses one reconciliation run |
+| `npm run aldi:diagnostic` | Bounded, one-category, five-product crawl, no writes |
+| `npm run catalogue:verify` | Rehearses the whole migration on a throwaway database |
+| `npm run verify:browser` | Drives the real app in Chromium against a throwaway database |
 | `npm start` | Runs the compiled server with Node (`dist/server/server.js`) |
 
 `tsx` is a development dependency only. It runs the watcher, the benchmark and
@@ -251,6 +329,10 @@ Do **not** set `PORT`; Heroku supplies it and the server reads it.
 Do not run the Aldi crawler on a production dyno. Populate the catalogue from a
 trusted machine against the same database.
 
+`ADMIN_ENABLED` must stay `false`. The admin surface is read-only and is refused
+outright when `NODE_ENV=production`, regardless of that variable, until an
+authentication mechanism is chosen and approved.
+
 ### Frontend (Vercel)
 
 `vercel.json` pins the static deployment: framework `vite`, install `npm ci`,
@@ -269,6 +351,58 @@ Because CORS names exactly one origin in production, set the API's
 `CLIENT_ORIGIN` to the canonical client origin once it is known, and restart the
 API. It is never widened to `*`.
 
+## Collecting a catalogue
+
+Catalogue collection is split in two, and the split is the point.
+
+**The shared runner** (`server/catalogue/core/catalogueRunner.ts`) owns
+everything that is the same for every supermarket: the Crawlee and Playwright
+lifecycle, the request queue, concurrency and retries, run identity and status,
+normalisation, allergen safety, batched persistence, price history, and the
+decision about whether a run earned the right to retire missing products.
+
+**An adapter** (`server/catalogue/adapters/<retailer>/`) owns only what a
+particular shop's website does: allowed hosts, cookie and consent handling,
+store selection, categories, pagination and selectors.
+
+That is what makes a second retailer an adapter plus a database row, rather
+than a second copy of every bug fixed in the first one. An adapter never
+touches MongoDB, retries, batching or availability.
+
+Adapters are registered in `server/catalogue/adapters/registry.ts` and resolved
+by the `adapterKey` on a retailer record.
+
+### Proving an adapter still works
+
+`server/catalogue/adapters/aldi/aldiAdapter.test.ts` serves saved HTML from
+`server/testing/fixtures/aldi/` to a real Chromium page. The selectors, the
+tile loop, the pager and the disclosure expansion all run exactly as they do
+against the live site; only the network is absent.
+
+This is what catches selector drift. A selector that stops matching does not
+throw — it returns nothing, and a crawl "succeeds" with an empty catalogue.
+One fixture (`listing-drifted.html`) is a redesigned page that no longer
+matches, and the suite asserts that this surfaces as a failure.
+
+## The planner regression baseline
+
+`server/testing/baseline/aldiBaselineSnapshot.ts` records what the planner
+currently produces for a frozen set of requests and seeds. It is the regression
+oracle: a diff in that file is a change in planning behaviour, and there is no
+other reading of it.
+
+A slice that did not intend to change planning must re-record to an empty diff.
+One that did must re-record and justify the diff line by line.
+
+```bash
+npm run baseline:record   # then check `git diff`
+```
+
+Wall-clock benchmark figures are recorded in
+`server/testing/baseline/BENCHMARK.md` but never asserted — they vary by an
+order of magnitude across machines. The candidate counts beside them *are*
+deterministic and are asserted.
+
 ## Known limitations
 
 - **Variety is bounded by the template library.** 36 curated templates cover
@@ -278,8 +412,14 @@ API. It is never widened to `*`.
 - **Role classification is keyword-based** over Aldi names, categories and
   descriptions. It is deliberately conservative: an unrecognised product stays
   `unknown` and is simply never used, rather than being guessed into a recipe.
-- Single Aldi store, configured by `ALDI_STORE_ID`. Users cannot pick a store.
-- Plans are generated fresh and never persisted. No accounts, no history.
+- **Aldi is the only active retailer.** The adapter platform, contracts and
+  registry support more. Choosing a second retailer is a legal and technical
+  decision: what was actually checked, and why it could not be concluded, is
+  recorded in `docs/second-retailer-discovery-record.md`; the steps to take
+  once a source is confirmed are in
+  `docs/second-retailer-activation-checklist.md`.
+- Plans are persisted anonymously for `PLAN_RETENTION_DAYS` (30 by default),
+  keyed by a hashed device id. No accounts, no email, no cross-device sync.
 - The rate limiter is in-memory, so it is per-instance. Running more than one
   API instance needs a shared store to be exact.
 - Prices are the shelf prices recorded at the last crawl and exclude offers.

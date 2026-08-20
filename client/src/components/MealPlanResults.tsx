@@ -298,6 +298,7 @@ export function MealPlanResults({
                         {meal ? (
                           <button
                             type="button"
+                            data-testid="open-recipe"
                             onClick={() => openRecipe(meal.recipeId, day.day, meal.mealType)}
                             className="group text-left"
                           >
@@ -336,6 +337,7 @@ export function MealPlanResults({
                   <li key={meal.mealType} className="mb-3 last:mb-0">
                     <button
                       type="button"
+                      data-testid="open-recipe"
                       onClick={() => openRecipe(meal.recipeId, day.day, meal.mealType)}
                       className="flex w-full items-center gap-3 text-left"
                     >

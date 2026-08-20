@@ -10,6 +10,14 @@ export const API_ERROR_CODES = [
   "INVALID_REQUEST",
   "CATALOGUE_UNAVAILABLE",
   "CATALOGUE_CONSTRAINT_CONFLICT",
+  // Catalogue ownership. Added as a superset: every code that existed before
+  // multi-retailer support still exists, because the client already maps each
+  // of them to a specific recovery action.
+  "RETAILER_NOT_FOUND",
+  "RETAILER_NOT_ACTIVE",
+  "STORE_NOT_FOUND",
+  "CATALOGUE_STALE",
+  "PLAN_NOT_FOUND",
   "NO_AFFORDABLE_PLAN",
   "NO_REPLACEMENT_AVAILABLE",
   "MUST_HAVE_PRODUCT_NOT_FOUND",
@@ -141,6 +149,39 @@ export class ApiError extends Error {
 
   static notFound(message: string): ApiError {
     return new ApiError(404, "NOT_FOUND", message);
+  }
+
+  /* --------------------------------------------------- catalogue ownership */
+
+  static retailerNotFound(message: string, details?: unknown): ApiError {
+    return new ApiError(404, "RETAILER_NOT_FOUND", message, details);
+  }
+
+  /**
+   * The retailer exists but its integration is not in a state a customer may
+   * plan against — still validating, degraded, or switched off. A 409 rather
+   * than a 404: the retailer is real, the request is simply not answerable
+   * right now, and the client should offer another supermarket.
+   */
+  static retailerNotActive(message: string, details?: unknown): ApiError {
+    return new ApiError(409, "RETAILER_NOT_ACTIVE", message, details);
+  }
+
+  static storeNotFound(message: string, details?: unknown): ApiError {
+    return new ApiError(404, "STORE_NOT_FOUND", message, details);
+  }
+
+  /**
+   * The catalogue is real but older than the retailer's freshness policy, so
+   * its prices can no longer be stood behind for a *new* plan. Plans already
+   * generated stay readable; this only refuses to build another one.
+   */
+  static catalogueStale(message: string, details?: unknown): ApiError {
+    return new ApiError(409, "CATALOGUE_STALE", message, details);
+  }
+
+  static planNotFound(message: string, details?: unknown): ApiError {
+    return new ApiError(404, "PLAN_NOT_FOUND", message, details);
   }
 }
 

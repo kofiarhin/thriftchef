@@ -1,12 +1,18 @@
 import { ApiError } from "../http/errors";
+import { SLUG_PATTERN } from "../catalogue/core/retailerTypes";
 import {
+  ALL_COOKING_DAYS,
   APPLIANCES,
   BUDGET_TARGET_PERCENTS,
   COOKING_APPLIANCES,
   DEFAULT_BUDGET_TARGET_PERCENT,
+  MAX_COOKING_DAY,
   MAX_MUST_HAVE_PRODUCTS,
+  MAX_TOTAL_MINUTES,
   MEAL_PREFERENCES,
   MEAL_TYPES,
+  MIN_COOKING_DAY,
+  MIN_TOTAL_MINUTES,
   PANTRY_BASICS,
   UK_ALLERGENS,
   type Allergen,
@@ -80,6 +86,13 @@ export function parseMealReplacementRequest(body: unknown): MealReplacementReque
 const MAX_FREE_TEXT_LENGTH = 40;
 const MAX_FREE_TEXT_ENTRIES = 30;
 
+/**
+ * Bounded, but far above the must-have cap. Owning something is a statement of
+ * fact about the household's cupboard; wanting it is a planning constraint, and
+ * only the latter has to be searched over.
+ */
+const MAX_OWNED_PRODUCTS = 60;
+
 const ALLOWED_KEYS = new Set([
   "budgetPence",
   "householdSize",
@@ -90,7 +103,11 @@ const ALLOWED_KEYS = new Set([
   "allergies",
   "dislikedIngredients",
   "pantryBasics",
+  "retailerId",
   "storeId",
+  "cookingDays",
+  "maxTotalMinutes",
+  "ownedProductIds",
   "variationSeed",
   "budgetTargetPercent",
   "mustHaveProductIds",
@@ -242,6 +259,72 @@ class RequestValidator {
     return ids;
   }
 
+  /**
+   * ISO weekdays the household cooks on.
+   *
+   * Sorted and de-duplicated rather than rejected for order: the user ticking
+   * Wednesday before Monday means the same week either way, and a deterministic
+   * planner must not give two answers for one intent. An out-of-range day *is*
+   * rejected — that is a client defect, not a preference.
+   */
+  cookingDays(field: string, value: unknown): number[] {
+    if (value === undefined) return [...ALL_COOKING_DAYS];
+
+    if (!Array.isArray(value)) {
+      this.add(field, `${field} must be an array of weekday numbers.`);
+      return [...ALL_COOKING_DAYS];
+    }
+
+    if (value.length === 0) {
+      this.add(field, `${field} must include at least one day.`);
+      return [...ALL_COOKING_DAYS];
+    }
+
+    if (value.length > MAX_COOKING_DAY) {
+      this.add(field, `${field} may contain at most ${MAX_COOKING_DAY} days.`);
+      return [...ALL_COOKING_DAYS];
+    }
+
+    const days = new Set<number>();
+
+    for (const entry of value) {
+      if (
+        typeof entry !== "number" ||
+        !Number.isInteger(entry) ||
+        entry < MIN_COOKING_DAY ||
+        entry > MAX_COOKING_DAY
+      ) {
+        this.add(
+          field,
+          `${field} must contain whole numbers between ${MIN_COOKING_DAY} (Monday) and ${MAX_COOKING_DAY} (Sunday).`,
+        );
+        return [...ALL_COOKING_DAYS];
+      }
+
+      days.add(entry);
+    }
+
+    return [...days].sort((a, b) => a - b);
+  }
+
+  /** A slug or an object id, for naming a retailer or a store. */
+  identity(field: string, value: unknown): string | undefined {
+    if (value === undefined) return undefined;
+
+    if (typeof value !== "string") {
+      this.add(field, `${field} must be a text value.`);
+      return undefined;
+    }
+
+    const trimmed = value.trim().toLowerCase();
+    if (!SLUG_PATTERN.test(trimmed)) {
+      this.add(field, `${field} must be a lowercase slug of up to 64 characters.`);
+      return undefined;
+    }
+
+    return trimmed;
+  }
+
   freeTextList(field: string, value: unknown): string[] {
     if (value === undefined) return [];
 
@@ -365,6 +448,25 @@ export function parseMealPlanRequest(body: unknown): MealPlanRequest {
     input.mustHaveProductIds,
     MAX_MUST_HAVE_PRODUCTS,
   );
+  // The owned list is not capped at the must-have limit: a household can
+  // legitimately already own a lot of what a week needs, and refusing to
+  // believe them would put products back in the basket they already have.
+  const ownedProductIds = validator.productIdList(
+    "ownedProductIds",
+    input.ownedProductIds,
+    MAX_OWNED_PRODUCTS,
+  );
+  const cookingDays = validator.cookingDays("cookingDays", input.cookingDays);
+
+  let maxTotalMinutes: number | undefined;
+  if (input.maxTotalMinutes !== undefined && input.maxTotalMinutes !== null) {
+    maxTotalMinutes = validator.integer("maxTotalMinutes", input.maxTotalMinutes, {
+      min: MIN_TOTAL_MINUTES,
+      max: MAX_TOTAL_MINUTES,
+    });
+  }
+
+  const retailerId = validator.identity("retailerId", input.retailerId);
 
   const cuisinePreferences = validator.freeTextList(
     "cuisinePreferences",
@@ -385,14 +487,7 @@ export function parseMealPlanRequest(body: unknown): MealPlanRequest {
           max: 2_147_483_647,
         });
 
-  let storeId: string | undefined;
-  if (input.storeId !== undefined) {
-    if (typeof input.storeId !== "string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(input.storeId.trim().toLowerCase())) {
-      validator.add("storeId", "storeId must be a lowercase slug of up to 64 characters.");
-    } else {
-      storeId = input.storeId.trim().toLowerCase();
-    }
-  }
+  const storeId = validator.identity("storeId", input.storeId);
 
   if (validator.issues.length > 0) {
     throw ApiError.badRequest(
@@ -415,6 +510,10 @@ export function parseMealPlanRequest(body: unknown): MealPlanRequest {
     variationSeed,
     budgetTargetPercent,
     mustHaveProductIds,
+    ownedProductIds,
+    cookingDays,
+    ...(maxTotalMinutes === undefined ? {} : { maxTotalMinutes }),
+    ...(retailerId ? { retailerId } : {}),
     ...(storeId ? { storeId } : {}),
   };
 }

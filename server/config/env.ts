@@ -6,6 +6,11 @@
  * a bad `MONGODB_URI` would otherwise leak a secret into logs and crash traces.
  */
 
+import {
+  CATALOGUE_READ_SOURCES,
+  type CatalogueReadSource,
+} from "../catalogue/core/catalogueTypes";
+
 export type NodeEnv = "development" | "test" | "production";
 
 /**
@@ -25,16 +30,54 @@ export interface MealPlanEngineConfig {
   timeoutMs: number;
 }
 
+/**
+ * Operational throttling, kept deliberately separate from anything the user
+ * can see.
+ *
+ * Generation is free and anonymous: there is no quota, no credit and no
+ * paywall. These numbers exist to stop automated abuse, so they are set well
+ * above what a person planning their week could reach — a real user generating,
+ * regenerating and swapping repeatedly must never meet them.
+ *
+ * Replacement has its own budget because swapping is the most repeated action
+ * in the product: a shared bucket would let a handful of swaps exhaust the
+ * allowance for generating at all.
+ */
+export interface ThrottleConfig {
+  windowMs: number;
+  generate: number;
+  replace: number;
+  search: number;
+}
+
 export interface AppConfig {
   nodeEnv: NodeEnv;
   port: number;
   clientOrigin: string;
   mongodbUri: string;
   mealPlanEngine: MealPlanEngineConfig;
+  /** @deprecated Read `throttle` instead; kept so existing call sites compile. */
   rateLimit: { windowMs: number; max: number };
+  throttle: ThrottleConfig;
   catalogueStaleAfterHours: number;
+  /** Which collection the catalogue is read from. See `catalogueReads.ts`. */
+  catalogueReadSource: CatalogueReadSource;
+  /** How long an anonymous plan is retained before its TTL index removes it. */
+  planRetentionDays: number;
+  /**
+   * The retailer and store a request falls back to when it names none. Exists
+   * only so the existing single-retailer deployment keeps working while
+   * clients are updated; it is never a licence to skip scope resolution.
+   */
+  defaultRetailerSlug: string;
   mealPlanDefaultSnacks: boolean;
   logLevel: string;
+  /**
+   * Read-only catalogue administration. Off in production until an
+   * authentication mechanism is separately approved — an unauthenticated admin
+   * surface on a public origin is not a feature, it is an incident.
+   */
+  adminEnabled: boolean;
   aldi: {
     storeId: string;
     expectedStoreText: string;
@@ -167,6 +210,39 @@ export function loadConfig(source: EnvSource): AppConfig {
         max: 1_000,
       }),
     },
+    // Generous by design. A person planning a week might generate a handful of
+    // times and swap a dozen meals; these allow far more than that, because the
+    // limit is here for scripts, not for shoppers.
+    throttle: {
+      windowMs: collector.integer("THROTTLE_WINDOW_MS", 60_000, {
+        min: 1_000,
+        max: 3_600_000,
+      }),
+      generate: collector.integer("THROTTLE_GENERATE_PER_WINDOW", 60, {
+        min: 1,
+        max: 10_000,
+      }),
+      // Swapping is the most repeated action in the product, so it gets the
+      // largest budget and its own bucket.
+      replace: collector.integer("THROTTLE_REPLACE_PER_WINDOW", 120, {
+        min: 1,
+        max: 10_000,
+      }),
+      search: collector.integer("THROTTLE_SEARCH_PER_WINDOW", 240, {
+        min: 1,
+        max: 20_000,
+      }),
+    },
+    catalogueReadSource: collector.oneOf<CatalogueReadSource>(
+      "CATALOGUE_READ_SOURCE",
+      CATALOGUE_READ_SOURCES,
+      "legacy",
+    ),
+    planRetentionDays: collector.integer("PLAN_RETENTION_DAYS", 30, {
+      min: 1,
+      max: 365,
+    }),
+    defaultRetailerSlug: collector.string("DEFAULT_RETAILER_SLUG", "aldi-uk"),
     catalogueStaleAfterHours: collector.integer(
       "CATALOGUE_STALE_AFTER_HOURS",
       72,
@@ -200,6 +276,7 @@ export function loadConfig(source: EnvSource): AppConfig {
     },
     mealPlanDefaultSnacks: collector.boolean("MEAL_PLAN_DEFAULT_SNACKS", false),
     logLevel: collector.string("LOG_LEVEL", "info"),
+    adminEnabled: collector.boolean("ADMIN_ENABLED", false),
     aldi: {
       storeId: collector.string("ALDI_STORE_ID", "belper-de56-1ar"),
       expectedStoreText: collector.string("ALDI_EXPECTED_STORE_TEXT", "DE56 1AR"),

@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { createApp, type AppOverrides } from "../app";
 import { startTestServer, testConfig } from "../testing/httpTestServer";
 import { ALDI_CATALOGUE } from "../testing/planningFixtures";
+import { ALDI_SCOPE } from "../testing/scopeFixtures";
 import type { CandidateProduct } from "./productSelector";
 import type { MealPlanResponse } from "./mealPlanTypes";
 
@@ -27,6 +28,8 @@ function candidate(
     productUrl: `https://www.aldi.co.uk/product/${retailerProductId}`,
     imageUrl: null,
     lastSeenAt: new Date(),
+    lastCheckedAt: new Date(),
+    lastCrawlRunId: "route-test-run",
     ...overrides,
   };
 }
@@ -66,11 +69,23 @@ async function withServer(
 
 /** The real engine against a fixed catalogue: no generator is substituted. */
 const WITH_CATALOGUE: AppOverrides = {
-  mealPlanDependencies: { loadProducts: async () => ALDI_CATALOGUE },
+  mealPlanDependencies: {
+    resolveScope: async () => ALDI_SCOPE,
+    loadProducts: async () => ALDI_CATALOGUE,
+    savePlan: async () => {},
+    loadPlan: async () => null,
+  },
 };
 
 function withCatalogue(catalogue: CandidateProduct[]): AppOverrides {
-  return { mealPlanDependencies: { loadProducts: async () => catalogue } };
+  return {
+    mealPlanDependencies: {
+      resolveScope: async () => ALDI_SCOPE,
+      loadProducts: async () => catalogue,
+      savePlan: async () => {},
+      loadPlan: async () => null,
+    },
+  };
 }
 
 async function errorBody(response: Response): Promise<{
@@ -320,7 +335,10 @@ describe("POST /api/meal-plans/generate", () => {
     await withServer(
       {
         mealPlanDependencies: {
+          resolveScope: async () => ALDI_SCOPE,
           loadProducts: async () => ALDI_CATALOGUE,
+          savePlan: async () => {},
+          loadPlan: async () => null,
           engine: {
             generate: async () => ({
               plan: { days: [], recipes: [] },

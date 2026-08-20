@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import type { AppConfig } from "../config/env";
 import { ApiError } from "../http/errors";
@@ -9,7 +8,13 @@ import {
   resolveBudgetTarget,
   underTargetWarning,
 } from "./budgetTarget";
-import { createMealPlanEngine } from "./mealPlanEngine";
+import { createMealPlanEngine, ENGINE_VERSION } from "./mealPlanEngine";
+import {
+  ephemeralAnonymousId,
+  findPlan,
+  newPlanId,
+  savePlan,
+} from "./mealPlanRepository";
 import {
   parseMealPlanRequest,
   parseMealReplacementRequest,
@@ -27,6 +32,7 @@ import {
 } from "./productSelector";
 import type {
   BudgetTarget,
+  CatalogueProvenance,
   EngineDiagnostics,
   MealPlanEngine,
   MealPlanRequest,
@@ -34,20 +40,46 @@ import type {
   MustHaveUsage,
   SelectableProduct,
 } from "./mealPlanTypes";
+import type { ResolvedCatalogueScope } from "../catalogue/core/retailerTypes";
+import { resolveCatalogueScope } from "../catalogue/retailerRegistry";
 
 /** Below this a "plan" would repeat two products all week. */
 const MIN_PRODUCTS_FOR_PLAN = 3;
 
 export interface MealPlanDependencies {
-  loadProducts: (storeId: string) => Promise<CandidateProduct[]>;
+  /**
+   * Resolves the retailer and store a request names into the single scope
+   * every catalogue read runs under. Injectable so route tests can exercise
+   * planning without a database, but never optional: there is no code path
+   * that reads a catalogue without one.
+   */
+  resolveScope: (request: MealPlanRequest) => Promise<ResolvedCatalogueScope>;
+  loadProducts: (scope: ResolvedCatalogueScope) => Promise<CandidateProduct[]>;
   engine: MealPlanEngine;
   now: () => Date;
   newPlanId: () => string;
+  /**
+   * Persists a generated plan. Injectable so route tests exercise planning
+   * without a database; a failure here is reported rather than swallowed,
+   * because a plan the user cannot reopen is not a plan they were given.
+   */
+  savePlan: (input: {
+    plan: MealPlanResponse;
+    request: MealPlanRequest;
+    scope: ResolvedCatalogueScope;
+    anonymousId: string;
+  }) => Promise<void>;
+  loadPlan: (planId: string) => Promise<MealPlanResponse | null>;
 }
 
 export function defaultDependencies(config: AppConfig): MealPlanDependencies {
   return {
-    loadProducts: fetchCandidateProducts,
+    resolveScope: (request) =>
+      resolveCatalogueScope({
+        retailer: request.retailerId ?? config.defaultRetailerSlug,
+        store: request.storeId,
+      }),
+    loadProducts: (scope) => fetchCandidateProducts(scope, config.catalogueReadSource),
     engine: createMealPlanEngine({
       beamWidth: config.mealPlanEngine.beamWidth,
       candidateLimit: config.mealPlanEngine.candidateLimit,
@@ -55,8 +87,31 @@ export function defaultDependencies(config: AppConfig): MealPlanDependencies {
       timeoutMs: config.mealPlanEngine.timeoutMs,
     }),
     now: () => new Date(),
-    newPlanId: () => randomUUID(),
+    newPlanId,
+    savePlan: (input) =>
+      savePlan({
+        ...input,
+        engineVersion: ENGINE_VERSION,
+        retentionDays: config.planRetentionDays,
+        now: new Date(),
+      }),
+    loadPlan: async (planId) => (await findPlan(planId))?.plan ?? null,
   };
+}
+
+/**
+ * The device this request came from, for correlating its own plans.
+ *
+ * A client that sends none gets a throwaway id rather than an error:
+ * generation is anonymous, and refusing to plan for someone who declined to
+ * be correlated would defeat the point.
+ */
+function anonymousIdFrom(request: Request): string {
+  const header = request.get("x-anonymous-id");
+
+  return header && /^[A-Za-z0-9._:-]{8,128}$/.test(header)
+    ? header
+    : ephemeralAnonymousId();
 }
 
 function newestSeenAt(candidates: CandidateProduct[]): Date | null {
@@ -79,11 +134,12 @@ function assertUsableSelection(
   candidates: CandidateProduct[],
   selection: SelectionResult,
   request: MealPlanRequest,
+  scope: ResolvedCatalogueScope,
 ): void {
   if (candidates.length === 0) {
     throw ApiError.catalogueUnavailable(
-      "No Aldi catalogue data is available for this store yet. Run the Aldi crawl before generating a plan.",
-      { availableProducts: 0 },
+      `No ${scope.retailerName} catalogue data is available for ${scope.storeName} yet.`,
+      { availableProducts: 0, retailer: scope.retailerSlug },
     );
   }
 
@@ -107,7 +163,7 @@ function assertUsableSelection(
   }
 
   throw ApiError.conflict(
-    "Not enough Aldi products match these constraints to build a weekly plan.",
+    `Not enough ${scope.retailerName} products match these constraints to build a weekly plan.`,
     {
       productsConsidered: selection.productsConsidered,
       productsAvailable: selection.products.length,
@@ -115,7 +171,7 @@ function assertUsableSelection(
       suggestions: [
         "Remove a disliked ingredient or an allergy filter.",
         "Reduce the number of meal types per day.",
-        "Re-run the Aldi crawl to widen the catalogue.",
+        "Choose fewer cooking days.",
       ],
     },
   );
@@ -125,7 +181,7 @@ function assertUsableSelection(
 function describeMustHaveIssue(reason: string): string {
   if (reason === "allergy") return "conflicts with an allergy you declared";
   if (reason === "dislike") return "matches an ingredient you asked to avoid";
-  return "is not currently available or priced in the Aldi catalogue";
+  return "is not currently available or priced in this supermarket's catalogue";
 }
 
 /**
@@ -136,6 +192,7 @@ function describeMustHaveIssue(reason: string): string {
 function assertMustHaveProductsExist(
   candidates: CandidateProduct[],
   mustHaveProductIds: string[],
+  scope: ResolvedCatalogueScope,
 ): void {
   if (mustHaveProductIds.length === 0) return;
 
@@ -147,7 +204,7 @@ function assertMustHaveProductsExist(
   if (missing.length === 0) return;
 
   throw ApiError.mustHaveProductNotFound(
-    "Some of the products you asked to include are not in the current Aldi catalogue.",
+    `Some of the products you asked to include are not in the current ${scope.retailerName} catalogue.`,
     {
       productIds: missing,
       suggestions: [
@@ -155,6 +212,35 @@ function assertMustHaveProductsExist(
         "The catalogue may have been refreshed since you chose it.",
       ],
     },
+  );
+}
+
+/**
+ * An owned product must belong to the resolved catalogue too.
+ *
+ * Owning something the selected supermarket does not stock is not an error the
+ * planner can absorb: the id would silently never match, the product would be
+ * bought anyway, and the user would be charged for something they already have.
+ */
+function assertOwnedProductsExist(
+  candidates: CandidateProduct[],
+  ownedProductIds: string[],
+  scope: ResolvedCatalogueScope,
+): void {
+  if (ownedProductIds.length === 0) return;
+
+  const known = new Set(candidates.map((candidate) => candidate.retailerProductId));
+  const missing = ownedProductIds.filter((productId) => !known.has(productId));
+
+  if (missing.length === 0) return;
+
+  throw ApiError.badRequest(
+    `Some of the products you marked as already owned are not in the current ${scope.retailerName} catalogue.`,
+    missing.map((productId) => ({
+      field: "ownedProductIds",
+      message: `${productId} is not a product in this catalogue.`,
+    })),
+    "INVALID_MEAL_PLAN_REQUEST",
   );
 }
 
@@ -321,16 +407,46 @@ function assertWithinBudget(priced: PricedPlan, request: MealPlanRequest): void 
 
 function staleCatalogueWarning(
   candidates: CandidateProduct[],
-  config: AppConfig,
+  scope: ResolvedCatalogueScope,
   now: Date,
 ): string | null {
   const seenAt = newestSeenAt(candidates);
   if (!seenAt) return null;
 
-  const staleAfterMs = config.catalogueStaleAfterHours * 60 * 60 * 1000;
+  // The retailer's own freshness policy, not one global number: a catalogue
+  // that changes daily and one that changes weekly go stale at different rates.
+  const staleAfterMs = scope.staleAfterHours * 60 * 60 * 1000;
   if (now.getTime() - seenAt.getTime() <= staleAfterMs) return null;
 
-  return `The Aldi catalogue was last refreshed on ${seenAt.toISOString().slice(0, 10)}. Prices and availability may have changed since.`;
+  return `The ${scope.retailerName} catalogue was last refreshed on ${seenAt.toISOString().slice(0, 10)}. Prices and availability may have changed since.`;
+}
+
+/**
+ * Where this plan's prices came from.
+ *
+ * Read from the catalogue snapshot the plan was actually built on, not from
+ * the request: the request says what was asked for, and only the snapshot can
+ * say what answered.
+ */
+function provenanceFor(
+  scope: ResolvedCatalogueScope,
+  candidates: CandidateProduct[],
+): CatalogueProvenance {
+  let newest: CandidateProduct | null = null;
+  for (const candidate of candidates) {
+    if (!newest || candidate.lastSeenAt > newest.lastSeenAt) newest = candidate;
+  }
+
+  return {
+    retailerId: scope.retailerId,
+    retailerSlug: scope.retailerSlug,
+    retailerName: scope.retailerName,
+    storeId: scope.storeId,
+    storeSlug: scope.storeSlug,
+    storeName: scope.storeName,
+    crawlRunId: newest?.lastCrawlRunId ?? null,
+    catalogueUpdatedAt: newest?.lastSeenAt.toISOString() ?? null,
+  };
 }
 
 function buildResponse(
@@ -341,10 +457,12 @@ function buildResponse(
   dependencies: MealPlanDependencies,
   budgetTarget: BudgetTarget,
   mustHaveUsage: MustHaveUsage[],
+  catalogue: CatalogueProvenance,
 ): MealPlanResponse {
   return {
     planId: dependencies.newPlanId(),
     generatedAt: dependencies.now().toISOString(),
+    catalogue,
     currency: "GBP",
     budgetPence: request.budgetPence,
     estimatedTotalPence: priced.estimatedTotalPence,
@@ -352,7 +470,7 @@ function buildResponse(
     assumptions: [
       ...priced.assumptions,
       `Recipes are scaled for a household of ${request.householdSize}.`,
-      "Prices are the Aldi shelf prices recorded at the last catalogue crawl and exclude offers.",
+      `Prices are the ${catalogue.retailerName} shelf prices recorded at the last catalogue crawl and exclude offers.`,
     ],
     warnings,
     days: priced.days,
@@ -366,6 +484,7 @@ function buildResponse(
     },
     budgetUtilization: describeUtilization(budgetTarget, priced.estimatedTotalPence),
     mustHaveUsage,
+    cookingDays: request.cookingDays,
   };
 }
 
@@ -389,21 +508,25 @@ export function createMealPlanHandler(
 ) {
   return async (request: Request, response: Response): Promise<void> => {
     const planRequest = parseMealPlanRequest(request.body);
-    const storeId = planRequest.storeId ?? config.aldi.storeId;
+    // Resolved before anything is read. A scope cannot be produced for an
+    // inactive retailer or for someone else's store, so every query below is
+    // confined to one catalogue by construction.
+    const scope = await dependencies.resolveScope(planRequest);
     const budgetTarget = resolveBudgetTarget(
       planRequest.budgetPence,
       planRequest.budgetTargetPercent,
     );
 
-    const candidates = await dependencies.loadProducts(storeId);
-    assertMustHaveProductsExist(candidates, planRequest.mustHaveProductIds);
+    const candidates = await dependencies.loadProducts(scope);
+    assertMustHaveProductsExist(candidates, planRequest.mustHaveProductIds, scope);
+    assertOwnedProductsExist(candidates, planRequest.ownedProductIds, scope);
 
     const selection = selectProducts(candidates, planRequest, {
       maxProducts: config.mealPlanEngine.maxProducts,
       mustHaveProductIds: planRequest.mustHaveProductIds,
     });
 
-    assertUsableSelection(candidates, selection, planRequest);
+    assertUsableSelection(candidates, selection, planRequest, scope);
     assertMustHavesAreAllowed(selection);
     assertMustHavesFitBudget(selection.products, planRequest);
 
@@ -428,7 +551,7 @@ export function createMealPlanHandler(
     assertMustHavesWereUsed(mustHaveUsage, priced);
 
     const warnings = [...selection.warnings];
-    const stale = staleCatalogueWarning(candidates, config, dependencies.now());
+    const stale = staleCatalogueWarning(candidates, scope, dependencies.now());
     if (stale) warnings.push(stale);
 
     // Non-blocking: the plan is valid and affordable, the user simply asked for
@@ -445,11 +568,31 @@ export function createMealPlanHandler(
       dependencies,
       budgetTarget,
       mustHaveUsage,
+      provenanceFor(scope, candidates),
     );
 
+    const anonymousId = anonymousIdFrom(request);
+
+    try {
+      await dependencies.savePlan({
+        plan: body,
+        request: planRequest,
+        scope,
+        anonymousId,
+      });
+    } catch {
+      // A plan the user cannot reopen is not a plan they were given. Better a
+      // typed failure they can retry than a shopping list that vanishes.
+      throw ApiError.plannerInternal(
+        "The plan was built but could not be saved. Try generating it again.",
+      );
+    }
+
     addLogContext(response, {
-      storeId,
+      retailer: scope.retailerSlug,
+      storeId: scope.storeSlug,
       generator: "engine",
+      cookingDays: planRequest.cookingDays.length,
       generationMs: Date.now() - started,
       ...engineLogFields(diagnostics),
       productsConsidered: selection.productsConsidered,
@@ -480,20 +623,23 @@ export function createMealReplacementHandler(
   return async (httpRequest: Request, response: Response): Promise<void> => {
     const replacementRequest = parseMealReplacementRequest(httpRequest.body);
     const { request: planRequest, plan, day, mealType } = replacementRequest;
-    const storeId = planRequest.storeId ?? config.aldi.storeId;
+    // The same scope the plan was built under. A swap that silently moved
+    // supermarket would reprice the whole basket against a different shop.
+    const scope = await dependencies.resolveScope(planRequest);
     const budgetTarget = resolveBudgetTarget(
       planRequest.budgetPence,
       planRequest.budgetTargetPercent,
     );
 
-    const candidates = await dependencies.loadProducts(storeId);
-    assertMustHaveProductsExist(candidates, planRequest.mustHaveProductIds);
+    const candidates = await dependencies.loadProducts(scope);
+    assertMustHaveProductsExist(candidates, planRequest.mustHaveProductIds, scope);
+    assertOwnedProductsExist(candidates, planRequest.ownedProductIds, scope);
 
     const selection = selectProducts(candidates, planRequest, {
       maxProducts: config.mealPlanEngine.maxProducts,
       mustHaveProductIds: planRequest.mustHaveProductIds,
     });
-    assertUsableSelection(candidates, selection, planRequest);
+    assertUsableSelection(candidates, selection, planRequest, scope);
     assertMustHavesAreAllowed(selection);
     assertMustHavesFitBudget(selection.products, planRequest);
 
@@ -546,10 +692,25 @@ export function createMealReplacementHandler(
       dependencies,
       budgetTarget,
       mustHaveUsage,
+      provenanceFor(scope, candidates),
     );
 
+    try {
+      await dependencies.savePlan({
+        plan: body,
+        request: planRequest,
+        scope,
+        anonymousId: anonymousIdFrom(httpRequest),
+      });
+    } catch {
+      throw ApiError.plannerInternal(
+        "The revised plan could not be saved. Your current plan is unchanged.",
+      );
+    }
+
     addLogContext(response, {
-      storeId,
+      retailer: scope.retailerSlug,
+      storeId: scope.storeSlug,
       generator: "engine",
       operation: "replace-meal",
       generationMs: Date.now() - started,
@@ -560,5 +721,49 @@ export function createMealReplacementHandler(
     });
 
     response.json(body);
+  };
+}
+
+/**
+ * Reopens a saved plan.
+ *
+ * Serves the stored snapshot rather than re-planning: the catalogue moves, and
+ * a shopping list that reprices itself between the kitchen and the shop is
+ * worse than none.
+ */
+export function createGetMealPlanHandler(
+  _config: AppConfig,
+  dependencies: MealPlanDependencies,
+) {
+  return async (request: Request, response: Response): Promise<void> => {
+    const planId = request.params.planId;
+
+    if (typeof planId !== "string" || !/^[a-f0-9]{32}$/.test(planId)) {
+      throw ApiError.badRequest(
+        "That is not a plan link we recognise.",
+        [{ field: "planId", message: "The plan id is not valid." }],
+        "INVALID_REQUEST",
+      );
+    }
+
+    const plan = await dependencies.loadPlan(planId);
+
+    // Unknown and expired are deliberately the same answer: distinguishing
+    // them would confirm that a given id once existed.
+    if (!plan) {
+      throw ApiError.planNotFound(
+        "That plan is no longer available. Plans are kept for a limited time.",
+        { suggestions: ["Generate a fresh plan for this week."] },
+      );
+    }
+
+    addLogContext(response, {
+      retailer: plan.catalogue.retailerSlug,
+      storeId: plan.catalogue.storeSlug,
+      operation: "get-plan",
+      outcome: "served",
+    });
+
+    response.json(plan);
   };
 }

@@ -20,8 +20,15 @@
     "typecheck:server": "tsc --noEmit",
     "typecheck:client": "tsc --noEmit -p client/tsconfig.json",
     "benchmark:planner": "tsx server/mealPlanning/plannerBenchmark.ts",
-    "aldi:crawl": "tsx server/catalogue/aldi/runAldiCrawl.ts",
-    "catalogue:inspect": "tsx scripts/inspect-catalogue.ts"
+    "aldi:crawl": "tsx server/catalogue/adapters/aldi/runAldiCrawl.ts",
+    "catalogue:inspect": "tsx scripts/inspect-catalogue.ts",
+    "baseline:record": "tsx server/testing/baseline/recordBaseline.ts",
+    "catalogue:bootstrap": "tsx scripts/bootstrap-retailers.ts",
+    "catalogue:backfill": "tsx scripts/backfill-product-offers.ts",
+    "catalogue:undo-reconciliation": "tsx scripts/undo-reconciliation.ts",
+    "aldi:diagnostic": "tsx server/catalogue/adapters/aldi/runAldiCrawl.ts --diagnostic",
+    "catalogue:verify": "tsx scripts/verify-migrations.ts",
+    "verify:browser": "tsx scripts/verify-browser.ts"
   },
   "keywords": [],
   "author": "",
@@ -38,7 +45,8 @@
     "mongoose": "^9.9.1",
     "playwright": "^1.62.1",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
@@ -53,6 +61,7 @@
     "@vitejs/plugin-react": "^6.0.5",
     "concurrently": "^10.0.4",
     "jsdom": "^29.1.1",
+    "mongodb-memory-server": "^11.2.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2",

@@ -1,3 +1,4 @@
+import { applyMoods } from "./features/weeklyPlan/weeklyMood";
 import {
   BUDGET_TARGET_PERCENTS,
   COOKING_APPLIANCES,
@@ -20,6 +21,13 @@ import type {
  * is never silently coerced. Validation converts to the request shape.
  */
 export interface ConstraintFormState {
+  /** The retailer and store every product in the plan will come from. */
+  retailerId: string | null;
+  storeId: string | null;
+  /** ISO weekdays the household cooks on. */
+  cookingDays: number[];
+  /** Hard ceiling on a single recipe, or null for no limit. */
+  maxTotalMinutes: number | null;
   budgetPounds: string;
   /** The share of the maximum the plan should aim to use. */
   budgetTargetPercent: BudgetTargetPercent;
@@ -37,9 +45,22 @@ export interface ConstraintFormState {
    * every product from its own catalogue snapshot.
    */
   mustHaveProducts: ProductSearchItem[];
+  /** Catalogue products the household already has and should not buy again. */
+  ownedProducts: ProductSearchItem[];
+  /**
+   * This week's mood, as ids from `WEEKLY_MOODS`. Folded into the request's
+   * preferences at submit time and never written back to the saved profile.
+   */
+  weeklyMoods: string[];
 }
 
 export const INITIAL_FORM_STATE: ConstraintFormState = {
+  retailerId: null,
+  storeId: null,
+  // Every day, which is what every plan generated before cooking days existed
+  // assumed. The weekly wizard narrows it; the classic form leaves it whole.
+  cookingDays: [1, 2, 3, 4, 5, 6, 7],
+  maxTotalMinutes: null,
   budgetPounds: "70",
   budgetTargetPercent: DEFAULT_BUDGET_TARGET_PERCENT,
   householdSize: "2",
@@ -51,6 +72,8 @@ export const INITIAL_FORM_STATE: ConstraintFormState = {
   dislikedIngredients: "",
   pantryBasics: [],
   mustHaveProducts: [],
+  ownedProducts: [],
+  weeklyMoods: [],
 };
 
 export const MIN_BUDGET_POUNDS = 10;
@@ -190,13 +213,31 @@ export function validateConstraints(
       // constraints give the same week until the user asks to regenerate.
       variationSeed: 0,
       mealsPerDay: state.mealsPerDay,
-      mealPreferences: state.mealPreferences,
-      cuisinePreferences,
+      // Saved preferences plus this week's moods. Additive: a mood can add a
+      // preference for one week but never remove one the household always
+      // wants.
+      mealPreferences: applyMoods(
+        state.mealPreferences,
+        cuisinePreferences,
+        state.weeklyMoods,
+      ).mealPreferences,
+      cuisinePreferences: applyMoods(
+        state.mealPreferences,
+        cuisinePreferences,
+        state.weeklyMoods,
+      ).cuisinePreferences,
       appliances: state.appliances,
       allergies: state.allergies,
       dislikedIngredients,
       pantryBasics: state.pantryBasics,
       mustHaveProductIds: state.mustHaveProducts.map((product) => product.id),
+      ownedProductIds: state.ownedProducts.map((product) => product.id),
+      cookingDays: [...state.cookingDays].sort((a, b) => a - b),
+      ...(state.maxTotalMinutes === null
+        ? {}
+        : { maxTotalMinutes: state.maxTotalMinutes }),
+      ...(state.retailerId ? { retailerId: state.retailerId } : {}),
+      ...(state.storeId ? { storeId: state.storeId } : {}),
     },
   };
 }
@@ -215,6 +256,9 @@ export function mapServerFieldToFormField(field: string): FieldName | null {
     allergies: "allergies",
     dislikedIngredients: "dislikedIngredients",
     pantryBasics: "pantryBasics",
+    cookingDays: "cookingDays",
+    maxTotalMinutes: "maxTotalMinutes",
+    ownedProductIds: "ownedProducts",
   };
 
   return mapping[field] ?? null;

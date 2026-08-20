@@ -4,7 +4,6 @@ import {
   type ProductUsage,
 } from "./shoppingList";
 import {
-  PLAN_DAYS,
   type Appliance,
   type BudgetStatus,
   type MealPlanDay,
@@ -266,8 +265,16 @@ export function validateAndPricePlan(
     byId.set(entry.recipe.id, entry);
   }
 
-  if (raw.days.length !== PLAN_DAYS) {
-    reject("WRONG_DAY_COUNT", `The generated plan must cover exactly ${PLAN_DAYS} days.`);
+  // The plan must cover exactly the days that were asked for. Checking against
+  // the request rather than against seven is what lets a household cook three
+  // days a week without the validator calling it a malformed plan.
+  const requestedDays = context.request.cookingDays;
+
+  if (raw.days.length !== requestedDays.length) {
+    reject(
+      "WRONG_DAY_COUNT",
+      `The generated plan must cover exactly ${requestedDays.length} day(s).`,
+    );
   }
 
   const seenDays = new Set<number>();
@@ -278,11 +285,12 @@ export function validateAndPricePlan(
     if (!isRecord(rawDay)) reject("INVALID_DAY_NUMBER", "A day entry was not an object.");
 
     const day = rawDay.day;
+    // A day the household did not choose to cook on is as wrong as a duplicate
+    // one: the plan would silently hand them a meal on a day they said no to.
     if (
       typeof day !== "number" ||
       !Number.isInteger(day) ||
-      day < 1 ||
-      day > PLAN_DAYS ||
+      !requestedDays.includes(day) ||
       seenDays.has(day)
     ) {
       reject("INVALID_DAY_NUMBER", "The generated plan had a duplicate or invalid day number.");
@@ -346,7 +354,9 @@ export function validateAndPricePlan(
     }
   }
 
-  const shoppingList = consolidateShoppingList(usages, context.products);
+  const shoppingList = consolidateShoppingList(usages, context.products, {
+    ownedProductIds: context.request.ownedProductIds,
+  });
   if (shoppingList.groups.length === 0) {
     reject("NO_PRODUCTS_USED", "The generated plan did not use any Aldi products.");
   }

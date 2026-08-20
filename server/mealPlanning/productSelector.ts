@@ -1,4 +1,9 @@
-import { Product, type CatalogueSafetyStatus } from "../models/Product";
+import { loadCandidateProducts } from "../catalogue/core/catalogueReads";
+import type {
+  CandidateProduct,
+  CatalogueReadSource,
+} from "../catalogue/core/catalogueTypes";
+import type { ResolvedCatalogueScope } from "../catalogue/core/retailerTypes";
 import { classifyIngredientRoles, type IngredientRole } from "./ingredientRoles";
 import {
   allocateAcrossFoodGroups,
@@ -11,8 +16,6 @@ import type {
   SelectableProduct,
 } from "./mealPlanTypes";
 
-const RETAILER = "aldi-uk" as const;
-
 /**
  * Aldi publishes no allergen labels, so every crawled product is "inferred".
  * Planning may still use them, but the user must be told the difference
@@ -24,23 +27,12 @@ export const INFERRED_ALLERGEN_WARNING =
 export const INFERRED_WITH_ALLERGIES_WARNING =
   "You declared an allergy, but no product in this plan has retailer-verified allergen data. Products whose inferred allergens conflicted with your allergies were removed, but inference can miss allergens. Do not rely on this plan for allergy safety; check the packaging of every item.";
 
-/** The catalogue fields planning is allowed to see. */
-export interface CandidateProduct {
-  retailerProductId: string;
-  name: string;
-  brand: string | null;
-  description: string | null;
-  categoryPaths: string[][];
-  pricePence: number;
-  packageSizeRaw: string | null;
-  dietaryInformationRaw: string | null;
-  normalizedAllergens: string[];
-  catalogueSafetyStatus: CatalogueSafetyStatus;
-  eligibleForPlanning: boolean;
-  productUrl: string;
-  imageUrl?: string | null;
-  lastSeenAt: Date;
-}
+/**
+ * Re-exported from the catalogue core so existing importers keep working. The
+ * definition moved there because two readers — legacy fields and store-scoped
+ * offers — must provably produce the same shape.
+ */
+export type { CandidateProduct };
 
 /**
  * Why a product the user insisted on cannot be planned with. Never a silent
@@ -396,47 +388,19 @@ export function selectProducts(
 }
 
 /**
- * Loads every available, priced product for a store. Eligibility, safety and
- * allergy filtering deliberately happen in `selectProducts` instead of the
- * query, so the response can report how many products each rule removed.
+ * Loads every available product for one resolved retailer and store.
+ *
+ * Eligibility, safety and allergy filtering deliberately happen in
+ * `selectProducts` rather than in the query, so the response can report how
+ * many products each rule removed.
+ *
+ * Takes a resolved scope rather than a store id: a scope cannot be constructed
+ * without a retailer, so there is no way to call this and accidentally read
+ * the whole catalogue.
  */
 export async function fetchCandidateProducts(
-  storeId: string,
+  scope: ResolvedCatalogueScope,
+  source: CatalogueReadSource = "legacy",
 ): Promise<CandidateProduct[]> {
-  const documents = await Product.find(
-    { retailer: RETAILER, storeId, available: true },
-    {
-      retailerProductId: 1,
-      name: 1,
-      brand: 1,
-      description: 1,
-      categoryPaths: 1,
-      pricePence: 1,
-      packageSizeRaw: 1,
-      dietaryInformationRaw: 1,
-      normalizedAllergens: 1,
-      catalogueSafetyStatus: 1,
-      eligibleForPlanning: 1,
-      productUrl: 1,
-      imageUrl: 1,
-      lastSeenAt: 1,
-    },
-  ).lean();
-
-  return documents.map((document) => ({
-    retailerProductId: document.retailerProductId,
-    name: document.name,
-    brand: document.brand ?? null,
-    description: document.description ?? null,
-    categoryPaths: document.categoryPaths ?? [],
-    pricePence: document.pricePence,
-    packageSizeRaw: document.packageSizeRaw ?? null,
-    dietaryInformationRaw: document.dietaryInformationRaw ?? null,
-    normalizedAllergens: document.normalizedAllergens ?? [],
-    catalogueSafetyStatus: document.catalogueSafetyStatus,
-    eligibleForPlanning: document.eligibleForPlanning,
-    productUrl: document.productUrl,
-    imageUrl: document.imageUrl ?? null,
-    lastSeenAt: document.lastSeenAt,
-  }));
+  return loadCandidateProducts(scope, source);
 }

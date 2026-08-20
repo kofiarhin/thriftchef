@@ -171,8 +171,18 @@ describe("App", () => {
 
     await screen.findByRole("heading", { name: /your week is sorted/i });
 
-    for (let day = 1; day <= 7; day += 1) {
-      expect(screen.getAllByText(`Day ${day}`)).not.toHaveLength(0);
+    // Days are ISO weekdays and are labelled by name, so a plan's days
+    // obviously match the days the household ticked.
+    for (const day of [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+      "Sunday",
+    ]) {
+      expect(screen.getAllByText(day)).not.toHaveLength(0);
     }
 
     await userEvent.click(screen.getByRole("tab", { name: /shopping list/i }));
@@ -698,7 +708,7 @@ describe("budget and must-have results", () => {
     });
 
     expect(within(section).getByText("Chicken Breast Fillets")).toBeInTheDocument();
-    expect(within(section).getByText(/day 1 dinner/i)).toBeInTheDocument();
+    expect(within(section).getByText(/monday dinner/i)).toBeInTheDocument();
   });
 
   it("shows the server's under-target warning without blocking the plan", async () => {
