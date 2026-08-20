@@ -5,6 +5,7 @@ import {
   clearProfile,
   createDefaultProfile,
   loadProfile,
+  loadStoredAnonymousId,
   migrateProfile,
   saveProfile,
 } from "./profileStorage";
@@ -50,6 +51,20 @@ describe("household profile storage", () => {
 
     expect(afterReload.anonymousId).toBe(first.anonymousId);
     expect(afterReload.householdSize).toBe(5);
+    expect(loadStoredAnonymousId()).toBe(first.anonymousId);
+  });
+
+  it("does not expose an anonymous header id from missing or corrupt storage", () => {
+    expect(loadStoredAnonymousId()).toBeNull();
+
+    window.localStorage.setItem(PROFILE_STORAGE_KEY, "{not json");
+    expect(loadStoredAnonymousId()).toBeNull();
+
+    window.localStorage.setItem(
+      PROFILE_STORAGE_KEY,
+      JSON.stringify({ anonymousId: "short" }),
+    );
+    expect(loadStoredAnonymousId()).toBeNull();
   });
 
   it("falls back to defaults for unparseable JSON", () => {

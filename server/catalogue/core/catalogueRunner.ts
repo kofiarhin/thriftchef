@@ -12,6 +12,7 @@
  * every bug fixed here.
  */
 
+import { randomUUID } from "node:crypto";
 import { PlaywrightCrawler, Request, log } from "crawlee";
 import { Types } from "mongoose";
 import { CrawlRun, type CrawlMode, type CrawlRunError } from "../../models/CrawlRun";
@@ -28,6 +29,7 @@ import {
   type ReconciliationRefusal,
 } from "./availabilityReconciliation";
 import { mergeCategoryPaths, normalizeCatalogueProduct } from "./catalogueNormalization";
+import { CatalogueCoverageTracker } from "./catalogueCoverage";
 import { evaluateCatalogueSafety } from "./catalogueSafety";
 import { persistCatalogueBatch, type AssessedProduct } from "./cataloguePersistence";
 import type { ResolvedCatalogueScope } from "./retailerTypes";
@@ -119,21 +121,31 @@ export async function runCatalogueCrawl(
     await ProductOffer.createIndexes();
   }
 
-  const run = await CrawlRun.create({
-    retailerId: new Types.ObjectId(scope.retailerId),
-    storeId: new Types.ObjectId(scope.storeId),
-    adapterKey: adapter.adapterKey,
-    adapterVersion: adapter.adapterVersion,
-    mode,
-    status: "running",
-    startedAt: new Date(),
-  });
-  const crawlRunId = run._id.toString();
+  // Diagnostics are deliberately database-free. They still get an in-memory
+  // run id so request keys and the returned summary remain traceable, but no
+  // CrawlRun document is created or updated.
+  let runId: Types.ObjectId | null = null;
+  let crawlRunId = randomUUID();
+
+  if (persist) {
+    const run = await CrawlRun.create({
+      retailerId: new Types.ObjectId(scope.retailerId),
+      storeId: new Types.ObjectId(scope.storeId),
+      adapterKey: adapter.adapterKey,
+      adapterVersion: adapter.adapterVersion,
+      mode,
+      status: "running",
+      startedAt: new Date(),
+    });
+
+    runId = run._id;
+    crawlRunId = run._id.toString();
+  }
 
   const listingById = new Map<string, RetailerListingProduct>();
   const scrapedById = new Map<string, AssessedProduct>();
   const issues: CrawlRunError[] = [];
-  const completedCategories = new Set<string>();
+  const coverage = new CatalogueCoverageTracker();
   const sample: AssessedProduct[] = [];
 
   let skipped = 0;
@@ -224,18 +236,22 @@ export async function runCatalogueCrawl(
 
         skipped += result.skipped;
 
-        if (result.nextPages.length > 0) {
-          await crawler.addRequests(
-            result.nextPages.map((url, index) => ({
-              url,
-              uniqueKey: `${adapter.adapterKey}-category:${data.category.key}:${index + 2}:${crawlRunId}`,
-              userData: {
-                label: "LIST",
-                category: data.category,
-                page: index + 2,
-              } satisfies ListRequestData,
-            })),
-          );
+        const nextRequests = result.nextPages.map((url, index) => ({
+          url,
+          uniqueKey: `${adapter.adapterKey}-category:${data.category.key}:${index + 2}:${crawlRunId}`,
+          userData: {
+            label: "LIST",
+            category: data.category,
+            page: index + 2,
+          } satisfies ListRequestData,
+        }));
+
+        for (const nextRequest of nextRequests) {
+          coverage.expect(data.category.key, nextRequest.uniqueKey);
+        }
+
+        if (nextRequests.length > 0) {
+          await crawler.addRequests(nextRequests);
         }
 
         for (const product of result.products) {
@@ -261,7 +277,10 @@ export async function runCatalogueCrawl(
           })),
         );
 
-        if (data.page === 1) completedCategories.add(data.category.key);
+        // A category is complete only when every page it disclosed completed.
+        // Marking page 1 as the category would let a failed later page retire
+        // products that were never observed.
+        coverage.complete(data.category.key, request.uniqueKey);
 
         log.info(
           `${adapter.adapterKey} ${data.category.key} (page ${data.page}): ${result.products.length} product links.`,
@@ -353,20 +372,25 @@ export async function runCatalogueCrawl(
       throw new Error(`No enabled categories are configured for ${adapter.adapterKey}.`);
     }
 
-    await crawler.run(
-      categories.map(
-        (category) =>
-          new Request({
-            url: category.url,
-            uniqueKey: `${adapter.adapterKey}-category:${category.key}:1:${crawlRunId}`,
-            userData: {
-              label: "LIST",
-              category,
-              page: 1,
-            } satisfies ListRequestData,
-          }),
-      ),
+    const initialRequests = categories.map(
+      (category) =>
+        new Request({
+          url: category.url,
+          uniqueKey: `${adapter.adapterKey}-category:${category.key}:1:${crawlRunId}`,
+          userData: {
+            label: "LIST",
+            category,
+            page: 1,
+          } satisfies ListRequestData,
+        }),
     );
+
+    for (const request of initialRequests) {
+      const data = request.userData as ListRequestData;
+      coverage.expect(data.category.key, request.uniqueKey);
+    }
+
+    await crawler.run(initialRequests);
   } catch (error) {
     crawlFailed = true;
     note(
@@ -379,30 +403,34 @@ export async function runCatalogueCrawl(
     await flush(true);
   }
 
+  const categoriesCompleted = coverage.completedCategoryCount();
+
   const status: CrawlSummary["status"] = crawlFailed
     ? "failed"
     : issues.length > 0
       ? "completed_with_warnings"
       : "completed";
 
-  await CrawlRun.updateOne(
-    { _id: run._id },
-    {
-      $set: {
-        status,
-        completedAt: new Date(),
-        categoriesRequested,
-        categoriesCompleted: completedCategories.size,
-        productsDiscovered: scrapedById.size,
-        productsInserted: totals.inserted,
-        productsUpdated: totals.updated,
-        priceChanges: totals.priceChanges,
-        failures: skipped + issues.length,
-        storeSelectionVerified,
-        errors: issues.slice(0, MAX_RECORDED_ERRORS),
+  if (runId) {
+    await CrawlRun.updateOne(
+      { _id: runId },
+      {
+        $set: {
+          status,
+          completedAt: new Date(),
+          categoriesRequested,
+          categoriesCompleted,
+          productsDiscovered: scrapedById.size,
+          productsInserted: totals.inserted,
+          productsUpdated: totals.updated,
+          priceChanges: totals.priceChanges,
+          failures: skipped + issues.length,
+          storeSelectionVerified,
+          errors: issues.slice(0, MAX_RECORDED_ERRORS),
+        },
       },
-    },
-  );
+    );
+  }
 
   // Reconciliation reads the recorded run rather than the in-memory totals, so
   // it judges what was actually written down — the same evidence an operator
@@ -411,8 +439,8 @@ export async function runCatalogueCrawl(
   let reconciliationRefusals: ReconciliationRefusal[] = [];
   let offersRetired = 0;
 
-  if (persist && (options.reconcile ?? true)) {
-    const recorded = await CrawlRun.findById(run._id).orFail();
+  if (persist && runId && (options.reconcile ?? true)) {
+    const recorded = await CrawlRun.findById(runId).orFail();
     const result = await reconcileAvailability(recorded.toObject(), scope);
 
     reconciled = result.reconciled;
@@ -421,7 +449,7 @@ export async function runCatalogueCrawl(
 
     if (reconciled) {
       await CrawlRun.updateOne(
-        { _id: run._id },
+        { _id: runId },
         { $set: { availabilityReconciled: true, offersRetired } },
       );
     }
@@ -439,7 +467,7 @@ export async function runCatalogueCrawl(
     status,
     storeSelectionVerified,
     categoriesRequested,
-    categoriesCompleted: completedCategories.size,
+    categoriesCompleted,
     productLinksDiscovered: listingById.size,
     productsScraped: scrapedById.size,
     inserted: totals.inserted,

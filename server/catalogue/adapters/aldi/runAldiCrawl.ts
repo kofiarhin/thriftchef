@@ -10,8 +10,9 @@
 
 import "dotenv/config";
 import mongoose from "mongoose";
-import { getConfig } from "../../../config/env";
+import { getConfig, type AppConfig } from "../../../config/env";
 import { runCatalogueCrawl } from "../../core/catalogueRunner";
+import type { ResolvedCatalogueScope } from "../../core/retailerTypes";
 import { resolveCatalogueScope } from "../../retailerRegistry";
 import { boundedAldiAdapter, catalogueAdapters } from "../registry";
 
@@ -25,19 +26,42 @@ function parseOptionalPositiveInteger(value: string | undefined): number | undef
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
+function diagnosticScope(config: AppConfig): ResolvedCatalogueScope {
+  return {
+    // Valid but deliberately synthetic ids. A diagnostic never persists them.
+    retailerId: "000000000000000000000001",
+    retailerSlug: config.defaultRetailerSlug,
+    retailerName: "Aldi UK",
+    storeId: "000000000000000000000002",
+    storeSlug: config.aldi.storeId,
+    storeName: `Aldi ${config.aldi.expectedStoreText}`,
+    currency: "GBP",
+    countryCode: "GB",
+    catalogueScope: "store",
+    status: "active",
+    staleAfterHours: config.catalogueStaleAfterHours,
+  };
+}
+
 async function main(): Promise<void> {
   const config = getConfig();
   const diagnostic = process.argv.includes("--diagnostic");
+  let connected = false;
 
-  await mongoose.connect(config.mongodbUri);
+  if (!diagnostic) {
+    await mongoose.connect(config.mongodbUri);
+    connected = true;
+  }
 
   try {
-    const scope = await resolveCatalogueScope(
-      { retailer: config.defaultRetailerSlug, store: config.aldi.storeId },
-      // A crawl may legitimately fill a catalogue that is not yet selectable —
-      // that is how a retailer reaches `active` in the first place.
-      { requireSelectable: false },
-    );
+    const scope = diagnostic
+      ? diagnosticScope(config)
+      : await resolveCatalogueScope(
+          { retailer: config.defaultRetailerSlug, store: config.aldi.storeId },
+          // A crawl may legitimately fill a catalogue that is not yet selectable —
+          // that is how a retailer reaches `active` in the first place.
+          { requireSelectable: false },
+        );
 
     const adapter = diagnostic
       ? boundedAldiAdapter(DIAGNOSTIC_PRODUCTS)
@@ -77,7 +101,7 @@ async function main(): Promise<void> {
       );
     }
   } finally {
-    await mongoose.disconnect();
+    if (connected) await mongoose.disconnect();
   }
 }
 

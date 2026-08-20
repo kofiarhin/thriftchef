@@ -185,6 +185,27 @@ export function migrateProfile(stored: unknown): HouseholdProfile {
   };
 }
 
+/**
+ * Returns only the stable anonymous id for API correlation.
+ *
+ * Missing or corrupt storage returns null rather than generating a throwaway
+ * value: the server then treats that request as ephemeral. The normal
+ * onboarding flow persists the profile before the first plan is generated.
+ */
+export function loadStoredAnonymousId(): string | null {
+  const raw = readRaw();
+  if (raw === null) return null;
+
+  try {
+    const value = (JSON.parse(raw) as Record<string, unknown>).anonymousId;
+    return typeof value === "string" && /^[A-Za-z0-9._:-]{8,128}$/.test(value)
+      ? value
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export function loadProfile(): HouseholdProfile {
   const raw = readRaw();
   if (raw === null) return createDefaultProfile();

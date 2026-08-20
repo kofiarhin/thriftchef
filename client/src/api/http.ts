@@ -1,3 +1,4 @@
+import { loadStoredAnonymousId } from "../features/profile/profileStorage";
 import type { FieldIssue } from "./types";
 
 /**
@@ -73,10 +74,13 @@ export async function apiRequest<T>(
   let response: Response;
 
   try {
+    const anonymousId = loadStoredAnonymousId();
+
     response = await fetch(`${API_BASE}${path}`, {
       ...init,
       headers: {
         ...(init.body ? { "content-type": "application/json" } : {}),
+        ...(anonymousId ? { "x-anonymous-id": anonymousId } : {}),
         ...init.headers,
       },
     });
