@@ -8,7 +8,6 @@ export interface NavTarget {
   label: string;
 }
 
-/** The three in-page destinations, shared by the header and the footer. */
 export const NAV_TARGETS: NavTarget[] = [
   { id: "planner", label: "Planner" },
   { id: "how-it-works", label: "How it works" },
@@ -19,7 +18,9 @@ interface AppHeaderProps {
   status: CatalogueStatus | undefined;
   isLoading: boolean;
   error: Error | null;
+  isPlannerMode: boolean;
   onPlanClick: () => void;
+  onExitPlanner: () => void;
 }
 
 export function Wordmark({ size = 22 }: { size?: number }) {
@@ -46,14 +47,35 @@ export function catalogueStateFrom(
   return status.isStale ? "stale" : "ready";
 }
 
-/**
- * One page, so navigation is a set of in-page anchors rather than a router.
- * The links stay real anchors — they work without JavaScript, they can be
- * opened in a new tab, and they land on sections that are always rendered.
- */
-export function AppHeader({ status, isLoading, error, onPlanClick }: AppHeaderProps) {
+export function AppHeader({
+  status,
+  isLoading,
+  error,
+  isPlannerMode,
+  onPlanClick,
+  onExitPlanner,
+}: AppHeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const state = catalogueStateFrom(status, isLoading, error);
+
+  if (isPlannerMode) {
+    return (
+      <header className="print-hidden sticky top-0 z-30 border-b border-line/80 bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <span aria-label="ThriftChef">
+            <Wordmark />
+          </span>
+          <button
+            type="button"
+            onClick={onExitPlanner}
+            className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-ink transition hover:border-ink-muted hover:bg-surface-raised"
+          >
+            Exit planner
+          </button>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="print-hidden sticky top-0 z-30 border-b border-line/80 bg-surface/85 backdrop-blur">
@@ -67,6 +89,11 @@ export function AppHeader({ status, isLoading, error, onPlanClick }: AppHeaderPr
             <a
               key={target.id}
               href={`#${target.id}`}
+              onClick={(event) => {
+                if (target.id !== "planner") return;
+                event.preventDefault();
+                onPlanClick();
+              }}
               className="rounded-lg px-3 py-2 text-sm font-medium text-ink-muted transition hover:bg-surface-raised hover:text-ink"
             >
               {target.label}
@@ -107,35 +134,40 @@ export function AppHeader({ status, isLoading, error, onPlanClick }: AppHeaderPr
         className="border-t border-line md:hidden"
       >
         {isMenuOpen ? (
-        <nav aria-label="Primary, mobile" className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
-          <ul className="space-y-1">
-            {NAV_TARGETS.map((target) => (
-              <li key={target.id}>
-                <a
-                  href={`#${target.id}`}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink-muted transition hover:bg-surface-raised hover:text-ink"
-                >
-                  {target.label}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <nav aria-label="Primary, mobile" className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
+            <ul className="space-y-1">
+              {NAV_TARGETS.map((target) => (
+                <li key={target.id}>
+                  <a
+                    href={`#${target.id}`}
+                    onClick={(event) => {
+                      setIsMenuOpen(false);
+                      if (target.id !== "planner") return;
+                      event.preventDefault();
+                      onPlanClick();
+                    }}
+                    className="block rounded-lg px-3 py-2.5 text-sm font-medium text-ink-muted transition hover:bg-surface-raised hover:text-ink"
+                  >
+                    {target.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
 
-          <div className="mt-3 flex items-center justify-between gap-3 sm:hidden">
-            <CatalogueBadge state={state} status={status} />
-            <button
-              type="button"
-              onClick={() => {
-                setIsMenuOpen(false);
-                onPlanClick();
-              }}
-              className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-on-brand"
-            >
-              Plan my week
-            </button>
-          </div>
-        </nav>
+            <div className="mt-3 flex items-center justify-between gap-3 sm:hidden">
+              <CatalogueBadge state={state} status={status} />
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onPlanClick();
+                }}
+                className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-on-brand"
+              >
+                Plan my week
+              </button>
+            </div>
+          </nav>
         ) : null}
       </div>
     </header>

@@ -67,6 +67,7 @@ export function App() {
   // The submitted request is kept so "Regenerate" repeats it exactly.
   const [lastRequest, setLastRequest] = useState<MealPlanRequest | null>(null);
   const [plan, setPlan] = useState<MealPlanResponse | null>(null);
+  const [isPlannerMode, setIsPlannerMode] = useState(() => window.location.hash === "#planner");
   const plannerRef = useRef<HTMLElement>(null);
 
   const catalogue = useQuery({
@@ -138,8 +139,15 @@ export function App() {
     const planner = plannerRef.current;
     if (!planner) return;
 
+    setIsPlannerMode(true);
+    window.history.replaceState(null, "", "#planner");
     planner.focus();
     planner.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  };
+
+  const exitPlanner = (): void => {
+    setIsPlannerMode(false);
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
   };
 
   const isGenerating = planMutation.isPending;
@@ -150,21 +158,27 @@ export function App() {
         status={catalogue.data}
         isLoading={catalogue.isLoading}
         error={catalogue.error as Error | null}
+        isPlannerMode={isPlannerMode}
         onPlanClick={focusPlanner}
+        onExitPlanner={exitPlanner}
       />
 
       <main className="flex-1">
-        {showForm ? <HeroSection onPlanClick={focusPlanner} /> : null}
+        {showForm && !isPlannerMode ? <HeroSection onPlanClick={focusPlanner} /> : null}
 
         <section
           id="planner"
           ref={plannerRef}
           tabIndex={-1}
           aria-label="Planner"
-          className="mx-auto max-w-6xl scroll-mt-24 px-4 py-10 outline-none sm:px-6 sm:py-14"
+          className={`mx-auto scroll-mt-20 px-4 outline-none sm:px-6 ${
+            isPlannerMode
+              ? "flex min-h-[calc(100dvh-4rem)] max-w-5xl items-start py-5 sm:py-7"
+              : "max-w-6xl py-10 sm:py-14"
+          }`}
         >
           {showForm ? (
-            <section aria-labelledby="constraints-heading">
+            <section aria-labelledby="constraints-heading" className="w-full">
               <div className="print-hidden">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
                   The planner
@@ -176,7 +190,7 @@ export function App() {
                   Plan your week
                 </h2>
                 <p className="mt-1.5 max-w-lg text-sm text-ink-muted">
-                  Four short steps. Everything is priced from real Aldi products.
+                  Three focused steps. You can change anything before generating.
                 </p>
               </div>
 
@@ -237,9 +251,11 @@ export function App() {
           )}
         </section>
 
-        <HowItWorks />
+        {!isPlannerMode ? (
+          <>
+            <HowItWorks />
 
-        <section
+            <section
           id="catalogue"
           aria-labelledby="catalogue-section-heading"
           className="print-hidden border-t border-line/70"
@@ -266,10 +282,12 @@ export function App() {
               />
             </div>
           </div>
-        </section>
+            </section>
+          </>
+        ) : null}
       </main>
 
-      <AppFooter />
+      {!isPlannerMode ? <AppFooter /> : null}
     </div>
   );
 }
