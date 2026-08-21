@@ -125,7 +125,7 @@ export async function runCatalogueCrawl(
   // run id so request keys and the returned summary remain traceable, but no
   // CrawlRun document is created or updated.
   let runId: Types.ObjectId | null = null;
-  let crawlRunId = randomUUID();
+  let crawlRunId: string = randomUUID();
 
   if (persist) {
     const run = await CrawlRun.create({
