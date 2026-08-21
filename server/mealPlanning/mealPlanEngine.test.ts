@@ -532,7 +532,11 @@ describe("budget target utilization", () => {
       `80% (${generous.estimatedTotalPence}) did not beat 50% (${tight.estimatedTotalPence})`,
     );
     assert.ok(
-      generous.estimatedTotalPence - tight.estimatedTotalPence >= 300,
+      // 300p until the role classifier was corrected. That range was inflated:
+      // one cupboard staple could fill the rice, pasta and other_starch slots at
+      // once, so the search could build weeks that were merely incoherent rather
+      // than genuinely more varied. 200p is the spread the real catalogue offers.
+      generous.estimatedTotalPence - tight.estimatedTotalPence >= 200,
       "the difference between presets must be worth choosing between",
     );
   });
