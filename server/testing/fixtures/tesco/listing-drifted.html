@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  Selector drift, deliberately.
+
+  The page still advertises a non-zero catalogue ("Showing 1 - 24 of 96
+  items") but every primary selector is gone: tiles carry generated class
+  names and no `data-testid`, and no product link matches the product path.
+
+  This is the failure that must never look like success. A crawl that reads
+  zero tiles from a page claiming 96 products has not discovered an empty
+  shop — it has stopped matching, and reporting that as mass unavailability
+  would empty a working catalogue.
+
+  Authored 2026-08-22 alongside listing.html. Not a capture.
+-->
+<html lang="en-GB">
+  <head><meta charset="utf-8" /><title>Fresh Fruit - Tesco Groceries</title></head>
+  <body>
+    <main>
+      <p data-testid="pagination-result-count">Showing 1 - 24 of 96 items</p>
+
+      <ul>
+        <li class="xK3f_tile"><div class="a9Qz_title">Tesco Bananas Loose</div><div class="p2Lm_price">£0.16</div></li>
+        <li class="xK3f_tile"><div class="a9Qz_title">Tesco Broccoli 335G</div><div class="p2Lm_price">£0.75</div></li>
+      </ul>
+    </main>
+  </body>
+</html>

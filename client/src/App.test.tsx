@@ -96,7 +96,9 @@ describe("App", () => {
     renderWithProviders(<App />);
 
     expect(await screen.findByText("164")).toBeInTheDocument();
-    expect(screen.getByText("belper-de56-1ar")).toBeInTheDocument();
+    // The scope's name, not its id: the card tells a shopper which shop these
+    // prices came from.
+    expect(screen.getByText("Aldi Belper")).toBeInTheDocument();
   });
 
   it("shows a recoverable message when the catalogue cannot be read", async () => {
@@ -958,7 +960,7 @@ describe("catalogue status card", () => {
     mockApi({ catalogue: () => new Promise<Response>(() => {}) });
     renderWithProviders(<App />);
 
-    expect(screen.getByText(/checking the aldi catalogue/i)).toBeInTheDocument();
+    expect(screen.getByText(/checking the catalogue/i)).toBeInTheDocument();
   });
 
   it("badges a ready catalogue", async () => {
@@ -968,7 +970,7 @@ describe("catalogue status card", () => {
     const card = await screen.findByRole("complementary", { name: /catalogue/i });
     expect(await within(card).findByText(/^ready$/i)).toBeInTheDocument();
     expect(within(card).getByText("164")).toBeInTheDocument();
-    expect(within(card).getByText("belper-de56-1ar")).toBeInTheDocument();
+    expect(within(card).getByText("Aldi Belper")).toBeInTheDocument();
   });
 
   it("badges a stale catalogue and keeps the price warning", async () => {

@@ -10,7 +10,7 @@
 
 import "dotenv/config";
 import mongoose from "mongoose";
-import { getConfig } from "../server/config/env";
+import { getConfig, type AppConfig } from "../server/config/env";
 import {
   bootstrapRetailers,
   type RetailerSeed,
@@ -22,7 +22,22 @@ import { ProductOffer } from "../server/models/ProductOffer";
 import { RetailStore } from "../server/models/RetailStore";
 import { Retailer } from "../server/models/Retailer";
 
-function seeds(storeId: string, expectedStoreText: string): RetailerSeed[] {
+/**
+ * The Tesco scope this bootstrap seeds.
+ *
+ * An online fulfilment catalogue, not a named branch. Tesco exposes a
+ * delivery catalogue for a postcode, and labelling that as a physical store
+ * would tell a user their prices came from a shop nobody selected. The name
+ * must keep describing what was actually verified — if a physical branch is
+ * later chosen and confirmed in a real session, change the scope, the name and
+ * the id together.
+ */
+const TESCO_DEFAULT_STORE_ID = "tesco-online-gb";
+const TESCO_DEFAULT_STORE_NAME = "Tesco Online (delivery)";
+
+function seeds(config: AppConfig): RetailerSeed[] {
+  const { storeId, expectedStoreText } = config.aldi;
+
   return [
     {
       slug: "aldi-uk",
@@ -41,6 +56,29 @@ function seeds(storeId: string, expectedStoreText: string): RetailerSeed[] {
         },
       ],
     },
+    {
+      slug: "tesco-uk",
+      name: "Tesco UK",
+      adapterKey: "tesco",
+      catalogueScope: "store",
+      // `development`, and this line is the activation gate. Tesco becomes
+      // selectable by changing it to `active` and re-running this script,
+      // which keeps activation an auditable, repeatable, reviewable operation
+      // rather than a hand-typed database edit. Do not change it until the
+      // gates in the integration specification have been met and approved.
+      status: "development",
+      crawlPolicy: { staleAfterHours: 72, maxConcurrency: 1, requestsPerMinute: 20 },
+      stores: [
+        {
+          externalStoreId: config.tesco.storeId ?? TESCO_DEFAULT_STORE_ID,
+          name: TESCO_DEFAULT_STORE_NAME,
+          // Null unless a postcode was configured: a fabricated location is a
+          // claim about which prices these are, and nobody has verified one.
+          postcode: config.tesco.postcode,
+          scope: "online",
+        },
+      ],
+    },
   ];
 }
 
@@ -56,9 +94,7 @@ async function main(): Promise<void> {
       await model.createIndexes();
     }
 
-    const result = await bootstrapRetailers(
-      seeds(config.aldi.storeId, config.aldi.expectedStoreText),
-    );
+    const result = await bootstrapRetailers(seeds(config));
 
     console.log(JSON.stringify(result, null, 2));
     console.log("\nBootstrap complete. Next: npx tsx scripts/backfill-product-offers.ts");

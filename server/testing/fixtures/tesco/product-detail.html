@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+  Tesco product detail, container-labelled layout.
+
+  Ingredients, allergy advice and dietary information sit in addressable
+  containers. Authored 2026-08-22 from the discovery evidence in the
+  specification; not a sanitized capture. Route it stands for:
+  /shop/en-GB/products/301219119
+-->
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tesco Bananas Loose - Tesco Groceries</title>
+    <link rel="canonical" href="https://www.tesco.com/shop/en-GB/products/301219119" />
+  </head>
+  <body>
+    <button data-testid="accept-all-cookies-button" type="button">Accept all cookies</button>
+    <span data-testid="selected-location-label">Delivery to CV1</span>
+
+    <main data-testid="product-details">
+      <h1 data-testid="product-details--title">Tesco Bananas Loose</h1>
+      <p data-testid="product-details--brand">Tesco</p>
+      <img data-testid="product-details--image" src="https://digitalcontent.api.tesco.com/images/301219119.jpeg" alt="Tesco Bananas Loose" />
+      <p data-testid="product-details--price">£0.16</p>
+      <p data-testid="product-details--price-per-quantity-weight">£1.14/kg</p>
+      <p data-testid="product-details--package-size">Each</p>
+      <span data-testid="product-details--promotion">Clubcard Price £0.12 Each Clubcard Price</span>
+      <button data-testid="add-to-basket-button" type="button">Add</button>
+
+      <section data-testid="product-details--description">
+        <p>Loose bananas, ripen at home.</p>
+      </section>
+
+      <section data-testid="product-details--ingredients">
+        <h3>Ingredients</h3>
+        <p>Bananas.</p>
+      </section>
+
+      <section data-testid="product-details--allergy-information">
+        <h3>Allergy Information</h3>
+        <p>May contain nuts. Packed in a facility that handles peanuts.</p>
+      </section>
+
+      <section data-testid="product-details--dietary-information">
+        <h3>Dietary Information</h3>
+        <p>Suitable for vegans. Suitable for vegetarians.</p>
+      </section>
+
+      <section data-testid="product-details--storage">
+        <h3>Storage</h3>
+        <p>Store in a cool dry place. Once opened consume within 2 days.</p>
+      </section>
+    </main>
+  </body>
+</html>

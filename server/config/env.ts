@@ -10,6 +10,7 @@ import {
   CATALOGUE_READ_SOURCES,
   type CatalogueReadSource,
 } from "../catalogue/core/catalogueTypes";
+import { SLUG_PATTERN } from "../catalogue/core/retailerTypes";
 
 export type NodeEnv = "development" | "test" | "production";
 
@@ -84,7 +85,28 @@ export interface AppConfig {
     headless: boolean;
     maxProductsPerCategory: number | null;
   };
+  /**
+   * Tesco's crawl configuration.
+   *
+   * Everything here is null by default, deliberately. Tesco is a development
+   * integration whose scope has not been verified against a live session, and
+   * a default store id would be a claim about a shop nobody has checked that a
+   * crawl would then happily act on. The run script resolves the scope from
+   * the seeded store record; these are operational overrides for diagnostics.
+   */
+  tesco: {
+    storeId: string | null;
+    /** Used to establish a fulfilment location. Never logged in full. */
+    postcode: string | null;
+    expectedLocationText: string | null;
+    fulfilmentMode: TescoFulfilmentMode;
+    headless: boolean;
+    maxProductsPerCategory: number | null;
+  };
 }
+
+export const TESCO_FULFILMENT_MODES = ["delivery", "collection"] as const;
+export type TescoFulfilmentMode = (typeof TESCO_FULFILMENT_MODES)[number];
 
 export type EnvSource = Record<string, string | undefined>;
 
@@ -109,6 +131,30 @@ class ConfigCollector {
 
   string(key: string, fallback: string): string {
     return this.raw(key) ?? fallback;
+  }
+
+  optionalString(key: string): string | null {
+    return this.raw(key) ?? null;
+  }
+
+  /**
+   * A value that will become a natural database key.
+   *
+   * Validated here rather than at the first write: a store id the schema would
+   * refuse must fail before a crawl opens a browser, not half way through one.
+   */
+  optionalSlug(key: string): string | null {
+    const value = this.raw(key);
+    if (value === undefined) return null;
+
+    if (!SLUG_PATTERN.test(value.toLowerCase())) {
+      this.problems.push(
+        `${key} must be a lowercase slug: letters, digits and hyphens only`,
+      );
+      return null;
+    }
+
+    return value.toLowerCase();
   }
 
   oneOf<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
@@ -283,6 +329,23 @@ export function loadConfig(source: EnvSource): AppConfig {
       headless: collector.boolean("ALDI_HEADLESS", false),
       maxProductsPerCategory: collector.optionalInteger(
         "ALDI_MAX_PRODUCTS_PER_CATEGORY",
+        { min: 1, max: 10_000 },
+      ),
+    },
+    tesco: {
+      storeId: collector.optionalSlug("TESCO_STORE_ID"),
+      postcode: collector.optionalString("TESCO_POSTCODE"),
+      expectedLocationText: collector.optionalString("TESCO_EXPECTED_LOCATION_TEXT"),
+      fulfilmentMode: collector.oneOf<TescoFulfilmentMode>(
+        "TESCO_FULFILMENT_MODE",
+        TESCO_FULFILMENT_MODES,
+        "delivery",
+      ),
+      // Visible by default: establishing a Tesco fulfilment location is a step
+      // a person still has to watch until it has been verified once.
+      headless: collector.boolean("TESCO_HEADLESS", false),
+      maxProductsPerCategory: collector.optionalInteger(
+        "TESCO_MAX_PRODUCTS_PER_CATEGORY",
         { min: 1, max: 10_000 },
       ),
     },

@@ -6,6 +6,79 @@ const MINIMAL: Record<string, string> = {
   MONGODB_URI: "mongodb://localhost:27017/thriftchef",
 };
 
+describe("Tesco crawl configuration", () => {
+  it("has no store configured by default", () => {
+    // Tesco is a development integration. A default scope would be a claim
+    // about a shop nobody has verified, and a crawl would happily use it.
+    const config = loadConfig(MINIMAL);
+
+    assert.equal(config.tesco.storeId, null);
+    assert.equal(config.tesco.postcode, null);
+    assert.equal(config.tesco.expectedLocationText, null);
+    assert.equal(config.tesco.fulfilmentMode, "delivery");
+    assert.equal(config.tesco.headless, false);
+    assert.equal(config.tesco.maxProductsPerCategory, null);
+  });
+
+  it("reads a configured scope", () => {
+    const config = loadConfig({
+      ...MINIMAL,
+      TESCO_STORE_ID: "tesco-online-cv1",
+      TESCO_POSTCODE: "CV1 2AB",
+      TESCO_EXPECTED_LOCATION_TEXT: "Delivery to CV1",
+      TESCO_FULFILMENT_MODE: "collection",
+      TESCO_HEADLESS: "true",
+      TESCO_MAX_PRODUCTS_PER_CATEGORY: "5",
+    });
+
+    assert.equal(config.tesco.storeId, "tesco-online-cv1");
+    assert.equal(config.tesco.postcode, "CV1 2AB");
+    assert.equal(config.tesco.expectedLocationText, "Delivery to CV1");
+    assert.equal(config.tesco.fulfilmentMode, "collection");
+    assert.equal(config.tesco.headless, true);
+    assert.equal(config.tesco.maxProductsPerCategory, 5);
+  });
+
+  it("rejects a fulfilment mode Tesco does not have", () => {
+    assert.throws(
+      () => loadConfig({ ...MINIMAL, TESCO_FULFILMENT_MODE: "teleport" }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes("TESCO_FULFILMENT_MODE") &&
+        error.message.includes("delivery"),
+    );
+  });
+
+  it("rejects a store id that is not a slug", () => {
+    // The store id is the natural key a catalogue is written under. A value
+    // the RetailStore schema would refuse must fail here, not half way
+    // through a crawl.
+    assert.throws(
+      () => loadConfig({ ...MINIMAL, TESCO_STORE_ID: "Tesco Online CV1" }),
+      (error: unknown) =>
+        error instanceof Error && error.message.includes("TESCO_STORE_ID"),
+    );
+  });
+
+  it("never repeats the postcode in a failure message", () => {
+    const error = (() => {
+      try {
+        loadConfig({
+          ...MINIMAL,
+          TESCO_POSTCODE: "CV1 2AB",
+          TESCO_FULFILMENT_MODE: "teleport",
+        });
+        return null;
+      } catch (thrown) {
+        return thrown as Error;
+      }
+    })();
+
+    assert.ok(error);
+    assert.ok(!error.message.includes("CV1 2AB"));
+  });
+});
+
 describe("loadConfig", () => {
   it("applies documented defaults when only required values are present", () => {
     const config = loadConfig(MINIMAL);

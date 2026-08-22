@@ -165,3 +165,43 @@ export function paddedCatalogue(count: number): CandidateProduct[] {
 
   return padded.slice(0, count);
 }
+
+/**
+ * The same shopping basket, expressed as a Tesco catalogue.
+ *
+ * Derived from the Aldi fixture rather than written again, so an isolation
+ * test compares two catalogues that differ *only* in retailer, store and
+ * product identity. A separately authored Tesco fixture would let a leak hide
+ * behind a difference in role coverage or price spread.
+ *
+ * Ids are numeric because that is what Tesco product identity is, and the
+ * URLs are real Tesco product paths so a leaked product is obvious on sight.
+ */
+export const TESCO_CATALOGUE: CandidateProduct[] = ALDI_CATALOGUE.map(
+  (product, index) => {
+    const retailerProductId = String(300_000_001 + index);
+
+    return {
+      ...product,
+      retailerProductId,
+      productUrl: `https://www.tesco.com/shop/en-GB/products/${retailerProductId}`,
+      // Slightly different prices, so a total computed from the wrong
+      // catalogue cannot coincidentally match.
+      pricePence: product.pricePence + 5,
+    };
+  },
+);
+
+/** A second Tesco store's catalogue: same retailer, different branch. */
+export const TESCO_STORE_B_CATALOGUE: CandidateProduct[] = TESCO_CATALOGUE.map(
+  (product, index) => {
+    const retailerProductId = String(400_000_001 + index);
+
+    return {
+      ...product,
+      retailerProductId,
+      productUrl: `https://www.tesco.com/shop/en-GB/products/${retailerProductId}`,
+      pricePence: product.pricePence + 11,
+    };
+  },
+);

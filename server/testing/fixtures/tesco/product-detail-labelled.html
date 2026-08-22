@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+  Tesco product detail, sibling-heading layout.
+
+  The same three food-safety fields published as headings followed by loose
+  peer content rather than as addressable containers, with optional fields
+  absent and the product off the shelf.
+
+  The boundary is what matters here: allergy advice must stop at the next peer
+  heading. Storage, preparation, manufacturer and marketing text bleeding into
+  an allergen field is the failure a user with an allergy cannot check.
+
+  Authored 2026-08-22 alongside product-detail.html. Not a capture.
+  Route it stands for: /shop/en-GB/products/254656107
+-->
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tesco Broccoli 335G - Tesco Groceries</title>
+    <link rel="canonical" href="https://www.tesco.com/shop/en-GB/products/254656107" />
+  </head>
+  <body>
+    <main data-testid="product-details">
+      <h1 data-testid="product-details--title">Tesco Broccoli 335G</h1>
+      <p data-testid="product-details--price">£0.75</p>
+      <p data-testid="product-details--availability">Sorry, product currently not available</p>
+
+      <div>
+        <h3>Ingredients</h3>
+        <p>Broccoli.</p>
+
+        <h3>Allergy Information</h3>
+        <p>Packed in a facility that also handles celery.</p>
+
+        <h3>Storage</h3>
+        <p>Keep refrigerated. Once opened consume within 2 days.</p>
+
+        <h3>Preparation and Usage</h3>
+        <p>Steam for 4 minutes.</p>
+
+        <h3>Manufacturer</h3>
+        <p>Tesco Stores Ltd, Welwyn Garden City.</p>
+      </div>
+    </main>
+  </body>
+</html>

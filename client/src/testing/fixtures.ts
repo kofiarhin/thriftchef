@@ -6,7 +6,10 @@ import type {
 
 export const CATALOGUE_STATUS: CatalogueStatus = {
   retailer: "aldi-uk",
-  storeId: "belper-de56-1ar",
+  retailerName: "Aldi UK",
+  storeId: "000000000000000000005702",
+  storeSlug: "belper-de56-1ar",
+  storeName: "Aldi Belper",
   availableProducts: 238,
   eligibleProducts: 164,
   lastCheckedAt: "2026-08-13T00:00:00.000Z",

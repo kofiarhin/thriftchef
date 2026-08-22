@@ -40,7 +40,19 @@ export {
 
 export interface CatalogueStatus {
   retailer: string;
+  /** The retailer's display name. Every user-facing label reads from this. */
+  retailerName: string;
   storeId: string;
+  /** The store's own id, as the retailer knows it. */
+  storeSlug: string;
+  /**
+   * What to call this catalogue scope.
+   *
+   * Load-bearing once a retailer has scopes that are not high-street
+   * branches: an online fulfilment catalogue shown as a named branch is a
+   * claim about where the prices came from that nobody verified.
+   */
+  storeName: string;
   availableProducts: number;
   eligibleProducts: number;
   lastCheckedAt: string | null;

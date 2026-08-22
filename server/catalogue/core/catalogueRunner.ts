@@ -32,7 +32,7 @@ import { mergeCategoryPaths, normalizeCatalogueProduct } from "./catalogueNormal
 import { CatalogueCoverageTracker } from "./catalogueCoverage";
 import { evaluateCatalogueSafety } from "./catalogueSafety";
 import { persistCatalogueBatch, type AssessedProduct } from "./cataloguePersistence";
-import type { ResolvedCatalogueScope } from "./retailerTypes";
+import type { CatalogueScopeKind, ResolvedCatalogueScope } from "./retailerTypes";
 
 /** Products are written in batches so an interrupted crawl keeps its work. */
 const PERSIST_BATCH_SIZE = 50;
@@ -82,6 +82,47 @@ export interface CrawlSummary {
   offersRetired: number;
   /** Populated only for a no-write diagnostic, for inspection by a human. */
   sample?: AssessedProduct[];
+}
+
+/**
+ * Why a run is not allowed to write products.
+ *
+ * `STORE_SCOPE_UNVERIFIED` is the one that matters: a store-scoped session
+ * that could not prove which store it was reading may have been reading a
+ * different branch's prices and availability, and once those are written they
+ * are indistinguishable from correct ones.
+ */
+export type WritePreconditionRefusal = "NOT_PERSISTING" | "STORE_SCOPE_UNVERIFIED";
+
+export interface WritePrecondition {
+  mayWrite: boolean;
+  refusal: WritePreconditionRefusal | null;
+}
+
+/**
+ * Whether this run may write products yet.
+ *
+ * Expressed as scope policy rather than as a rule about any one retailer: a
+ * store-scoped catalogue has per-branch prices, so the branch must be proven
+ * before anything is written; a national catalogue has one set of prices and
+ * nothing to confuse them with.
+ *
+ * Checked before the first batch rather than rolled back afterwards. A partial
+ * write followed by a failed rollback is exactly the state that cannot be
+ * distinguished from a good crawl later.
+ */
+export function assessWritePrecondition(input: {
+  persist: boolean;
+  catalogueScope: CatalogueScopeKind;
+  storeSelectionVerified: boolean;
+}): WritePrecondition {
+  if (!input.persist) return { mayWrite: false, refusal: "NOT_PERSISTING" };
+
+  if (input.catalogueScope === "store" && !input.storeSelectionVerified) {
+    return { mayWrite: false, refusal: "STORE_SCOPE_UNVERIFIED" };
+  }
+
+  return { mayWrite: true, refusal: null };
 }
 
 interface ListRequestData {
@@ -151,6 +192,8 @@ export async function runCatalogueCrawl(
   let skipped = 0;
   let storeSelectionVerified = false;
   let sessionPrepared = false;
+  /** Set when a store-scoped persistent run failed to prove its store. */
+  let scopeUnverified = false;
   let categoriesRequested = 0;
 
   const unpersisted: AssessedProduct[] = [];
@@ -163,6 +206,20 @@ export async function runCatalogueCrawl(
   async function flush(force = false): Promise<void> {
     if (!persist || unpersisted.length === 0) return;
     if (!force && unpersisted.length < PERSIST_BATCH_SIZE) return;
+
+    // The last gate before the database, checked on every batch rather than
+    // once at the start: a run that lost its verified session mid-crawl must
+    // stop writing at that point, not carry on with what it staged earlier.
+    const precondition = assessWritePrecondition({
+      persist,
+      catalogueScope: scope.catalogueScope,
+      storeSelectionVerified,
+    });
+
+    if (!precondition.mayWrite) {
+      unpersisted.length = 0;
+      return;
+    }
 
     const batch = unpersisted.splice(0, unpersisted.length);
     const result = await persistCatalogueBatch(batch, scope, crawlRunId);
@@ -218,16 +275,40 @@ export async function runCatalogueCrawl(
       const context = contextFor(page);
       const data = request.userData as ListRequestData | DetailRequestData;
 
+      // Once verification has failed on a run that needs it, every remaining
+      // request is pointless: nothing it extracts may be written.
+      if (scopeUnverified) return;
+
       if (!sessionPrepared) {
         await adapter.prepareSession(context);
         sessionPrepared = true;
+
+        // Verified here, before any writable work is queued, rather than after
+        // the first listing. Staging products and hoping to write them later
+        // makes the failure a rollback problem; refusing up front makes it a
+        // run that did nothing.
+        storeSelectionVerified = await adapter
+          .verifyStoreSelection(context)
+          .catch(() => false);
+
+        const precondition = assessWritePrecondition({
+          persist,
+          catalogueScope: scope.catalogueScope,
+          storeSelectionVerified,
+        });
+
+        if (persist && precondition.refusal === "STORE_SCOPE_UNVERIFIED") {
+          scopeUnverified = true;
+          note(
+            "STORE_SCOPE_UNVERIFIED",
+            request.url,
+            `The ${scope.retailerSlug} session could not prove it was reading ${scope.storeSlug}. No products were written.`,
+          );
+          return;
+        }
       }
 
       if (data.label === "LIST") {
-        if (!storeSelectionVerified) {
-          storeSelectionVerified = await adapter.verifyStoreSelection(context);
-        }
-
         const result = await adapter.extractListingPage({
           context,
           category: data.category,
@@ -404,6 +485,11 @@ export async function runCatalogueCrawl(
   }
 
   const categoriesCompleted = coverage.completedCategoryCount();
+
+  // A run that refused to write is a failed run, not a quiet one. Recording it
+  // as completed would leave an operator reading zero products as an empty
+  // shop rather than an unverified session.
+  if (scopeUnverified) crawlFailed = true;
 
   const status: CrawlSummary["status"] = crawlFailed
     ? "failed"

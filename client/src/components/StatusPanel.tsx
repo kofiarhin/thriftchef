@@ -107,9 +107,25 @@ function Notice({
 }
 
 /**
+ * The command that fills this retailer's catalogue.
+ *
+ * A lookup rather than a string built from the slug: telling someone to run a
+ * script that does not exist is worse than telling them nothing, and each
+ * retailer's crawl command is a real entry in package.json.
+ */
+const CRAWL_COMMANDS: Record<string, string> = {
+  "aldi-uk": "npm run aldi:crawl",
+  "tesco-uk": "npm run tesco:crawl",
+};
+
+/**
  * Shows whether the catalogue can support planning at all. This is the first
  * thing to check when a plan fails, so it stays on the page rather than being
  * hidden behind a link — but as a compact card, not a wall of prose.
+ *
+ * Every label naming the shop reads from the status rather than being written
+ * into the component: with more than one retailer, a hard-coded name tells
+ * some shoppers their prices came from a supermarket they did not choose.
  */
 export function StatusPanel({ status, isLoading, error }: StatusPanelProps) {
   const state: CatalogueState = error
@@ -136,7 +152,7 @@ export function StatusPanel({ status, isLoading, error }: StatusPanelProps) {
           <span className="text-brand">
             <Icon name="store" size={16} />
           </span>
-          Aldi catalogue
+          {status ? `${status.retailerName} catalogue` : "Catalogue"}
         </h2>
 
         <span
@@ -149,7 +165,7 @@ export function StatusPanel({ status, isLoading, error }: StatusPanelProps) {
 
       <div aria-live="polite" className="mt-4">
         {isLoading ? (
-          <p className="text-sm text-ink-muted">Checking the Aldi catalogue…</p>
+          <p className="text-sm text-ink-muted">Checking the catalogue…</p>
         ) : null}
 
         {error ? (
@@ -164,7 +180,9 @@ export function StatusPanel({ status, isLoading, error }: StatusPanelProps) {
         {status && !isLoading && !error ? (
           <>
             <dl>
-              <Row label="Store" value={status.storeId} />
+              {/* The scope's name, not its id: "Tesco Online (delivery)"
+                  says what was priced; an ObjectId says nothing. */}
+              <Row label="Store" value={status.storeName} />
               <Row
                 label="Products available"
                 value={status.availableProducts.toLocaleString("en-GB")}
@@ -190,11 +208,19 @@ export function StatusPanel({ status, isLoading, error }: StatusPanelProps) {
             {status.eligibleProducts === 0 ? (
               <Notice tone="danger" icon="alert-circle">
                 <p role="alert">
-                  No products are available yet. Run{" "}
-                  <code className="rounded bg-surface-sunken px-1 font-mono">
-                    npm run aldi:crawl
-                  </code>{" "}
-                  to populate the catalogue.
+                  No products are available yet.
+                  {CRAWL_COMMANDS[status.retailer] ? (
+                    <>
+                      {" "}
+                      Run{" "}
+                      <code className="rounded bg-surface-sunken px-1 font-mono">
+                        {CRAWL_COMMANDS[status.retailer]}
+                      </code>{" "}
+                      to populate the catalogue.
+                    </>
+                  ) : (
+                    " Run this retailer's catalogue crawl to populate it."
+                  )}
                 </p>
               </Notice>
             ) : null}
@@ -209,8 +235,9 @@ export function StatusPanel({ status, isLoading, error }: StatusPanelProps) {
             {status.safetyBreakdown.verified === 0 &&
             status.eligibleProducts > 0 ? (
               <Notice tone="muted" icon="shield">
-                Aldi publishes no allergen labels, so allergens for all{" "}
-                {status.eligibleProducts.toLocaleString("en-GB")} products are
+                {status.retailerName} publishes no allergen labels for these
+                products, so allergens for all{" "}
+                {status.eligibleProducts.toLocaleString("en-GB")} of them are
                 inferred from product wording. Always check the packaging.
               </Notice>
             ) : null}

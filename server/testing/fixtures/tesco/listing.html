@@ -1,0 +1,99 @@
+<!doctype html>
+<!--
+  Tesco listing evidence.
+
+  Constructed 2026-08-22 from the discovery evidence recorded in
+  spec/thriftchef-tesco-store-integration-spec.md §10.1: numeric
+  `li[data-testid="<id>"]` tiles, `data-auto-available`, product URLs shaped
+  `/shop/en-GB/products/<numeric-id>`, standard and Clubcard prices, and a
+  visible item range.
+
+  NOT a sanitized capture of a live page. No live Tesco session was
+  established, so no real HTML was available to sanitize. Every selector this
+  exercises must be re-confirmed against a real captured page during the first
+  no-write diagnostic before any persistent crawl. Contains no session tokens,
+  cookies, analytics ids, postcodes or personal data because it was authored
+  rather than captured.
+
+  Route it stands for: /shop/en-GB/browse/fresh-food/fresh-fruit
+  Scope type it stands for: online fulfilment catalogue
+-->
+<html lang="en-GB">
+  <head><meta charset="utf-8" /><title>Fresh Fruit - Tesco Groceries</title></head>
+  <body>
+    <div id="cookie-banner" role="dialog" aria-label="Cookie preferences">
+      <button data-testid="accept-all-cookies-button" type="button">Accept all cookies</button>
+    </div>
+
+    <header>
+      <button data-testid="location-picker-trigger" type="button" aria-label="Change delivery location">
+        Delivery
+      </button>
+      <span data-testid="selected-location-label">Delivery to CV1</span>
+      <span data-testid="fulfilment-mode-label">Delivery</span>
+    </header>
+
+    <main>
+      <p data-testid="pagination-result-count">Showing 1 - 6 of 96 items</p>
+
+      <ul>
+        <!-- Standard shelf price plus a Clubcard price. The shelf price wins. -->
+        <li data-testid="301219119" data-auto-available="true">
+          <a data-testid="product-tile--title" href="/shop/en-GB/products/301219119">
+            <h3>Tesco Bananas Loose</h3>
+          </a>
+          <img src="https://digitalcontent.api.tesco.com/images/301219119.jpeg" alt="Tesco Bananas Loose" />
+          <p data-testid="product-tile--price">£0.16</p>
+          <p data-testid="product-tile--price-per-quantity-weight">£1.14/kg</p>
+          <p data-testid="product-tile--package-size">Each</p>
+          <span data-testid="product-tile--promotion">Clubcard Price £0.12 Each Clubcard Price</span>
+        </li>
+
+        <!-- Whole-pound price, no optional fields at all: they must stay null. -->
+        <li data-testid="296057883" data-auto-available="true">
+          <a data-testid="product-tile--title" href="https://www.tesco.com/shop/en-GB/products/296057883?bcuid=1234#reviews">
+            <h3>Tesco British Semi Skimmed Milk 2.27L</h3>
+          </a>
+          <p data-testid="product-tile--price">£1</p>
+        </li>
+
+        <!-- Off the shelf. Availability must survive to persistence as false. -->
+        <li data-testid="254656107" data-auto-available="false">
+          <a data-testid="product-tile--title" href="/shop/en-GB/products/254656107">
+            <h3>Tesco Broccoli 335G</h3>
+          </a>
+          <p data-testid="product-tile--price">£0.75</p>
+          <p data-testid="product-tile--availability">Sorry, product currently not available</p>
+        </li>
+
+        <!-- Clubcard price only. Rejected: never understate the user's cost. -->
+        <li data-testid="310442071" data-auto-available="true">
+          <a data-testid="product-tile--title" href="/shop/en-GB/products/310442071">
+            <h3>Tesco Finest Coffee 200G</h3>
+          </a>
+          <span data-testid="product-tile--promotion">Clubcard Price £3.50 Clubcard Price</span>
+        </li>
+
+        <!-- Tile id and URL id disagree: an identity error, never repaired. -->
+        <li data-testid="999999999" data-auto-available="true">
+          <a data-testid="product-tile--title" href="/shop/en-GB/products/301219120">
+            <h3>Tesco Mystery Item</h3>
+          </a>
+          <p data-testid="product-tile--price">£2.00</p>
+        </li>
+
+        <!-- Off-host link: rejected before it can be enqueued. -->
+        <li data-testid="400000001" data-auto-available="true">
+          <a data-testid="product-tile--title" href="https://tesco-offers.example.com/shop/en-GB/products/400000001">
+            <h3>Sponsored Elsewhere</h3>
+          </a>
+          <p data-testid="product-tile--price">£1.20</p>
+        </li>
+      </ul>
+
+      <nav aria-label="Pagination">
+        <a data-testid="pagination-next" href="/shop/en-GB/browse/fresh-food/fresh-fruit?page=2">Next</a>
+      </nav>
+    </main>
+  </body>
+</html>

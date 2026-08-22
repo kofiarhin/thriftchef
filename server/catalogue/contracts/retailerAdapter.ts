@@ -33,6 +33,15 @@ export interface RetailerListingProduct {
   comparisonPriceRaw: string | null;
   priceText: string | null;
   imageUrl: string | null;
+  /**
+   * Availability, when the listing tile publishes it.
+   *
+   * `null` means the tile said nothing, not that the product is stocked: a
+   * retailer that publishes availability on the tile should not have to
+   * re-derive it from the detail page, and one that does not must not have
+   * "available" assumed on its behalf.
+   */
+  available?: boolean | null;
   categoryPaths: string[][];
 }
 

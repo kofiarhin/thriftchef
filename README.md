@@ -133,6 +133,77 @@ Categories live in `server/catalogue/aldi/aldiCategories.ts`. Only edible
 grocery departments are enabled; Drinks are present but disabled because they
 are part of a real basket but not of a meal plan.
 
+## Tesco (development integration)
+
+Tesco is implemented but **not active**. Its retailer record is seeded as
+`development`, so it is not selectable, no plan can be built from it, and no
+customer can reach it. Everything below is a development and validation
+operation, not a deployment step.
+
+```bash
+# One curated category, five products, a visible browser, and no database
+# writes at all. This is the only Tesco command that is safe to run casually.
+npm run tesco:diagnostic
+
+# A persistent crawl. Requires an explicit scope and a non-production database.
+npm run tesco:crawl -- --store tesco-online-gb
+```
+
+**Before the first persistent crawl**, three things must be true, and the code
+enforces the first two:
+
+1. **The scope is verified.** A store-scoped run that cannot prove which Tesco
+   catalogue it is reading writes nothing — not a partial batch, not a
+   rolled-back one. The run fails with `STORE_SCOPE_UNVERIFIED` and the
+   previous catalogue is left exactly as it was.
+2. **The scope is named.** There is no default store. A crawl that guessed
+   would write one catalogue's prices under another catalogue's name.
+3. **The database is not production.** The crawl prints a redacted target
+   before connecting. Read it.
+
+Configuration lives in `.env` (see `.env.example`): `TESCO_STORE_ID`,
+`TESCO_POSTCODE`, `TESCO_EXPECTED_LOCATION_TEXT`, `TESCO_FULFILMENT_MODE`,
+`TESCO_HEADLESS`, `TESCO_MAX_PRODUCTS_PER_CATEGORY`. The run script prefers the
+seeded store record and treats the environment as an override; a full postcode
+is never logged, only its outward area.
+
+### What Tesco extraction guarantees
+
+- **Identity is the numeric Tesco product id** from
+  `/shop/en-GB/products/<id>`, never the product name. A tile id that
+  disagrees with its link id is rejected rather than repaired.
+- **The normal shelf price is the only basket price.** A Clubcard, multibuy or
+  coupon price is a price for a different shopper; a product with no
+  unambiguous shelf price is rejected rather than priced optimistically.
+- **Prices are integer pence**, parsed as strings. `8.29 * 100` is
+  `828.999…` in binary floating point.
+- **Availability is evidence, not an assumption.** It travels from the tile
+  through normalisation into both the legacy product and the store offer.
+- **Navigation is restricted to exactly `www.tesco.com`.** Images may come
+  from Tesco's content host, which is validated by a separate rule and never
+  navigated to.
+- **An empty page that claims products is a failure**, not an empty shop.
+  Selector drift raises `TESCO_SELECTOR_DRIFT` and the run cannot retire
+  anything.
+
+### Fixtures are evidence, and these ones are not captures
+
+`server/testing/fixtures/tesco/*.html` were **authored** from the discovery
+evidence recorded in `spec/thriftchef-tesco-store-integration-spec.md`, not
+sanitised from a live Tesco session — no such session has been established.
+They pin the parsing rules, not Tesco's current markup. Before any persistent
+crawl, capture and sanitise real listing and detail pages, replace these, and
+re-run the suite. The curated browse paths in `tescoCategories.ts` need the
+same confirmation.
+
+### Activating Tesco
+
+Activation is a change of one line — the `status` in
+`scripts/bootstrap-retailers.ts` — plus a re-run of `npm run catalogue:bootstrap`.
+It is deliberately that visible. The gates that must be met first, including
+authorisation for the data source itself, are in section 22 of the
+specification. `CATALOGUE_READ_SOURCE` stays `legacy` throughout.
+
 ## Run it
 
 ```bash
@@ -395,8 +466,8 @@ by the `adapterKey` on a retailer record.
 
 ### Proving an adapter still works
 
-`server/catalogue/adapters/aldi/aldiAdapter.test.ts` serves saved HTML from
-`server/testing/fixtures/aldi/` to a real Chromium page. The selectors, the
+`aldiAdapter.test.ts` and `tescoAdapter.test.ts` serve saved HTML from
+`server/testing/fixtures/<retailer>/` to a real Chromium page. The selectors, the
 tile loop, the pager and the disclosure expansion all run exactly as they do
 against the live site; only the network is absent.
 
@@ -433,8 +504,10 @@ deterministic and are asserted.
 - **Role classification is keyword-based** over Aldi names, categories and
   descriptions. It is deliberately conservative: an unrecognised product stays
   `unknown` and is simply never used, rather than being guessed into a recipe.
-- **Aldi is the only active retailer.** The adapter platform, contracts and
-  registry support more. Choosing a second retailer is a legal and technical
+- **Aldi is the only active retailer.** Tesco is implemented and registered
+  but sits in `development`: no catalogue has been collected, its fixtures are
+  authored rather than captured, and its data source is not authorised. The
+  adapter platform, contracts and registry support more. Choosing a second retailer is a legal and technical
   decision: what was actually checked, and why it could not be concluded, is
   recorded in `docs/second-retailer-discovery-record.md`; the steps to take
   once a source is confirmed are in

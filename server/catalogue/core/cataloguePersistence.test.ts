@@ -190,6 +190,65 @@ describe("persistCatalogueBatch", () => {
     );
   });
 
+  it("persists a product the crawl saw as off the shelf", async () => {
+    // Availability is evidence the crawl collected, not a constant. Forcing it
+    // true would put an out-of-stock product in a shopping list, which the
+    // user only discovers in the aisle.
+    await persistCatalogueBatch([assessed({ available: false })], scope, "run-1");
+
+    const product = await Product.findOne({}).orFail();
+    assert.equal(product.available, false);
+
+    const offer = await ProductOffer.findOne({}).orFail();
+    assert.equal(
+      offer.available,
+      false,
+      "the planner reads the offer, so both paths must agree",
+    );
+  });
+
+  it("records when an offer was first seen off the shelf", async () => {
+    await persistCatalogueBatch([assessed()], scope, "run-1");
+    await persistCatalogueBatch([assessed({ available: false })], scope, "run-2");
+
+    const offer = await ProductOffer.findOne({}).orFail();
+    assert.ok(offer.unavailableSince instanceof Date);
+    assert.equal(
+      offer.retiredByCrawlRunId,
+      null,
+      "an observed absence is not a reconciliation retirement",
+    );
+  });
+
+  it("does not restamp a product that is still off the shelf", async () => {
+    await persistCatalogueBatch([assessed()], scope, "run-1");
+    await persistCatalogueBatch([assessed({ available: false })], scope, "run-2");
+
+    const first = await ProductOffer.findOne({}).orFail();
+    const firstSeenUnavailable = first.unavailableSince;
+
+    await persistCatalogueBatch([assessed({ available: false })], scope, "run-3");
+
+    const second = await ProductOffer.findOne({}).orFail();
+    assert.deepEqual(
+      second.unavailableSince,
+      firstSeenUnavailable,
+      "how long a product has been gone must not reset every crawl",
+    );
+  });
+
+  it("puts a product back on the shelf when the crawl sees it again", async () => {
+    await persistCatalogueBatch([assessed({ available: false })], scope, "run-1");
+    await persistCatalogueBatch([assessed({ available: true })], scope, "run-2");
+
+    const offer = await ProductOffer.findOne({}).orFail();
+    assert.equal(offer.available, true);
+    assert.equal(offer.unavailableSince, null);
+
+    const product = await Product.findOne({}).orFail();
+    assert.equal(product.available, true);
+  });
+
   it("writes nothing for an empty batch", async () => {
     const result = await persistCatalogueBatch([], scope, "run-1");
 

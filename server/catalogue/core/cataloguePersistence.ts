@@ -109,7 +109,10 @@ export async function persistCatalogueBatch(
             safetyIssues: product.safetyIssues,
             imageUrl: product.imageUrl,
             productUrl: product.productUrl,
-            available: true,
+            // What the crawl actually observed. Forcing this true would put
+            // an out-of-stock product into a shopping list, which the user
+            // only discovers in the aisle.
+            available: product.available,
             lastCheckedAt: now,
             lastSeenAt: now,
             lastCrawlRunId: crawlRunId,
@@ -162,14 +165,14 @@ export async function persistCatalogueBatch(
               // The product remains the source of truth; this is a copy the
               // runner is responsible for keeping in step.
               eligibleForPlanning: product.eligibleForPlanning,
-              available: true,
               lastSeenAt: now,
               lastCheckedAt: now,
               lastCrawlRunId: crawlRunId,
-              // Seeing a product again un-retires it, and clears the record of
-              // the run that retired it so a later undo cannot resurrect it.
-              unavailableSince: null,
-              retiredByCrawlRunId: null,
+              ...offerAvailabilityFields(
+                product,
+                existingById.get(product.retailerProductId),
+                now,
+              ),
             },
             $setOnInsert: { comparisonPrice: null, promotion: null },
           },
@@ -216,6 +219,39 @@ export async function persistCatalogueBatch(
   }
 
   return { inserted, updated, priceChanges };
+}
+
+/**
+ * The availability half of an offer write.
+ *
+ * Three cases, and the difference between them is what an operator can later
+ * reason about:
+ *
+ *   - seen on the shelf: available, and any earlier retirement is cleared —
+ *     including the run that retired it, so a later undo cannot resurrect a
+ *     product that has since been seen again;
+ *   - newly seen off the shelf: unavailable, stamped with when that was first
+ *     observed, and explicitly *not* attributed to a reconciliation run — this
+ *     is a direct observation, not an inference from absence;
+ *   - still off the shelf: unavailable, and the original stamp is left alone.
+ *     Restamping it every crawl would erase how long the product has been gone.
+ */
+function offerAvailabilityFields(
+  product: AssessedProduct,
+  previous: (ProductRecord & { _id: Types.ObjectId }) | undefined,
+  now: Date,
+): Record<string, unknown> {
+  if (product.available) {
+    return { available: true, unavailableSince: null, retiredByCrawlRunId: null };
+  }
+
+  // No previous record, or one that was on the shelf last time: this crawl is
+  // the first to see it gone.
+  const newlyUnavailable = !previous || previous.available !== false;
+
+  return newlyUnavailable
+    ? { available: false, unavailableSince: now, retiredByCrawlRunId: null }
+    : { available: false };
 }
 
 /** Offers this run touched, used to decide what reconciliation may retire. */
