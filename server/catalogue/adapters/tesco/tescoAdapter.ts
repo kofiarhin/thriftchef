@@ -35,6 +35,7 @@ import {
   TESCO_DETAIL_STOP_LABELS,
   TESCO_HOSTS,
   TESCO_SELECTORS,
+  TescoRouteNotFoundError,
   TescoSelectorDriftError,
   buildListingPageUrl,
   canonicalTescoProductUrl,
@@ -42,6 +43,7 @@ import {
   detectSelectorDrift,
   extractLabelledSection,
   extractTescoProductId,
+  isAisleNotFound,
   isAllowedTescoImageUrl,
   normalizeLocationText,
   parseAvailability,
@@ -50,11 +52,24 @@ import {
   redactPostcode,
   resolveNextPageUrl,
   selectStandardPrice,
+  selectTileComparisonPriceText,
+  selectTileShelfPriceText,
   type TescoErrorCode,
 } from "./tescoSelectors";
 
-/** Bumped when extraction changes, so a crawl run records what produced it. */
-export const TESCO_ADAPTER_VERSION = "1.0.0";
+/**
+ * Bumped when extraction changes, so a crawl run records what produced it.
+ *
+ * 1.1.0 moved every category off the retired `/shop/en-GB/browse/` route onto
+ * `/groceries/en-GB/shop/`, and started refusing to read Tesco's
+ * "Not down this aisle" page as a department.
+ *
+ * 1.2.0 rebuilt listing extraction on the markup a live page actually serves,
+ * captured 2026-08-22: no product testids at all, a title that is an `h2`
+ * wrapping a bare anchor, an unlabelled shelf price sitting below a Clubcard
+ * price, and a result count reading "1 to 27" rather than "1 - 27".
+ */
+export const TESCO_ADAPTER_VERSION = "1.2.0";
 
 /** Bounds. A crawl that cannot end is worse than one that ends early. */
 const MAX_PAGES_PER_CATEGORY = 40;
@@ -114,6 +129,7 @@ function emptyRejections(): TescoRejectionCounts {
   return {
     TESCO_SCOPE_UNVERIFIED: 0,
     TESCO_SELECTOR_DRIFT: 0,
+    TESCO_ROUTE_NOT_FOUND: 0,
     TESCO_PRODUCT_ID_MISMATCH: 0,
     TESCO_PRODUCT_ID_MISSING: 0,
     TESCO_STANDARD_PRICE_MISSING: 0,
@@ -171,6 +187,50 @@ async function attributeOf(locator: Locator, attribute: string): Promise<string 
       .getAttribute(attribute)
       .catch(() => null),
   );
+}
+
+/**
+ * The first selector in a preference list that matches anything.
+ *
+ * A list rather than one selector because the same element is published
+ * differently on different Tesco layouts, and a testid that still exists on
+ * one page is worth preferring over a structural fallback everywhere.
+ */
+async function firstLocator(
+  root: Page | Locator,
+  selectors: readonly string[],
+): Promise<Locator | null> {
+  for (const selector of selectors) {
+    const locator = root.locator(selector);
+    if ((await locator.count()) > 0) return locator.first();
+  }
+
+  return null;
+}
+
+/**
+ * Every text a preference list finds, from the first selector that matches.
+ *
+ * Used where the page publishes no label for the value being read: the caller
+ * gets the candidates in document order and a rule decides which one is the
+ * price, rather than the selector deciding by position.
+ */
+async function allTexts(
+  root: Page | Locator,
+  selectors: readonly string[],
+): Promise<string[]> {
+  for (const selector of selectors) {
+    const locator = root.locator(selector);
+    if ((await locator.count()) === 0) continue;
+
+    const texts = (await locator.allTextContents())
+      .map((text) => cleanText(text))
+      .filter((text): text is string => Boolean(text));
+
+    if (texts.length > 0) return texts;
+  }
+
+  return [];
 }
 
 async function firstAttribute(
@@ -292,6 +352,18 @@ export class TescoAdapter implements RetailerCatalogueAdapter {
         return true;
       }
 
+      // A missing label on an anonymous session is not drift: Tesco publishes
+      // no fulfilment scope at all until a session is signed in, so there was
+      // never anything to read. Saying so is the difference between an
+      // operator fixing a selector and an operator learning this is blocked.
+      if (!label && (await firstLocator(context.page, TESCO_SELECTORS.signedOutMarker))) {
+        context.log(
+          `Tesco scope unverified (TESCO_SCOPE_UNVERIFIED): the session is signed out, and an anonymous Tesco session publishes no fulfilment scope for store ${context.externalStoreId}. This adapter does not sign in.`,
+        );
+        this.reject("TESCO_SCOPE_UNVERIFIED");
+        return false;
+      }
+
       // The label is reported normalised rather than raw so a session token or
       // an account name rendered beside it cannot ride along into a log.
       context.log(
@@ -333,6 +405,7 @@ export class TescoAdapter implements RetailerCatalogueAdapter {
   }): Promise<ListingPageResult> {
     await this.dismissConsent(context.page);
     await this.assertNotChallenged(context.page);
+    await this.assertAisleExists(context.page);
     await this.loadAllTiles(context.page);
 
     const advertised = parseDisplayedRange(
@@ -485,8 +558,8 @@ export class TescoAdapter implements RetailerCatalogueAdapter {
     category: RetailerCategory,
   ): Promise<RetailerListingProduct | null> {
     const tileId = cleanText(await tile.getAttribute("data-testid").catch(() => null));
-    const link = tile.locator(TESCO_SELECTORS.tileTitleLink).first();
-    const href = await attributeOf(link, "href");
+    const link = await firstLocator(tile, TESCO_SELECTORS.tileTitleLink);
+    const href = link ? await attributeOf(link, "href") : null;
 
     const productUrl = href
       ? canonicalTescoProductUrl(href, context.page.url())
@@ -509,7 +582,11 @@ export class TescoAdapter implements RetailerCatalogueAdapter {
       return null;
     }
 
-    const priceText = await firstText(tile, TESCO_SELECTORS.tilePrice);
+    // The price is read from candidates rather than from a labelled element:
+    // a current tile labels none, so the rule that picks one has to be
+    // explicit about what a price looks like.
+    const priceCandidates = await allTexts(tile, TESCO_SELECTORS.tilePrice);
+    const priceText = selectTileShelfPriceText(priceCandidates);
     const promotionText = await firstText(tile, TESCO_SELECTORS.tilePromotion);
     const price = selectStandardPrice({ priceText, promotionText });
 
@@ -527,10 +604,12 @@ export class TescoAdapter implements RetailerCatalogueAdapter {
     return {
       retailerProductId: identity.productId as string,
       productUrl,
-      name: await textOf(link),
+      name: link ? await textOf(link) : null,
       brand: null,
       packageSizeRaw: await firstText(tile, TESCO_SELECTORS.tilePackageSize),
-      comparisonPriceRaw: await firstText(tile, TESCO_SELECTORS.tileComparisonPrice),
+      comparisonPriceRaw: selectTileComparisonPriceText(
+        await allTexts(tile, TESCO_SELECTORS.tileComparisonPrice),
+      ),
       priceText,
       imageUrl: isAllowedTescoImageUrl(imageSource) ? imageSource : null,
       available: parseAvailability({
@@ -754,6 +833,43 @@ export class TescoAdapter implements RetailerCatalogueAdapter {
     // Settle, but bounded: an unanswered location dialog must not hold a crawl
     // open indefinitely.
     await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  }
+
+  /**
+   * A retired or mistyped category route is a failure, not an empty aisle.
+   *
+   * Tesco answers one with an ordinary-looking page headed "Not down this
+   * aisle": no error status to notice, no advertised total for the drift check
+   * to contradict, and no tiles. Left unguarded it reads as a real department
+   * that happens to stock nothing — and an absence is what later retires
+   * products from a working catalogue.
+   *
+   * Checked before any tile work so a dead route costs no scrolling and never
+   * contributes to the tile counts an operator reads afterwards.
+   */
+  private async assertAisleExists(page: Page): Promise<void> {
+    for (const selector of TESCO_SELECTORS.aisleNotFound) {
+      const marker = page.locator(selector).first();
+      if ((await marker.count().catch(() => 0)) === 0) continue;
+
+      this.reject("TESCO_ROUTE_NOT_FOUND");
+      throw new TescoRouteNotFoundError(page.url());
+    }
+
+    // Tesco has moved this copy between a heading and body text before, so the
+    // heading selectors above are backed by the page's own words rather than
+    // trusted alone. Bounded to the main region: a footer link named after the
+    // 404 must not condemn a page that rendered.
+    const heading = await page
+      .locator("main")
+      .first()
+      .innerText()
+      .catch(() => null);
+
+    if (isAisleNotFound(heading?.split(/\r?\n/)[0])) {
+      this.reject("TESCO_ROUTE_NOT_FOUND");
+      throw new TescoRouteNotFoundError(page.url());
+    }
   }
 
   /**

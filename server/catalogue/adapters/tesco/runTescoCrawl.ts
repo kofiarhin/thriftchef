@@ -25,12 +25,12 @@ import { resolveCatalogueScope } from "../../retailerRegistry";
 import { RetailStore } from "../../../models/RetailStore";
 import { Retailer } from "../../../models/Retailer";
 import { boundedTescoAdapter, configuredTescoAdapter } from "../registry";
+import { TESCO_DIAGNOSTIC_CATEGORY } from "./tescoCategories";
 import { redactPostcode } from "./tescoSelectors";
 import type { TescoAdapter } from "./tescoAdapter";
 
 /** The bounded shape a first look at a retailer is allowed to take. */
 const DIAGNOSTIC_PRODUCTS = 5;
-const DIAGNOSTIC_CATEGORIES = 1;
 
 const TESCO_RETAILER_SLUG = "tesco-uk";
 
@@ -182,9 +182,10 @@ async function main(): Promise<void> {
             : {}),
         });
 
-    const categories = options.diagnostic
-      ? (await adapter.discoverCategories()).slice(0, DIAGNOSTIC_CATEGORIES)
-      : undefined;
+    // One named department rather than whichever category happens to sort
+    // first: a diagnostic proves the selectors still match, so it has to open
+    // the route that has actually been confirmed to render.
+    const categories = options.diagnostic ? [TESCO_DIAGNOSTIC_CATEGORY] : undefined;
 
     const summary = await runCatalogueCrawl({
       scope,

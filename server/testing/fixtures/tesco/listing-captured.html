@@ -1,0 +1,523 @@
+<!doctype html>
+<!--
+  Tesco listing evidence — SANITIZED CAPTURE.
+
+  Captured 2026-08-22 from the live page a no-write diagnostic opens:
+  requested https://www.tesco.com/groceries/en-GB/shop/fresh-food/all, which
+  Tesco redirects to /shop/en-GB/browse/fresh-food/all. Recorded through a
+  read-only structural probe that emits tag names, allowlisted data-*
+  attributes, product link paths and visible product copy only.
+
+  Deliberately absent, because the probe never read them: cookies, storage,
+  request headers, session or account data, postcodes, addresses, basket
+  contents and analytics identifiers. Class names are dropped as well — they
+  are generated, meaningless, and never a selector here.
+
+  What it pins down, all of which differs from the authored `listing.html`:
+    - tiles are `li[data-testid="<numeric id>"]`, and the page also carries
+      non-product `li[data-testid]` elements (`more-menu-item`);
+    - the title link has NO data-testid: it is `h2 > a` pointing at
+      `/shop/en-GB/products/<numeric id>`;
+    - the shelf price is an unlabelled `<p>`, sitting after a Clubcard price
+      that lives inside `a[href*="/promotions/"]`;
+    - the result count reads "1 to 27", not "1 - 27";
+    - `data-auto-available` survives on the tile.
+
+  Route it stands for: /shop/en-GB/browse/fresh-food/all (served for
+  /groceries/en-GB/shop/fresh-food/all)
+  Scope it stands for: an anonymous session with no fulfilment scope set
+-->
+<html lang="en-GB">
+  <head><meta charset="utf-8" /><title>Fresh Food - Tesco Groceries</title></head>
+  <body>
+    <header>
+      <button data-testid="account-icon" type="button" aria-label="My account">Account</button>
+      <button data-testid="store-locator-icon" type="button" aria-label="Store locator">Store locator</button>
+      <div data-testid="auth-cta-container">
+        <a data-testid="sign-in" href="/account/en-GB/login">Sign in</a>
+        <a data-testid="register" href="/account/en-GB/register">Register</a>
+      </div>
+      <ul><li data-testid="more-menu-item"><a href="/shop/en-GB/zone/tesco-delivery-click-and-collect">Delivery</a></li></ul>
+    </header>
+
+    <main>
+      <div data-testid="product-list-header">
+        <div data-testid="pagination-result-count">
+          <div>Showing <strong>1 to 27</strong> of <strong>4,676</strong> items</div>
+        </div>
+      </div>
+
+      <ul data-testid="dynamic-grid">
+        <li data-testid="314427997" data-auto-available="true">
+          <div>
+            <div>
+              <div></div>
+              <div>
+                <p>Sponsored</p>
+                <h2>
+                  <a href="/shop/en-GB/products/314427997">Lurpak Lighter Spreadable Butter Rapeseed Oil 400G</a>
+                </h2>
+              </div>
+              <div>
+                <a href="/shop/en-GB/products/314427997">
+                  <img src="https://digitalcontent.api.tesco.com/v2/media/ghs/1fbcb8e7-2db5-4f2e-81e7-ae19d8e31241/b853cd7c-b904-40ff-a030-eb21841eed35_2128941165.jpeg" alt="" />
+                </a>
+              </div>
+              <div>
+                <div data-testid="star-rating">
+                  <p>
+                    <span>4.4 (105)</span>
+                  </p>
+                </div>
+              </div>
+              <div>
+                <a aria-label="More like this Spreadable Butter" href="/shop/en-GB/browse/fresh-food/milk-butter-and-eggs/butters-spreads-and-margarine/spreadable-butter">
+                  <span>More like this</span>
+                  <span></span>
+                </a>
+              </div>
+              <div>
+                <div>
+                  <a href="/shop/en-GB/promotions/102163700">
+                    <div>
+                      <div></div>
+                      <div>
+                        <p>£2.75 Clubcard Price</p>
+                        <p>(£6.88/kg)</p>
+                      </div>
+                      <div></div>
+                    </div>
+                    <p>Offer valid for delivery from 05/08/2026 until 25/08/2026</p>
+                  </a>
+                </div>
+              </div>
+              <div>
+                <div></div>
+                <div></div>
+                <div></div>
+              </div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <p>£4.25</p>
+                    <p>£10.62/kg</p>
+                  </div>
+                  <div>
+                    <label>Quantity controls</label>
+                    <button type="submit" aria-label="add 1 Lurpak Lighter Spreadable Butter Rapeseed Oil 400G">
+                      <span>Add</span>
+                    </button>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li data-testid="314311837" data-auto-available="true">
+          <div>
+            <div>
+              <div></div>
+              <div>
+                <p>Sponsored</p>
+                <h2>
+                  <a href="/shop/en-GB/products/314311837">Lurpak Slightly Salted Spreadable Blend of Butter and Rapeseed Oil 400g</a>
+                </h2>
+              </div>
+              <div>
+                <a href="/shop/en-GB/products/314311837">
+                  <img src="https://digitalcontent.api.tesco.com/v2/media/ghs/17a85df9-84f6-4e6c-ab1a-28f14f27947a/ab809713-e496-4ad9-9a73-2bb07a85c892_172653595.jpeg" alt="" />
+                </a>
+              </div>
+              <div>
+                <div data-testid="star-rating">
+                  <p>
+                    <span>4.1 (92)</span>
+                  </p>
+                </div>
+              </div>
+              <div>
+                <a aria-label="More like this Spreadable Butter" href="/shop/en-GB/browse/fresh-food/milk-butter-and-eggs/butters-spreads-and-margarine/spreadable-butter">
+                  <span>More like this</span>
+                  <span></span>
+                </a>
+              </div>
+              <div>
+                <div>
+                  <a href="/shop/en-GB/promotions/102163711">
+                    <div>
+                      <div></div>
+                      <div>
+                        <p>£2.75 Clubcard Price</p>
+                        <p>(£6.88/kg)</p>
+                      </div>
+                      <div></div>
+                    </div>
+                    <p>Offer valid for delivery from 05/08/2026 until 25/08/2026</p>
+                  </a>
+                </div>
+              </div>
+              <div>
+                <div></div>
+                <div></div>
+                <div></div>
+              </div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <p>£4.25</p>
+                    <p>£10.62/kg</p>
+                  </div>
+                  <div>
+                    <label>Quantity controls</label>
+                    <button type="submit" aria-label="add 1 Lurpak Slightly Salted Spreadable Blend of Butter and Rapeseed Oil 400g">
+                      <span>Add</span>
+                    </button>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li data-testid="308849452" data-auto-available="true">
+          <div>
+            <div>
+              <div></div>
+              <div>
+                <p>Sponsored</p>
+                <h2>
+                  <a href="/shop/en-GB/products/308849452">Dairylea Dunkers Jumbo Tubes Cheese Snacks 6 pack 6x41G</a>
+                </h2>
+              </div>
+              <div>
+                <a href="/shop/en-GB/products/308849452">
+                  <img src="https://digitalcontent.api.tesco.com/v2/media/ghs/c857e9fa-74ee-4eb8-946f-46118026f2f8/ff4aa794-b87c-4e49-887b-b1760205f476_426575505.jpeg" alt="" />
+                </a>
+              </div>
+              <div>
+                <div data-testid="star-rating">
+                  <p>
+                    <span>4.5 (47)</span>
+                  </p>
+                </div>
+              </div>
+              <div>
+                <a aria-label="More like this Lunchbox Cheese Dippers" href="/shop/en-GB/browse/fresh-food/cheese/cheese-snacking-and-lunchbox/lunchbox-cheese-dippers">
+                  <span>More like this</span>
+                  <span></span>
+                </a>
+              </div>
+              <div></div>
+              <div>
+                <div></div>
+                <div></div>
+                <div></div>
+              </div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <p>£3.30</p>
+                    <p>£13.42/kg</p>
+                  </div>
+                  <div>
+                    <label>Quantity controls</label>
+                    <button type="submit" aria-label="add 1 Dairylea Dunkers Jumbo Tubes Cheese Snacks 6 pack 6x41G">
+                      <span>Add</span>
+                    </button>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li data-testid="290920510" data-auto-available="true">
+          <div>
+            <div>
+              <div></div>
+              <div>
+                <h2>
+                  <a href="/shop/en-GB/products/290920510">Tesco British Salted Block Butter 250G</a>
+                </h2>
+              </div>
+              <div>
+                <a href="/shop/en-GB/products/290920510">
+                  <img src="https://digitalcontent.api.tesco.com/v2/media/ghs/56a1a385-da82-4117-bd97-45cf1d3b3b83/f347458e-e59f-47bc-bcf1-503adf640f24_1178333248.jpeg" alt="" />
+                </a>
+              </div>
+              <div>
+                <div data-testid="star-rating">
+                  <p>
+                    <span>4.3 (143)</span>
+                  </p>
+                </div>
+              </div>
+              <div>
+                <a aria-label="More like this Block Butter" href="/shop/en-GB/browse/fresh-food/milk-butter-and-eggs/butters-spreads-and-margarine/block-butter">
+                  <span>More like this</span>
+                  <span></span>
+                </a>
+              </div>
+              <div></div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <span></span>
+                    <div>Aldi Price Match</div>
+                  </div>
+                </div>
+                <div></div>
+              </div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <p>£1.85</p>
+                    <p>£7.40/kg</p>
+                  </div>
+                  <div>
+                    <label>Quantity controls</label>
+                    <button type="submit" aria-label="add 1 Tesco British Salted Block Butter 250G">
+                      <span>Add</span>
+                    </button>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li data-testid="295673143" data-auto-available="true">
+          <div>
+            <div>
+              <div></div>
+              <div>
+                <h2>
+                  <a href="/shop/en-GB/products/295673143">Tesco Sweet Peppers 500G</a>
+                </h2>
+              </div>
+              <div>
+                <a href="/shop/en-GB/products/295673143">
+                  <img src="https://digitalcontent.api.tesco.com/v2/media/ghs/dc3c71f3-fc9f-4e78-b66e-9f2190a5072f/5408b19a-e359-43c6-a813-380bcfaa42ab_701212271.jpeg" alt="" />
+                </a>
+              </div>
+              <div>
+                <div data-testid="star-rating">
+                  <p>
+                    <span>2.7 (146)</span>
+                  </p>
+                </div>
+              </div>
+              <div>
+                <a aria-label="More like this Peppers" href="/shop/en-GB/browse/fresh-food/fresh-salad-coleslaw-and-sandwich-fillers/peppers/peppers">
+                  <span>More like this</span>
+                  <span></span>
+                </a>
+              </div>
+              <div></div>
+              <div>
+                <div></div>
+                <div></div>
+                <div></div>
+              </div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <p>£2.10</p>
+                    <p>£4.20/kg</p>
+                  </div>
+                  <div>
+                    <label>Quantity controls</label>
+                    <button type="submit" aria-label="add 1 Tesco Sweet Peppers 500G">
+                      <span>Add</span>
+                    </button>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li data-testid="290921181" data-auto-available="true">
+          <div>
+            <div>
+              <div></div>
+              <div>
+                <h2>
+                  <a href="/shop/en-GB/products/290921181">Tesco British Unsalted Butter 250G</a>
+                </h2>
+              </div>
+              <div>
+                <a href="/shop/en-GB/products/290921181">
+                  <img src="https://digitalcontent.api.tesco.com/v2/media/ghs/32aa7290-d659-4613-bbeb-c7bb04efa07d/7c1c0939-5c7c-4db8-ae16-b1b76c290cb4_726126951.jpeg" alt="" />
+                </a>
+              </div>
+              <div>
+                <div data-testid="star-rating">
+                  <p>
+                    <span>4.7 (87)</span>
+                  </p>
+                </div>
+              </div>
+              <div>
+                <a aria-label="More like this Block Butter" href="/shop/en-GB/browse/fresh-food/milk-butter-and-eggs/butters-spreads-and-margarine/block-butter">
+                  <span>More like this</span>
+                  <span></span>
+                </a>
+              </div>
+              <div></div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <span></span>
+                    <div>Aldi Price Match</div>
+                  </div>
+                </div>
+                <div></div>
+              </div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <p>£1.85</p>
+                    <p>£7.40/kg</p>
+                  </div>
+                  <div>
+                    <label>Quantity controls</label>
+                    <button type="submit" aria-label="add 1 Tesco British Unsalted Butter 250G">
+                      <span>Add</span>
+                    </button>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li data-testid="252207537" data-auto-available="true">
+          <div>
+            <div>
+              <div></div>
+              <div>
+                <h2>
+                  <a href="/shop/en-GB/products/252207537">Tesco British Semi Skimmed Milk 1.13L, 2 Pints</a>
+                </h2>
+              </div>
+              <div>
+                <a href="/shop/en-GB/products/252207537">
+                  <img src="https://digitalcontent.api.tesco.com/v2/media/ghs/8bb67050-c132-4326-97f2-04be9fdce6c9/93e23843-fc27-4cb7-9448-9820e01e8281_798947363.jpeg" alt="" />
+                </a>
+              </div>
+              <div>
+                <div data-testid="star-rating">
+                  <p>
+                    <span>4.3 (284)</span>
+                  </p>
+                </div>
+              </div>
+              <div>
+                <a aria-label="More like this Semi-Skimmed Milk" href="/shop/en-GB/browse/drinks/milk-and-milkshakes/milk/semi-skimmed-milk">
+                  <span>More like this</span>
+                  <span></span>
+                </a>
+              </div>
+              <div></div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <span></span>
+                    <div>Aldi Price Match</div>
+                  </div>
+                </div>
+                <div></div>
+              </div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <p>£1.20</p>
+                    <p>£1.06/litre</p>
+                  </div>
+                  <div>
+                    <label>Quantity controls</label>
+                    <button type="submit" aria-label="add 1 Tesco British Semi Skimmed Milk 1.13L, 2 Pints">
+                      <span>Add</span>
+                    </button>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li data-testid="254656508" data-auto-available="true">
+          <div>
+            <div>
+              <div></div>
+              <div>
+                <h2>
+                  <a href="/shop/en-GB/products/254656508">Tesco British Skimmed Milk 2.272L, 4 Pints</a>
+                </h2>
+              </div>
+              <div>
+                <a href="/shop/en-GB/products/254656508">
+                  <img src="https://digitalcontent.api.tesco.com/v2/media/ghs/cbb375a8-c22e-420e-881b-9b2c4fac04b3/211b3d19-4b2a-453d-8159-96eb790d4a16_1883533842.jpeg" alt="" />
+                </a>
+              </div>
+              <div>
+                <div data-testid="star-rating">
+                  <p>
+                    <span>3.4 (121)</span>
+                  </p>
+                </div>
+              </div>
+              <div>
+                <a aria-label="More like this Skimmed Milk" href="/shop/en-GB/browse/fresh-food/milk-butter-and-eggs/milk/skimmed-milk">
+                  <span>More like this</span>
+                  <span></span>
+                </a>
+              </div>
+              <div></div>
+              <div>
+                <div></div>
+                <div></div>
+                <div></div>
+              </div>
+              <div>
+                <div></div>
+                <div>
+                  <div>
+                    <p>£1.75</p>
+                    <p>£0.77/litre</p>
+                  </div>
+                  <div>
+                    <label>Quantity controls</label>
+                    <button type="submit" aria-label="add 1 Tesco British Skimmed Milk 2.272L, 4 Pints">
+                      <span>Add</span>
+                    </button>
+                    <div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ul>
+
+      <nav aria-label="Pagination">
+        <a data-testid="previous" aria-label="Previous page" href="/shop/en-GB/browse/fresh-food/all">Previous</a>
+        <a data-testid="page-1" href="/shop/en-GB/browse/fresh-food/all">1</a>
+        <a data-testid="page-2" href="/shop/en-GB/browse/fresh-food/all">2</a>
+        <a data-testid="next" data-nextpreviousbtn="next" aria-label="Next page" href="/shop/en-GB/browse/fresh-food/all">Next</a>
+      </nav>
+    </main>
+  </body>
+</html>

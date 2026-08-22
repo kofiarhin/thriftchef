@@ -1,0 +1,26 @@
+<!doctype html>
+<!--
+  Tesco's category 404, as it actually behaves.
+
+  The page returns a normal-looking document rather than an obvious error:
+  no result count, no tiles, and a heading reading "Not down this aisle".
+  Every /shop/en-GB/browse/ category this adapter shipped with answered like
+  this after Tesco moved its categories to /groceries/en-GB/shop/.
+
+  Why it needs its own rule: with no advertised total there is nothing for the
+  drift check to contradict, so the page reads as a department that simply
+  holds nothing — and an absence is what later retires products. A dead route
+  has to be its own loud failure.
+
+  Authored 2026-08-22 alongside listing.html. Not a capture.
+-->
+<html lang="en-GB">
+  <head><meta charset="utf-8" /><title>Tesco</title></head>
+  <body>
+    <main>
+      <h1>Not down this aisle</h1>
+      <p>Sorry, we can't find the page you're looking for.</p>
+      <a href="/groceries/en-GB/shop/fresh-food/all">Continue shopping</a>
+    </main>
+  </body>
+</html>

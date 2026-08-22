@@ -47,7 +47,7 @@ function tescoProduct(
     allergenAdviceRaw: "No allergens.",
     dietaryInformationRaw: null,
     imageUrl: null,
-    productUrl: `https://www.tesco.com/shop/en-GB/products/${retailerProductId}`,
+    productUrl: `https://www.tesco.com/groceries/en-GB/products/${retailerProductId}`,
     available: true,
     normalizedAllergens: [],
     catalogueSafetyStatus: "verified",

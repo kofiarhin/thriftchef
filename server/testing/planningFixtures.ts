@@ -184,7 +184,7 @@ export const TESCO_CATALOGUE: CandidateProduct[] = ALDI_CATALOGUE.map(
     return {
       ...product,
       retailerProductId,
-      productUrl: `https://www.tesco.com/shop/en-GB/products/${retailerProductId}`,
+      productUrl: `https://www.tesco.com/groceries/en-GB/products/${retailerProductId}`,
       // Slightly different prices, so a total computed from the wrong
       // catalogue cannot coincidentally match.
       pricePence: product.pricePence + 5,
@@ -200,7 +200,7 @@ export const TESCO_STORE_B_CATALOGUE: CandidateProduct[] = TESCO_CATALOGUE.map(
     return {
       ...product,
       retailerProductId,
-      productUrl: `https://www.tesco.com/shop/en-GB/products/${retailerProductId}`,
+      productUrl: `https://www.tesco.com/groceries/en-GB/products/${retailerProductId}`,
       pricePence: product.pricePence + 11,
     };
   },

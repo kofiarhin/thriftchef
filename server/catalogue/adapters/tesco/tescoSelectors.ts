@@ -39,11 +39,35 @@ export const TESCO_IMAGE_HOSTS = [
   "www.tesco.com",
 ] as const;
 
-/** Product pages, anchored to the numeric id at the end of the path. */
-const PRODUCT_PATH = /^\/shop\/en-GB\/products\/(\d+)\/?$/;
+/**
+ * Product pages, anchored to the numeric id at the end of the path.
+ *
+ * Two route families, both live. Tesco moved its grocery site under
+ * `/groceries/en-GB/` and left `/shop/en-GB/products/` resolving, so a link on
+ * a current listing page and a URL stored by an earlier crawl can be the same
+ * product wearing different paths. Both are read; only one is written back.
+ */
+const PRODUCT_PATH = /^\/(?:groceries|shop)\/en-GB\/products\/(\d+)\/?$/;
 
-/** Curated category pages. Nothing outside this prefix is a listing. */
-const BROWSE_PATH_PREFIX = "/shop/en-GB/browse/";
+/**
+ * The route a product URL is stored as.
+ *
+ * `/groceries/` rather than `/shop/`: the legacy family is the one Tesco is
+ * retiring, and it already took the category pages with it. Canonicalising
+ * onto it would schedule this same outage for every stored product URL.
+ */
+const CANONICAL_PRODUCT_PREFIX = "/groceries/en-GB/products/";
+
+/**
+ * Curated category pages. Nothing outside this prefix is a listing.
+ *
+ * `/shop/en-GB/browse/...` was the shape this adapter shipped with and is now
+ * dead for grocery departments — Tesco answers those with a "Not down this
+ * aisle" page. It is deliberately *not* accepted here: an allowlist that still
+ * admits the retired route lets a crawl navigate to a 404 and read its
+ * emptiness as a result.
+ */
+const LISTING_PATH_PREFIX = "/groceries/en-GB/shop/";
 
 /**
  * Stable codes for the failures worth acting on, so an operator reading a
@@ -52,11 +76,34 @@ const BROWSE_PATH_PREFIX = "/shop/en-GB/browse/";
 export type TescoErrorCode =
   | "TESCO_SCOPE_UNVERIFIED"
   | "TESCO_SELECTOR_DRIFT"
+  | "TESCO_ROUTE_NOT_FOUND"
   | "TESCO_PRODUCT_ID_MISMATCH"
   | "TESCO_PRODUCT_ID_MISSING"
   | "TESCO_STANDARD_PRICE_MISSING"
   | "TESCO_HOST_REJECTED"
   | "TESCO_ACCESS_CHALLENGE";
+
+/**
+ * Raised when Tesco served its category 404 instead of a listing.
+ *
+ * Distinct from drift, because the remedy is different: drift means the page
+ * is right and the selectors are wrong, this means the URL is wrong and no
+ * selector would have helped. Distinct from an empty department, because that
+ * page advertises no total for the drift check to contradict — it would pass
+ * as a real department holding nothing, and an absence is what retires
+ * products.
+ */
+export class TescoRouteNotFoundError extends Error {
+  readonly code: TescoErrorCode = "TESCO_ROUTE_NOT_FOUND";
+
+  constructor(readonly url: string) {
+    super(
+      `Tesco served its "Not down this aisle" page rather than a listing (${url}). ` +
+        "The category route is retired or the slug is wrong.",
+    );
+    this.name = "TescoRouteNotFoundError";
+  }
+}
 
 /**
  * Raised when a page advertises a catalogue but yields no readable products.
@@ -90,20 +137,55 @@ export class TescoSelectorDriftError extends Error {
  * banner stops a crawl before it starts.
  */
 export const TESCO_SELECTORS = {
-  /** A listing tile. The id itself is the Tesco product id. */
-  productTile: "li[data-testid]",
-  tileTitleLink: '[data-testid="product-tile--title"]',
+  /**
+   * A listing tile: a list item carrying a product id and holding a link to
+   * that product.
+   *
+   * Both halves are load-bearing. The id alone is not enough — a captured page
+   * also carries `li[data-testid="more-menu-item"]`, and counting navigation
+   * as a tile inflates the denominator the drift check judges an extraction
+   * rate against. The link alone is not enough either: the id on the tile is
+   * what the link is reconciled against.
+   */
+  productTile: 'li[data-testid]:has(a[href*="/products/"])',
+  /**
+   * The link the product id is read from.
+   *
+   * The testid is kept first for pages that still publish it, but a page
+   * captured 2026-08-22 publishes none: the title is an `h2` wrapping a bare
+   * anchor. The heading form is preferred over any product link because it is
+   * the one carrying the product name; the plain link is the last resort, and
+   * only ever supplies an id.
+   */
+  tileTitleLink: [
+    '[data-testid="product-tile--title"]',
+    'h2 a[href*="/products/"]',
+    'a[href*="/products/"]',
+  ],
+  /**
+   * Candidates for the shelf price, promotion subtrees excluded in the
+   * selector itself.
+   *
+   * A current tile labels no price at all: it is an unlabelled `<p>` sitting
+   * after a Clubcard price, a star rating and a comparison price. Excluding
+   * `a[href*="/promotions/"]` here rather than filtering by wording afterwards
+   * is what stops a Clubcard price being read as a shelf price on the day
+   * Tesco renders one without the words "Clubcard Price" beside it.
+   */
   tilePrice: [
     '[data-testid="product-tile--price"]',
     '[data-testid="price-value"]',
+    'p:not(a[href*="/promotions/"] p)',
   ],
   tilePromotion: [
     '[data-testid="product-tile--promotion"]',
     '[data-testid="promotion-message"]',
+    'a[href*="/promotions/"]',
   ],
   tilePackageSize: ['[data-testid="product-tile--package-size"]'],
   tileComparisonPrice: [
     '[data-testid="product-tile--price-per-quantity-weight"]',
+    'p:not(a[href*="/promotions/"] p)',
   ],
   tileAvailabilityText: ['[data-testid="product-tile--availability"]'],
   /** Availability published as an attribute on the tile itself. */
@@ -158,6 +240,30 @@ export const TESCO_SELECTORS = {
     '[data-testid="location-summary"]',
   ],
   fulfilmentModeLabel: ['[data-testid="fulfilment-mode-label"]'],
+  /**
+   * Evidence that the session is anonymous.
+   *
+   * Not a way to verify anything — it is the opposite. A session Tesco has not
+   * signed in has no fulfilment scope to report, so a missing location label
+   * means "there is no scope here" rather than "the selector drifted". The two
+   * need different work from an operator, and only this tells them apart.
+   */
+  signedOutMarker: [
+    '[data-testid="sign-in"]',
+    'a[href*="/account/en-GB/login"]',
+  ],
+  /**
+   * Tesco's category 404, which arrives as an ordinary-looking page.
+   *
+   * Text rather than a testid because Tesco publishes none for it, and this
+   * is exactly the "narrowly scoped text" tier the selector policy allows as
+   * a last resort. The wording is confirmed by what a retired
+   * `/shop/en-GB/browse/` category returns today.
+   */
+  aisleNotFound: [
+    'h1:has-text("Not down this aisle")',
+    'h2:has-text("Not down this aisle")',
+  ],
   /** Evidence that the session was challenged rather than served. */
   accessChallenge: [
     "#challenge-running",
@@ -244,6 +350,65 @@ export function isConditionalPriceText(value: string | null | undefined): boolea
   return /clubcard|meal deal|multibuy|coupon|any \d|\d for £|save \d|was £|offer/.test(
     text,
   );
+}
+
+/**
+ * A price and nothing else: the currency symbol is required.
+ *
+ * Without the symbol "4.4" is a price, and a live tile carries "4.4 (105)" as
+ * its star rating a few elements above the shelf price. A butter priced at its
+ * review score is exactly the silent kind of wrong this file exists to stop.
+ */
+const SHELF_PRICE_TEXT = /^£\s*\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?$/;
+
+/**
+ * The shelf price among a tile's unlabelled paragraphs.
+ *
+ * Tesco publishes no price testid on a listing tile any more: the price is a
+ * bare `<p>`, and the paragraphs around it hold a star rating, a comparison
+ * price and — above it in the DOM — a Clubcard price. Candidates are supplied
+ * in document order with promotion subtrees already excluded by the selector,
+ * so this rule is the second guard rather than the only one: anything that is
+ * not exactly a price, or that carries conditional wording, is passed over
+ * rather than repaired.
+ */
+export function selectTileShelfPriceText(
+  candidates: readonly (string | null | undefined)[],
+): string | null {
+  for (const candidate of candidates) {
+    const text = cleanText(candidate);
+    if (!text || isConditionalPriceText(text)) continue;
+    if (SHELF_PRICE_TEXT.test(text)) return text;
+  }
+
+  return null;
+}
+
+/**
+ * A comparison price: a price, a slash, a unit, and nothing else.
+ *
+ * Unparenthesised on purpose. The Clubcard block renders its own comparison
+ * price as "(£6.88/kg)", and the brackets are the one thing on the tile that
+ * tells the two apart without reading the DOM again.
+ */
+const COMPARISON_PRICE_TEXT = /^£\s*\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?\s*\/\s*[a-z0-9]+$/i;
+
+/**
+ * The comparison price among a tile's unlabelled paragraphs.
+ *
+ * Reported for transparency rather than used for budgeting, so an unreadable
+ * one is left null instead of being reconstructed from the price and the pack
+ * size — a computed figure would look like something the retailer published.
+ */
+export function selectTileComparisonPriceText(
+  candidates: readonly (string | null | undefined)[],
+): string | null {
+  for (const candidate of candidates) {
+    const text = cleanText(candidate);
+    if (text && COMPARISON_PRICE_TEXT.test(text)) return text;
+  }
+
+  return null;
 }
 
 export interface StandardPriceResult {
@@ -383,17 +548,17 @@ export function canonicalTescoProductUrl(
   const productId = PRODUCT_PATH.exec(parsed.pathname)?.[1];
   if (!productId) return null;
 
-  return `https://${parsed.hostname.toLowerCase()}/shop/en-GB/products/${productId}`;
+  return `https://${parsed.hostname.toLowerCase()}${CANONICAL_PRODUCT_PREFIX}${productId}`;
 }
 
 /** A curated category page on the allowed host, and nowhere else. */
-export function isAllowedTescoBrowseUrl(value: string | null | undefined): boolean {
+export function isAllowedTescoListingUrl(value: string | null | undefined): boolean {
   const parsed = parseStrictUrl(value);
 
   return Boolean(
     parsed &&
       isAllowedHost(parsed, TESCO_HOSTS) &&
-      parsed.pathname.startsWith(BROWSE_PATH_PREFIX),
+      parsed.pathname.startsWith(LISTING_PATH_PREFIX),
   );
 }
 
@@ -422,7 +587,12 @@ export function parseDisplayedRange(
   const text = cleanText(value);
   if (!text) return null;
 
-  const match = /(\d[\d,]*)\s*[-–]\s*(\d[\d,]*)\s+of\s+(\d[\d,]*)/i.exec(text);
+  // "1 to 27" and "1 - 27" are the same claim. Tesco moved from the dash to
+  // the word, and reading neither returns null — which silently switches the
+  // drift guard off, because a page that advertises nothing cannot contradict
+  // an empty extraction.
+  const match =
+    /(\d[\d,]*)\s*(?:[-–—]|to)\s*(\d[\d,]*)\s+of\s+(\d[\d,]*)/i.exec(text);
   if (!match) return null;
 
   const [from, to, total] = match
@@ -439,7 +609,7 @@ export function buildListingPageUrl(
   categoryUrl: string,
   page: number,
 ): string | null {
-  if (!isAllowedTescoBrowseUrl(categoryUrl)) return null;
+  if (!isAllowedTescoListingUrl(categoryUrl)) return null;
 
   const url = new URL(categoryUrl);
   url.hash = "";
@@ -451,7 +621,7 @@ export function buildListingPageUrl(
 /**
  * A next-page link discovered on the page, validated before it is followed.
  *
- * Links on a retailer page are untrusted input: one pointing off the browse
+ * Links on a retailer page are untrusted input: one pointing off the listing
  * path or off the host is dropped rather than enqueued.
  */
 export function resolveNextPageUrl(
@@ -464,7 +634,7 @@ export function resolveNextPageUrl(
   parsed.hash = "";
   const candidate = parsed.toString();
 
-  return isAllowedTescoBrowseUrl(candidate) ? candidate : null;
+  return isAllowedTescoListingUrl(candidate) ? candidate : null;
 }
 
 export interface DriftEvidence {
@@ -512,6 +682,20 @@ export function detectSelectorDrift(evidence: DriftEvidence): DriftVerdict | nul
   }
 
   return null;
+}
+
+/**
+ * Whether a page is Tesco's "Not down this aisle" category 404.
+ *
+ * Matched on the exact phrase rather than loosely: "down the aisle" is a real
+ * Tesco shelf name, and a substring rule would read a legitimate wedding-cake
+ * department as a dead route. Whitespace and case vary between the heading and
+ * the body copy, so both are normalised first.
+ */
+export function isAisleNotFound(value: string | null | undefined): boolean {
+  const text = cleanText(value)?.toLowerCase();
+
+  return Boolean(text && /\bnot down this aisle\b/.test(text));
 }
 
 /**

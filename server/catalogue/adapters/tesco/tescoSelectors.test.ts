@@ -18,8 +18,9 @@ import {
   detectSelectorDrift,
   extractLabelledSection,
   extractTescoProductId,
-  isAllowedTescoBrowseUrl,
+  isAisleNotFound,
   isAllowedTescoImageUrl,
+  isAllowedTescoListingUrl,
   parseAvailability,
   parseDisplayedRange,
   parseGbpMinor,
@@ -27,25 +28,45 @@ import {
   redactPostcode,
   resolveNextPageUrl,
   selectStandardPrice,
+  selectTileShelfPriceText,
 } from "./tescoSelectors";
 
 describe("Tesco product identity", () => {
   it("reads the numeric id from an absolute product URL", () => {
     assert.equal(
-      extractTescoProductId("https://www.tesco.com/shop/en-GB/products/296057883"),
+      extractTescoProductId(
+        "https://www.tesco.com/groceries/en-GB/products/296057883",
+      ),
       "296057883",
     );
   });
 
   it("reads the numeric id from a relative product URL", () => {
-    assert.equal(extractTescoProductId("/shop/en-GB/products/301219119"), "301219119");
+    assert.equal(
+      extractTescoProductId("/groceries/en-GB/products/301219119"),
+      "301219119",
+    );
+  });
+
+  it("still reads the numeric id from the legacy product route", () => {
+    // Tesco moved its category pages off /shop/en-GB/browse/ but kept
+    // /shop/en-GB/products/ resolving. A stored URL in the old shape is still
+    // the same product, and refusing to read its id would orphan it.
+    assert.equal(
+      extractTescoProductId("https://www.tesco.com/shop/en-GB/products/296057883"),
+      "296057883",
+    );
+    assert.equal(
+      extractTescoProductId("/shop/en-GB/products/301219119"),
+      "301219119",
+    );
   });
 
   it("ignores a trailing slash, a query string and a fragment", () => {
     for (const url of [
-      "https://www.tesco.com/shop/en-GB/products/301219119/",
-      "https://www.tesco.com/shop/en-GB/products/301219119?bcuid=99",
-      "https://www.tesco.com/shop/en-GB/products/301219119#reviews",
+      "https://www.tesco.com/groceries/en-GB/products/301219119/",
+      "https://www.tesco.com/groceries/en-GB/products/301219119?bcuid=99",
+      "https://www.tesco.com/groceries/en-GB/products/301219119#reviews",
     ]) {
       assert.equal(extractTescoProductId(url), "301219119", url);
     }
@@ -53,13 +74,17 @@ describe("Tesco product identity", () => {
 
   it("refuses a URL that is not a product page", () => {
     assert.equal(
-      extractTescoProductId("https://www.tesco.com/shop/en-GB/browse/fresh-food"),
+      extractTescoProductId(
+        "https://www.tesco.com/groceries/en-GB/shop/fresh-food/all",
+      ),
       null,
     );
     assert.equal(extractTescoProductId("https://www.tesco.com/"), null);
     // A number somewhere in the path is not a product id.
     assert.equal(
-      extractTescoProductId("https://www.tesco.com/shop/en-GB/products/301219119/reviews"),
+      extractTescoProductId(
+        "https://www.tesco.com/groceries/en-GB/products/301219119/reviews",
+      ),
       null,
     );
   });
@@ -68,8 +93,10 @@ describe("Tesco product identity", () => {
     // Two crawls of one product with different marketing copy must remain one
     // product, so identity comes from the numeric path segment alone.
     assert.equal(
-      extractTescoProductId("/shop/en-GB/products/301219119"),
-      extractTescoProductId("/shop/en-GB/products/301219119?name=tesco-bananas-loose"),
+      extractTescoProductId("/groceries/en-GB/products/301219119"),
+      extractTescoProductId(
+        "/groceries/en-GB/products/301219119?name=tesco-bananas-loose",
+      ),
     );
   });
 
@@ -100,6 +127,38 @@ describe("Tesco product identity", () => {
     assert.equal(
       reconcileProductId({ tileId: null, urlId: null }).error,
       "TESCO_PRODUCT_ID_MISSING",
+    );
+  });
+});
+
+describe("Tesco product identity: the link shapes a live listing serves", () => {
+  /**
+   * Captured 2026-08-22 from /shop/en-GB/browse/fresh-food/all, which is what
+   * Tesco redirects /groceries/en-GB/shop/fresh-food/all to. Tile links are
+   * written in the legacy `/shop/` form; the canonical route the product
+   * itself resolves to is the `/groceries/` one. Both must read.
+   */
+  it("reads the numeric id from a current /groceries/ product link", () => {
+    assert.equal(
+      extractTescoProductId("/groceries/en-GB/products/314427997"),
+      "314427997",
+    );
+  });
+
+  it("reads the numeric id from the /shop/ link a live tile carries", () => {
+    assert.equal(
+      extractTescoProductId("/shop/en-GB/products/290920510"),
+      "290920510",
+    );
+  });
+
+  it("canonicalises a live tile link resolved against the redirected listing URL", () => {
+    assert.equal(
+      canonicalTescoProductUrl(
+        "/shop/en-GB/products/314427997",
+        "https://www.tesco.com/shop/en-GB/browse/fresh-food/all",
+      ),
+      "https://www.tesco.com/groceries/en-GB/products/314427997",
     );
   });
 });
@@ -189,6 +248,44 @@ describe("Tesco prices", () => {
   });
 });
 
+describe("Tesco shelf price from an unlabelled tile", () => {
+  /**
+   * The live tile publishes no price testid at all: the shelf price is a bare
+   * `<p>`, sitting after a Clubcard price and a star rating. Picking "the
+   * first number on the tile" would price a butter at its review score.
+   */
+  it("takes the shelf price rather than the Clubcard price above it", () => {
+    assert.equal(
+      selectTileShelfPriceText([
+        "£2.75 Clubcard Price",
+        "(£6.88/kg)",
+        "£4.25",
+        "£10.62/kg",
+      ]),
+      "£4.25",
+    );
+  });
+
+  it("never reads a star rating as a price", () => {
+    assert.equal(selectTileShelfPriceText(["4.4 (105)", "4.4"]), null);
+  });
+
+  it("never reads a comparison price as a shelf price", () => {
+    assert.equal(selectTileShelfPriceText(["£10.62/kg"]), null);
+  });
+
+  it("refuses a bare Clubcard price offered with no shelf price beside it", () => {
+    assert.equal(
+      selectTileShelfPriceText(["£2.75 Clubcard Price", "Clubcard Price £2.75"]),
+      null,
+    );
+  });
+
+  it("returns null when a tile shows no price text at all", () => {
+    assert.equal(selectTileShelfPriceText([null, undefined, "Add", ""]), null);
+  });
+});
+
 describe("Tesco URLs and hosts", () => {
   it("declares exactly one navigable host", () => {
     assert.deepEqual([...TESCO_HOSTS], ["www.tesco.com"]);
@@ -197,19 +294,30 @@ describe("Tesco URLs and hosts", () => {
   it("canonicalises a product URL to its path", () => {
     assert.equal(
       canonicalTescoProductUrl(
-        "https://www.tesco.com/shop/en-GB/products/296057883?bcuid=1234#reviews",
+        "https://www.tesco.com/groceries/en-GB/products/296057883?bcuid=1234#reviews",
       ),
-      "https://www.tesco.com/shop/en-GB/products/296057883",
+      "https://www.tesco.com/groceries/en-GB/products/296057883",
+    );
+  });
+
+  it("canonicalises a legacy product URL onto the current route", () => {
+    // Both routes resolve today, but /shop/en-GB/ is the family Tesco is
+    // retiring — the one that already took the category pages with it.
+    // Storing the current route means a stored URL does not become the next
+    // instance of this bug.
+    assert.equal(
+      canonicalTescoProductUrl("https://www.tesco.com/shop/en-GB/products/296057883"),
+      "https://www.tesco.com/groceries/en-GB/products/296057883",
     );
   });
 
   it("resolves a relative product URL against the page it was found on", () => {
     assert.equal(
       canonicalTescoProductUrl(
-        "/shop/en-GB/products/301219119",
-        "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit",
+        "/groceries/en-GB/products/301219119",
+        "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all",
       ),
-      "https://www.tesco.com/shop/en-GB/products/301219119",
+      "https://www.tesco.com/groceries/en-GB/products/301219119",
     );
   });
 
@@ -218,9 +326,9 @@ describe("Tesco URLs and hosts", () => {
     // www.tesco.com.evil.example, and a subdomain match would accept any
     // Tesco host including ones this adapter has never been tested against.
     for (const url of [
-      "https://tesco-offers.example.com/shop/en-GB/products/400000001",
-      "https://www.tesco.com.evil.example/shop/en-GB/products/1",
-      "https://groceries.tesco.com/shop/en-GB/products/1",
+      "https://tesco-offers.example.com/groceries/en-GB/products/400000001",
+      "https://www.tesco.com.evil.example/groceries/en-GB/products/1",
+      "https://groceries.tesco.com/groceries/en-GB/products/1",
     ]) {
       assert.equal(canonicalTescoProductUrl(url), null, url);
     }
@@ -228,9 +336,9 @@ describe("Tesco URLs and hosts", () => {
 
   it("refuses credentials, a non-standard port and a non-HTTPS scheme", () => {
     for (const url of [
-      "https://user:pass@www.tesco.com/shop/en-GB/products/1",
-      "https://www.tesco.com:8443/shop/en-GB/products/1",
-      "http://www.tesco.com/shop/en-GB/products/1",
+      "https://user:pass@www.tesco.com/groceries/en-GB/products/1",
+      "https://www.tesco.com:8443/groceries/en-GB/products/1",
+      "http://www.tesco.com/groceries/en-GB/products/1",
       "javascript:alert(1)",
       "file:///etc/passwd",
     ]) {
@@ -240,24 +348,54 @@ describe("Tesco URLs and hosts", () => {
 
   it("refuses a path that is not a product page", () => {
     assert.equal(
-      canonicalTescoProductUrl("https://www.tesco.com/shop/en-GB/browse/fresh-food"),
+      canonicalTescoProductUrl(
+        "https://www.tesco.com/groceries/en-GB/shop/fresh-food/all",
+      ),
       null,
     );
     assert.equal(canonicalTescoProductUrl("https://www.tesco.com/account"), null);
   });
 
-  it("accepts only browse URLs beneath the curated path", () => {
+  it("accepts only listing URLs beneath the curated path", () => {
     assert.equal(
-      isAllowedTescoBrowseUrl(
-        "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit?page=2",
+      isAllowedTescoListingUrl(
+        "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all?page=2",
       ),
       true,
     );
     assert.equal(
-      isAllowedTescoBrowseUrl("https://www.tesco.com/shop/en-GB/products/1"),
+      isAllowedTescoListingUrl("https://www.tesco.com/groceries/en-GB/products/1"),
       false,
     );
-    assert.equal(isAllowedTescoBrowseUrl("https://evil.example.com/shop/en-GB/browse/x"), false);
+    assert.equal(
+      isAllowedTescoListingUrl(
+        "https://evil.example.com/groceries/en-GB/shop/fresh-food/all",
+      ),
+      false,
+    );
+  });
+
+  it("refuses the retired /shop/en-GB/browse/ category route", () => {
+    // The regression this file exists for. Tesco answers these with a
+    // "Not down this aisle" 404, and an allowlist that still accepts them
+    // lets a crawl navigate to a dead page and call the emptiness a result.
+    for (const url of [
+      "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-vegetables",
+      "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit?page=2",
+      "https://www.tesco.com/shop/en-GB/browse/frozen-food/frozen-vegetables",
+    ]) {
+      assert.equal(isAllowedTescoListingUrl(url), false, url);
+    }
+  });
+
+  it("accepts the current /groceries/en-GB/shop/ category route", () => {
+    for (const url of [
+      "https://www.tesco.com/groceries/en-GB/shop/fresh-food/all",
+      "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all",
+      "https://www.tesco.com/groceries/en-GB/shop/frozen-food/vegetables/all",
+    ]) {
+      assert.equal(isAllowedTescoListingUrl(url), true, url);
+    }
   });
 
   it("validates an image host separately from the navigation allowlist", () => {
@@ -270,7 +408,9 @@ describe("Tesco URLs and hosts", () => {
     assert.equal(isAllowedTescoImageUrl("https://www.tesco.com/images/301219119.jpeg"), true);
     assert.equal(isAllowedTescoImageUrl("https://cdn.example.com/a.jpg"), false);
     assert.equal(
-      canonicalTescoProductUrl("https://digitalcontent.api.tesco.com/shop/en-GB/products/1"),
+      canonicalTescoProductUrl(
+        "https://digitalcontent.api.tesco.com/groceries/en-GB/products/1",
+      ),
       null,
       "an image host must not become navigable",
     );
@@ -294,6 +434,17 @@ describe("Tesco pagination", () => {
     });
   });
 
+  it("reads the range wording a live listing uses today", () => {
+    // Captured 2026-08-22: "Showing 1 to 27 of 4,676 items". The dash form is
+    // gone, and reading nothing here silently disables the drift guard — the
+    // check that stops an unreadable page being recorded as an empty shop.
+    assert.deepEqual(parseDisplayedRange("Showing 1 to 27 of 4,676 items"), {
+      from: 1,
+      to: 27,
+      total: 4676,
+    });
+  });
+
   it("returns null when no range is displayed", () => {
     assert.equal(parseDisplayedRange(null), null);
     assert.equal(parseDisplayedRange("Fresh Fruit"), null);
@@ -301,44 +452,94 @@ describe("Tesco pagination", () => {
 
   it("builds a listing page URL preserving the category path", () => {
     assert.equal(
-      buildListingPageUrl("https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit", 3),
-      "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit?page=3",
+      buildListingPageUrl(
+        "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all",
+        3,
+      ),
+      "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all?page=3",
     );
   });
 
   it("preserves a supported page-size parameter when paging", () => {
     assert.equal(
       buildListingPageUrl(
-        "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit?count=48",
+        "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all?count=48",
         2,
       ),
-      "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit?count=48&page=2",
+      "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all?count=48&page=2",
     );
   });
 
-  it("refuses to page a URL that is not a browse URL", () => {
+  it("refuses to page a URL that is not a listing URL", () => {
     assert.equal(buildListingPageUrl("https://evil.example.com/browse", 2), null);
+  });
+
+  it("refuses to page a retired browse URL", () => {
+    // Paging a dead route just produces more dead routes.
+    assert.equal(
+      buildListingPageUrl(
+        "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit",
+        2,
+      ),
+      null,
+    );
   });
 
   it("resolves a next-page link against the listing it was found on", () => {
     assert.equal(
       resolveNextPageUrl(
-        "/shop/en-GB/browse/fresh-food/fresh-fruit?page=2",
-        "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit",
+        "/groceries/en-GB/shop/fresh-food/fresh-fruit/all?page=2",
+        "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all",
       ),
-      "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit?page=2",
+      "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all?page=2",
     );
   });
 
-  it("refuses a next-page link that leaves the browse path or the host", () => {
-    const base = "https://www.tesco.com/shop/en-GB/browse/fresh-food/fresh-fruit";
+  it("refuses a next-page link that leaves the listing path or the host", () => {
+    const base =
+      "https://www.tesco.com/groceries/en-GB/shop/fresh-food/fresh-fruit/all";
 
     assert.equal(resolveNextPageUrl("https://evil.example.com/?page=2", base), null);
     assert.equal(resolveNextPageUrl("/account?page=2", base), null);
+    assert.equal(
+      resolveNextPageUrl("/shop/en-GB/browse/fresh-food/fresh-fruit?page=2", base),
+      null,
+      "a link back onto the retired route is not a next page",
+    );
   });
 
   it("reports when the displayed range has reached the total", () => {
     assert.equal(parseDisplayedRange("Showing 73 - 96 of 96 items")?.to, 96);
+  });
+});
+
+describe("Tesco aisle-not-found page", () => {
+  it("recognises Tesco's category 404 by its wording", () => {
+    // Tesco answers a retired category route with a 200-shaped page reading
+    // "Not down this aisle". Without this rule the crawl reads it as a real
+    // department that happens to hold nothing.
+    assert.equal(isAisleNotFound("Not down this aisle"), true);
+    assert.equal(isAisleNotFound("  not   down   this   AISLE  "), true);
+    assert.equal(
+      isAisleNotFound(
+        "Not down this aisle. Sorry, we can't find the page you're looking for.",
+      ),
+      true,
+    );
+  });
+
+  it("does not mistake an ordinary listing for the 404", () => {
+    assert.equal(isAisleNotFound("Fresh Fruit"), false);
+    assert.equal(isAisleNotFound("Showing 1 - 24 of 96 items"), false);
+    assert.equal(isAisleNotFound(null), false);
+    assert.equal(isAisleNotFound(""), false);
+  });
+
+  it("does not fire on an aisle whose name merely contains the words", () => {
+    // "Down the aisle" wedding cakes are a real Tesco shelf. Only the exact
+    // phrase counts, so a legitimate department is never read as a 404.
+    assert.equal(isAisleNotFound("Down this aisle"), false);
+    assert.equal(isAisleNotFound("Down the aisle wedding cakes"), false);
   });
 });
 
@@ -394,6 +595,24 @@ describe("Tesco selector drift", () => {
       detectSelectorDrift({ advertisedTotal: null, tilesSeen: 0, validProducts: 0 }),
       null,
     );
+  });
+});
+
+describe("Tesco drift detection and the live result count together", () => {
+  it("treats the current wording as a claim an empty extraction contradicts", () => {
+    // The two halves of the same guard. While "1 to 27 of 4,676" parsed as
+    // nothing, a listing that yielded no products advertised no total either,
+    // so drift could not fire and a broken page completed as an empty
+    // department — which is what later retires a working catalogue.
+    const advertised = parseDisplayedRange("Showing 1 to 27 of 4,676 items");
+
+    const drift = detectSelectorDrift({
+      advertisedTotal: advertised?.total ?? null,
+      tilesSeen: 0,
+      validProducts: 0,
+    });
+
+    assert.equal(drift?.code, "TESCO_SELECTOR_DRIFT");
   });
 });
 

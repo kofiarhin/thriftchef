@@ -4,18 +4,30 @@
 
   Constructed 2026-08-22 from the discovery evidence recorded in
   spec/thriftchef-tesco-store-integration-spec.md §10.1: numeric
-  `li[data-testid="<id>"]` tiles, `data-auto-available`, product URLs shaped
-  `/shop/en-GB/products/<numeric-id>`, standard and Clubcard prices, and a
-  visible item range.
+  `li[data-testid="<id>"]` tiles, `data-auto-available`, product URLs carrying
+  a numeric id, standard and Clubcard prices, and a visible item range.
+
+  Routes updated 2026-08-22: the category route this stands for moved from
+  `/shop/en-GB/browse/...` (which now answers "Not down this aisle") to
+  `/groceries/en-GB/shop/...`. Product tiles carry the current
+  `/groceries/en-GB/products/<id>` route; one tile deliberately keeps the
+  legacy `/shop/en-GB/products/<id>` form, which still resolves, so the
+  adapter is proven to read both.
 
   NOT a sanitized capture of a live page. No live Tesco session was
-  established, so no real HTML was available to sanitize. Every selector this
-  exercises must be re-confirmed against a real captured page during the first
-  no-write diagnostic before any persistent crawl. Contains no session tokens,
-  cookies, analytics ids, postcodes or personal data because it was authored
-  rather than captured.
+  established when this was written, so no real HTML was available to
+  sanitize. Contains no session tokens, cookies, analytics ids, postcodes or
+  personal data because it was authored rather than captured.
 
-  Route it stands for: /shop/en-GB/browse/fresh-food/fresh-fruit
+  SUPERSEDED AS EVIDENCE, 2026-08-22. A no-write diagnostic finally opened the
+  live site, and the markup here is wrong where it matters: Tesco publishes no
+  `product-tile--*` testids at all. `listing-captured.html` is the sanitized
+  capture, and it is what the current selectors are proven against. This file
+  is kept deliberately — Tesco still serves testid-shaped markup on some
+  surfaces, and the adapter must keep reading it — but a disagreement between
+  the two is settled by the capture.
+
+  Route it stands for: /groceries/en-GB/shop/fresh-food/fresh-fruit/all
   Scope type it stands for: online fulfilment catalogue
 -->
 <html lang="en-GB">
@@ -39,7 +51,7 @@
       <ul>
         <!-- Standard shelf price plus a Clubcard price. The shelf price wins. -->
         <li data-testid="301219119" data-auto-available="true">
-          <a data-testid="product-tile--title" href="/shop/en-GB/products/301219119">
+          <a data-testid="product-tile--title" href="/groceries/en-GB/products/301219119">
             <h3>Tesco Bananas Loose</h3>
           </a>
           <img src="https://digitalcontent.api.tesco.com/images/301219119.jpeg" alt="Tesco Bananas Loose" />
@@ -49,7 +61,12 @@
           <span data-testid="product-tile--promotion">Clubcard Price £0.12 Each Clubcard Price</span>
         </li>
 
-        <!-- Whole-pound price, no optional fields at all: they must stay null. -->
+        <!--
+          Whole-pound price, no optional fields at all: they must stay null.
+          Also the legacy /shop/en-GB/products/ route, which Tesco still
+          resolves — it must canonicalise onto the current route rather than
+          be rejected.
+        -->
         <li data-testid="296057883" data-auto-available="true">
           <a data-testid="product-tile--title" href="https://www.tesco.com/shop/en-GB/products/296057883?bcuid=1234#reviews">
             <h3>Tesco British Semi Skimmed Milk 2.27L</h3>
@@ -59,7 +76,7 @@
 
         <!-- Off the shelf. Availability must survive to persistence as false. -->
         <li data-testid="254656107" data-auto-available="false">
-          <a data-testid="product-tile--title" href="/shop/en-GB/products/254656107">
+          <a data-testid="product-tile--title" href="/groceries/en-GB/products/254656107">
             <h3>Tesco Broccoli 335G</h3>
           </a>
           <p data-testid="product-tile--price">£0.75</p>
@@ -68,7 +85,7 @@
 
         <!-- Clubcard price only. Rejected: never understate the user's cost. -->
         <li data-testid="310442071" data-auto-available="true">
-          <a data-testid="product-tile--title" href="/shop/en-GB/products/310442071">
+          <a data-testid="product-tile--title" href="/groceries/en-GB/products/310442071">
             <h3>Tesco Finest Coffee 200G</h3>
           </a>
           <span data-testid="product-tile--promotion">Clubcard Price £3.50 Clubcard Price</span>
@@ -76,7 +93,7 @@
 
         <!-- Tile id and URL id disagree: an identity error, never repaired. -->
         <li data-testid="999999999" data-auto-available="true">
-          <a data-testid="product-tile--title" href="/shop/en-GB/products/301219120">
+          <a data-testid="product-tile--title" href="/groceries/en-GB/products/301219120">
             <h3>Tesco Mystery Item</h3>
           </a>
           <p data-testid="product-tile--price">£2.00</p>
@@ -84,7 +101,7 @@
 
         <!-- Off-host link: rejected before it can be enqueued. -->
         <li data-testid="400000001" data-auto-available="true">
-          <a data-testid="product-tile--title" href="https://tesco-offers.example.com/shop/en-GB/products/400000001">
+          <a data-testid="product-tile--title" href="https://tesco-offers.example.com/groceries/en-GB/products/400000001">
             <h3>Sponsored Elsewhere</h3>
           </a>
           <p data-testid="product-tile--price">£1.20</p>
@@ -92,7 +109,7 @@
       </ul>
 
       <nav aria-label="Pagination">
-        <a data-testid="pagination-next" href="/shop/en-GB/browse/fresh-food/fresh-fruit?page=2">Next</a>
+        <a data-testid="pagination-next" href="/groceries/en-GB/shop/fresh-food/fresh-fruit/all?page=2">Next</a>
       </nav>
     </main>
   </body>
