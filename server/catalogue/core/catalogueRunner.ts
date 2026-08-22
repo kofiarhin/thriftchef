@@ -145,6 +145,19 @@ interface DetailRequestData {
 }
 
 /**
+ * A detail request belongs to one crawl, even when Crawlee keeps its handled
+ * request queue on disk between processes. Without the run id, a product read
+ * yesterday is silently skipped by today's diagnostic or refresh.
+ */
+export function detailRequestKey(
+  adapterKey: string,
+  retailerProductId: string,
+  crawlRunId: string,
+): string {
+  return `${adapterKey}-product:${retailerProductId}:${crawlRunId}`;
+}
+
+/**
  * Runs one catalogue collection, start to finish.
  *
  * The shape of this function is dictated by one fact: a full crawl runs for
@@ -364,7 +377,11 @@ export async function runCatalogueCrawl(
         await crawler.addRequests(
           result.products.map((product) => ({
             url: product.productUrl,
-            uniqueKey: `${adapter.adapterKey}-product:${product.retailerProductId}`,
+            uniqueKey: detailRequestKey(
+              adapter.adapterKey,
+              product.retailerProductId,
+              crawlRunId,
+            ),
             userData: {
               label: "DETAIL",
               retailerProductId: product.retailerProductId,

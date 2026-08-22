@@ -33,7 +33,11 @@ import {
 } from "../../testing/mongoTestServer";
 import { toScope } from "../retailerRegistry";
 import { bootstrapRetailers } from "./catalogueMigrations";
-import { assessWritePrecondition, runCatalogueCrawl } from "./catalogueRunner";
+import {
+  assessWritePrecondition,
+  detailRequestKey,
+  runCatalogueCrawl,
+} from "./catalogueRunner";
 import type { ResolvedCatalogueScope } from "./retailerTypes";
 import type {
   ListingPageResult,
@@ -90,6 +94,16 @@ describe("write precondition", () => {
       assert.equal(verdict.mayWrite, false);
       assert.equal(verdict.refusal, "NOT_PERSISTING");
     }
+  });
+});
+
+describe("detail request identity", () => {
+  it("is unique to each crawl so persisted Crawlee state cannot skip a refresh", () => {
+    const first = detailRequestKey("tesco", "123456789", "run-one");
+    const second = detailRequestKey("tesco", "123456789", "run-two");
+
+    assert.notEqual(first, second);
+    assert.equal(first, "tesco-product:123456789:run-one");
   });
 });
 
