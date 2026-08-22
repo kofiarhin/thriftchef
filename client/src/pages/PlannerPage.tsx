@@ -1,28 +1,42 @@
 import type { ReactElement } from "react";
 import { App } from "../App";
-import { useHouseholdProfile } from "../features/profile/useHouseholdProfile";
-import { usePlan } from "../features/weeklyPlan/usePlan";
+import type { Retailer } from "../api/retailers";
 import type { Allergen, Appliance, MealPreference, PantryBasic } from "../api/types";
+import { useHouseholdProfile } from "../features/profile/useHouseholdProfile";
+import { RetailerPicker } from "../features/retailers/RetailerPicker";
+import { usePlan } from "../features/weeklyPlan/usePlan";
 
 /**
- * The planner, seeded from the saved household profile.
- *
- * The profile supplies defaults; it is not re-written by what happens here. A
- * user tightening this week's budget has not changed what they usually spend,
- * and quietly editing their saved settings would make the profile untrustworthy.
+ * Household settings seed the planner, while the supermarket remains visible
+ * and changeable for every new plan.
  */
 export function PlannerPage(): ReactElement {
-  const { profile } = useHouseholdProfile();
+  const { profile, update } = useHouseholdProfile();
   const { setPlan } = usePlan();
+
+  function chooseRetailer(retailer: Retailer): void {
+    update({
+      defaultRetailerId: retailer.id,
+      // Each MVP retailer has one configured catalogue. The server resolves it
+      // after validating retailer ownership and active status.
+      defaultStoreId: null,
+    });
+  }
 
   return (
     <App
-      // Publishes each plan to the router's context, so the week, recipe and
-      // shopping routes show the week the user just generated.
+      key={profile.defaultRetailerId ?? "no-retailer"}
       onPlanChange={setPlan}
+      retailerSelector={
+        <RetailerPicker
+          retailerId={profile.defaultRetailerId}
+          onRetailerChange={chooseRetailer}
+        />
+      }
       defaults={{
         retailerId: profile.defaultRetailerId,
-        storeId: profile.defaultStoreId,
+        // Store selection is deliberately absent from the MVP.
+        storeId: null,
         householdSize: String(profile.householdSize),
         cookingDays: profile.defaultCookingDays,
         maxTotalMinutes: profile.maxTotalMinutes,
