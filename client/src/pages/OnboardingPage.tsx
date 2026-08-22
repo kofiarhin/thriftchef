@@ -78,16 +78,13 @@ export function OnboardingPage(): ReactElement {
         {current === "Supermarket" ? (
           <RetailerPicker
             retailerId={profile.defaultRetailerId}
-            storeId={profile.defaultStoreId}
             onRetailerChange={(retailer) =>
               update({
                 defaultRetailerId: retailer.id,
-                // Changing supermarket invalidates the store: a branch of one
-                // shop is not a branch of another.
+                // The backend resolves the retailer's configured MVP catalogue.
                 defaultStoreId: null,
               })
             }
-            onStoreChange={(store) => update({ defaultStoreId: store.id })}
           />
         ) : null}
 
