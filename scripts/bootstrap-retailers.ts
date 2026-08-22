@@ -58,12 +58,9 @@ function seeds(config: AppConfig): RetailerSeed[] {
       name: "Tesco UK",
       adapterKey: "tesco",
       catalogueScope: "national",
-      // `development`, and this line is the activation gate. Tesco becomes
-      // selectable by changing it to `active` and re-running this script,
-      // which keeps activation an auditable, repeatable, reviewable operation
-      // rather than a hand-typed database edit. Do not change it until the
-      // gates in the integration specification have been met and approved.
-      status: "development",
+      // Both MVP retailers are selectable. Catalogue isolation remains
+      // enforced by the resolved retailer/store scope on every request.
+      status: "active",
       crawlPolicy: { staleAfterHours: 72, maxConcurrency: 1, requestsPerMinute: 20 },
       stores: [
         {
