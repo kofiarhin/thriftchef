@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiRequestError } from "./api/http";
 import {
@@ -78,9 +78,11 @@ export interface AppProps {
    * no plan to show, because this component holds it in local state.
    */
   onPlanChange?: (plan: MealPlanResponse, request: MealPlanRequest) => void;
+  /** Optional retailer choice rendered before the planning constraints. */
+  retailerSelector?: ReactNode;
 }
 
-export function App({ defaults, onPlanChange }: AppProps = {}) {
+export function App({ defaults, onPlanChange, retailerSelector }: AppProps = {}) {
   const [formState, setFormState] = useState<ConstraintFormState>(() => ({
     ...INITIAL_FORM_STATE,
     ...defaults,
@@ -221,7 +223,8 @@ export function App({ defaults, onPlanChange }: AppProps = {}) {
                 </p>
               </div>
 
-              <div className="mt-7">
+              <div className="mt-7 space-y-7">
+                {retailerSelector}
                 <ConstraintForm
                   state={formState}
                   onStateChange={setFormState}
