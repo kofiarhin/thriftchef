@@ -25,15 +25,12 @@ import { Retailer } from "../server/models/Retailer";
 /**
  * The Tesco scope this bootstrap seeds.
  *
- * An online fulfilment catalogue, not a named branch. Tesco exposes a
- * delivery catalogue for a postcode, and labelling that as a physical store
- * would tell a user their prices came from a shop nobody selected. The name
- * must keep describing what was actually verified — if a physical branch is
- * later chosen and confirmed in a real session, change the scope, the name and
- * the id together.
+ * The anonymous public Tesco catalogue, not a named branch or postcode.
+ * Products and standard shelf prices are collected from public pages, so the
+ * seed must not claim they came from a fulfilment location nobody selected.
  */
 const TESCO_DEFAULT_STORE_ID = "tesco-online-gb";
-const TESCO_DEFAULT_STORE_NAME = "Tesco Online (delivery)";
+const TESCO_DEFAULT_STORE_NAME = "Tesco Public Catalogue";
 
 function seeds(config: AppConfig): RetailerSeed[] {
   const { storeId, expectedStoreText } = config.aldi;
@@ -60,7 +57,7 @@ function seeds(config: AppConfig): RetailerSeed[] {
       slug: "tesco-uk",
       name: "Tesco UK",
       adapterKey: "tesco",
-      catalogueScope: "store",
+      catalogueScope: "national",
       // `development`, and this line is the activation gate. Tesco becomes
       // selectable by changing it to `active` and re-running this script,
       // which keeps activation an auditable, repeatable, reviewable operation
@@ -72,9 +69,9 @@ function seeds(config: AppConfig): RetailerSeed[] {
         {
           externalStoreId: config.tesco.storeId ?? TESCO_DEFAULT_STORE_ID,
           name: TESCO_DEFAULT_STORE_NAME,
-          // Null unless a postcode was configured: a fabricated location is a
-          // claim about which prices these are, and nobody has verified one.
-          postcode: config.tesco.postcode,
+          // Public catalogue data is deliberately not attributed to a
+          // postcode or a signed-in fulfilment session.
+          postcode: null,
           scope: "online",
         },
       ],

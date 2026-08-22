@@ -145,27 +145,31 @@ operation, not a deployment step.
 # writes at all. This is the only Tesco command that is safe to run casually.
 npm run tesco:diagnostic
 
-# A persistent crawl. Requires an explicit scope and a non-production database.
-npm run tesco:crawl -- --store tesco-online-gb
+# A bounded persistent crawl of public pages. Visits every curated category,
+# reads at most 20 products from each, and upserts them under Tesco.
+npm run tesco:public-crawl
 ```
 
-**Before the first persistent crawl**, three things must be true, and the code
-enforces the first two:
+Before the first public crawl:
 
-1. **The scope is verified.** A store-scoped run that cannot prove which Tesco
-   catalogue it is reading writes nothing — not a partial batch, not a
-   rolled-back one. The run fails with `STORE_SCOPE_UNVERIFIED` and the
-   previous catalogue is left exactly as it was.
-2. **The scope is named.** There is no default store. A crawl that guessed
-   would write one catalogue's prices under another catalogue's name.
-3. **The database is not production.** The crawl prints a redacted target
-   before connecting. Read it.
+1. Run `npm run catalogue:bootstrap`. This records Tesco as a national public
+   catalogue while keeping it in `development` status.
+2. Confirm `MONGODB_URI` points to the intended non-production database. The
+   command prints the redacted target before connecting.
+3. Keep `TESCO_MAX_PRODUCTS_PER_CATEGORY=20` while validating the integration.
+
+The public crawl does not sign in, set a postcode, claim store-specific
+availability, reconcile missing products, clear collections, or touch Aldi
+records. Numeric Tesco product ids make repeated runs idempotent upserts.
+
+The older `tesco:crawl` command remains store-scoped and fail-closed. It cannot
+write without a verified fulfilment session.
 
 Configuration lives in `.env` (see `.env.example`): `TESCO_STORE_ID`,
 `TESCO_POSTCODE`, `TESCO_EXPECTED_LOCATION_TEXT`, `TESCO_FULFILMENT_MODE`,
 `TESCO_HEADLESS`, `TESCO_MAX_PRODUCTS_PER_CATEGORY`. The run script prefers the
-seeded store record and treats the environment as an override; a full postcode
-is never logged, only its outward area.
+seeded catalogue record and treats the environment as an override. The public
+crawl does not use the configured postcode.
 
 ### What Tesco extraction guarantees
 

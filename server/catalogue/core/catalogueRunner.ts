@@ -63,6 +63,8 @@ export interface CrawlOptions {
    * proved a store scope. Persistent crawls may never disable verification.
    */
   verifyStoreSelection?: boolean;
+  /** Fail the run when a catalogue expected to contain products yields none. */
+  requireProducts?: boolean;
 }
 
 export interface CrawlSummary {
@@ -172,8 +174,14 @@ export async function runCatalogueCrawl(
   const { scope, adapter } = options;
   const persist = options.persist ?? true;
 
-  if (persist && options.verifyStoreSelection === false) {
-    throw new Error("A persistent crawl cannot skip store verification.");
+  if (
+    persist &&
+    scope.catalogueScope === "store" &&
+    options.verifyStoreSelection === false
+  ) {
+    throw new Error(
+      "A persistent store-scoped crawl cannot skip store verification.",
+    );
   }
 
   // A capped run is bounded whatever the caller says. Letting it call itself
@@ -528,6 +536,15 @@ export async function runCatalogueCrawl(
       "PUBLIC_CATALOGUE_EMPTY",
       "",
       "The public diagnostic completed without extracting any products.",
+    );
+  }
+
+  if (persist && options.requireProducts && scrapedById.size === 0) {
+    crawlFailed = true;
+    note(
+      "CATALOGUE_EMPTY",
+      "",
+      "The crawl completed without extracting any products.",
     );
   }
 

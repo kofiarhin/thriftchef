@@ -28,6 +28,7 @@
     "catalogue:undo-reconciliation": "tsx scripts/undo-reconciliation.ts",
     "aldi:diagnostic": "tsx server/catalogue/adapters/aldi/runAldiCrawl.ts --diagnostic",
     "tesco:crawl": "tsx server/catalogue/adapters/tesco/runTescoCrawl.ts",
+    "tesco:public-crawl": "tsx server/catalogue/adapters/tesco/runTescoCrawl.ts --public --store tesco-online-gb --limit 20",
     "tesco:diagnostic": "tsx server/catalogue/adapters/tesco/runTescoCrawl.ts --diagnostic --store tesco-online-gb",
     "catalogue:verify": "tsx scripts/verify-migrations.ts",
     "verify:browser": "tsx scripts/verify-browser.ts"

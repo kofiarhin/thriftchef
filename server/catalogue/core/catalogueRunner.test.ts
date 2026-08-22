@@ -420,8 +420,57 @@ describe("runCatalogueCrawl: store verification gates every write", () => {
           mode: "full",
           verifyStoreSelection: false,
         }),
-      /persistent crawl cannot skip store verification/i,
+      /persistent store-scoped crawl cannot skip store verification/i,
     );
+  });
+
+  it("writes a bounded national catalogue without store verification", async () => {
+    let verificationCalls = 0;
+    const summary = await runCatalogueCrawl({
+      scope: { ...scope, catalogueScope: "national" },
+      adapter: fakeAdapter({
+        baseUrl,
+        verified: false,
+        onVerify: () => {
+          verificationCalls += 1;
+        },
+      }),
+      expectedStoreText: "Public national catalogue",
+      headless: true,
+      mode: "bounded",
+      maxProductsPerCategory: 20,
+      persist: true,
+      reconcile: false,
+      verifyStoreSelection: false,
+    });
+
+    assert.equal(verificationCalls, 0);
+    assert.equal(summary.storeSelectionVerified, false);
+    assert.equal(summary.mode, "bounded");
+    assert.equal(summary.inserted, 1);
+    assert.equal(summary.reconciled, false);
+    assert.ok(summary.reconciliationRefusals.includes("NOT_A_FULL_CRAWL"));
+    assert.equal(await Product.countDocuments({ retailer: "fake-uk" }), 1);
+  });
+
+  it("fails an empty national public crawl without writing", async () => {
+    const summary = await runCatalogueCrawl({
+      scope: { ...scope, catalogueScope: "national" },
+      adapter: fakeAdapter({ baseUrl, verified: false, empty: true }),
+      expectedStoreText: "Public national catalogue",
+      headless: true,
+      mode: "bounded",
+      maxProductsPerCategory: 20,
+      persist: true,
+      reconcile: false,
+      verifyStoreSelection: false,
+      requireProducts: true,
+    });
+
+    assert.equal(summary.status, "failed");
+    assert.equal(summary.inserted, 0);
+    assert.ok(summary.issues.some((issue) => issue.type === "CATALOGUE_EMPTY"));
+    assert.equal(await Product.countDocuments({ retailer: "fake-uk" }), 0);
   });
 
   it("never reconciles a bounded crawl", async () => {

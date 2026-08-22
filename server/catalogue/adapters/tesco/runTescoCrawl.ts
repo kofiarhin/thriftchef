@@ -2,6 +2,7 @@
  * Runs a Tesco catalogue collection through the shared runner.
  *
  *   npm run tesco:diagnostic            # one category, five products, no writes
+ *   npm run tesco:public-crawl           # public categories, 20 each, writes
  *   npm run tesco:crawl -- --store <id> # full crawl, may reconcile
  *
  * Two rules this script exists to enforce, both of which a crawl would
@@ -31,21 +32,40 @@ import type { TescoAdapter } from "./tescoAdapter";
 
 /** The bounded shape a first look at a retailer is allowed to take. */
 const DIAGNOSTIC_PRODUCTS = 5;
+const PUBLIC_CRAWL_PRODUCTS_PER_CATEGORY = 20;
 
 const TESCO_RETAILER_SLUG = "tesco-uk";
 
 interface Options {
   diagnostic: boolean;
+  publicCatalogue: boolean;
   store: string | null;
+  limit: number | null;
 }
 
 function parseOptions(argv: string[], config: AppConfig): Options {
   const flagIndex = argv.indexOf("--store");
   const fromFlag = flagIndex >= 0 ? argv[flagIndex + 1] : undefined;
+  const limitIndex = argv.indexOf("--limit");
+  const limitText = limitIndex >= 0 ? argv[limitIndex + 1] : undefined;
+  const limit = limitText ? Number(limitText) : null;
+
+  if (limit !== null && (!Number.isInteger(limit) || limit < 1 || limit > 100)) {
+    throw new Error("--limit must be an integer between 1 and 100.");
+  }
+
+  const diagnostic = argv.includes("--diagnostic");
+  const publicCatalogue = argv.includes("--public");
+
+  if (diagnostic && publicCatalogue) {
+    throw new Error("Choose either --diagnostic or --public, not both.");
+  }
 
   return {
-    diagnostic: argv.includes("--diagnostic"),
+    diagnostic,
+    publicCatalogue,
     store: fromFlag ?? config.tesco.storeId,
+    limit,
   };
 }
 
@@ -155,11 +175,16 @@ async function main(): Promise<void> {
           { requireSelectable: false },
         );
 
-    const session = options.diagnostic
+    if (options.publicCatalogue && scope.catalogueScope !== "national") {
+      throw new Error(
+        "Tesco public persistence requires catalogueScope=national. Run npm run catalogue:bootstrap first.",
+      );
+    }
+
+    const session = options.diagnostic || options.publicCatalogue
       ? {
-          postcode: config.tesco.postcode,
-          expectedLocationText:
-            config.tesco.expectedLocationText ?? scope.storeName,
+          postcode: null,
+          expectedLocationText: "Tesco public catalogue",
         }
       : await sessionOptionsFor(config, scope);
 
@@ -171,7 +196,7 @@ async function main(): Promise<void> {
     // neither tries to establish a postcode session nor claims that it proved
     // a store. Persistent crawls keep the full session configuration and the
     // runner's fail-closed store gate.
-    const adapterOptions = options.diagnostic
+    const adapterOptions = options.diagnostic || options.publicCatalogue
       ? {}
       : {
           postcode: session.postcode,
@@ -179,12 +204,21 @@ async function main(): Promise<void> {
           expectedLocationText: session.expectedLocationText,
         };
 
-    const adapter = options.diagnostic
-      ? boundedTescoAdapter(DIAGNOSTIC_PRODUCTS, adapterOptions)
+    const productLimit = options.diagnostic
+      ? DIAGNOSTIC_PRODUCTS
+      : options.publicCatalogue
+        ? (options.limit ?? PUBLIC_CRAWL_PRODUCTS_PER_CATEGORY)
+        : config.tesco.maxProductsPerCategory;
+
+    const adapter = options.diagnostic || options.publicCatalogue
+      ? boundedTescoAdapter(
+          productLimit ?? PUBLIC_CRAWL_PRODUCTS_PER_CATEGORY,
+          adapterOptions,
+        )
       : configuredTescoAdapter({
           ...adapterOptions,
-          ...(config.tesco.maxProductsPerCategory
-            ? { maxProductsPerCategory: config.tesco.maxProductsPerCategory }
+          ...(productLimit
+            ? { maxProductsPerCategory: productLimit }
             : {}),
         });
 
@@ -200,28 +234,41 @@ async function main(): Promise<void> {
       // Visible by default while the fulfilment-location step is still being
       // confirmed by a person.
       headless: config.tesco.headless,
-      mode: options.diagnostic ? "diagnostic" : "full",
-      maxProductsPerCategory: options.diagnostic
-        ? DIAGNOSTIC_PRODUCTS
-        : (config.tesco.maxProductsPerCategory ?? undefined),
+      mode: options.diagnostic
+        ? "diagnostic"
+        : options.publicCatalogue
+          ? "bounded"
+          : "full",
+      maxProductsPerCategory: productLimit ?? undefined,
       categories,
       // A diagnostic writes nothing and retires nothing. It exists to prove
       // the selectors still match, and that needs no database at all.
       persist: !options.diagnostic,
-      reconcile: !options.diagnostic,
-      verifyStoreSelection: !options.diagnostic,
+      reconcile: !options.diagnostic && !options.publicCatalogue,
+      verifyStoreSelection: !options.diagnostic && !options.publicCatalogue,
+      requireProducts: options.diagnostic || options.publicCatalogue,
     });
 
     console.log("\nCatalogue crawl complete");
     console.log(JSON.stringify(summary, null, 2));
     printDiagnosticSummary(adapter);
 
-    if (!summary.storeSelectionVerified) {
+    if (
+      !summary.storeSelectionVerified &&
+      !options.diagnostic &&
+      !options.publicCatalogue
+    ) {
       console.log(
         "\nTESCO_SCOPE_UNVERIFIED: the session could not prove which Tesco scope it was reading.",
       );
       console.log(
         "Nothing was written. Re-run with a visible browser and confirm the fulfilment location.",
+      );
+    }
+
+    if (options.publicCatalogue) {
+      console.log(
+        `\nSaved ${summary.inserted + summary.updated} Tesco public-catalogue products without postcode attribution.`,
       );
     }
 
