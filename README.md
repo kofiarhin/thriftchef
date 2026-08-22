@@ -1,8 +1,29 @@
 # ThriftChef
 
-Weekly budget meal planning for Aldi UK shoppers. Enter a budget, household
-size and dietary constraints; get a seven-day plan, recipes, and one
-consolidated Aldi shopping list priced from real catalogue data.
+A free, anonymous, retailer-aware weekly cooking assistant for UK households.
+Select a supported supermarket and store, choose the days you intend to cook,
+and get a practical plan, coherent recipes, and one consolidated whole-package
+shopping list priced from that store's catalogue.
+
+[Try ThriftChef](https://thriftchef.vercel.app)
+
+Aldi UK is currently the only active retailer. The catalogue and planning
+foundation supports additional retailers, but each one remains unavailable
+until its adapter and real catalogue have been independently verified.
+
+## Current product experience
+
+- Select an active retailer and store.
+- Set household size, budget, cooking days, meal types, time limits, preferences,
+  allergies, dislikes, appliances, owned ingredients, and an optional weekly mood.
+- Generate meals only for the selected days.
+- Regenerate the whole plan or replace one meal while preserving the rest.
+- Open recipe details and use one consolidated shopping checklist.
+- Reopen an anonymously saved plan on the same device during its retention window.
+
+Core planning is free and has no user-facing generation quota. No account is
+required. Household preferences and shopping checklist state are stored locally;
+generated plans are stored anonymously with time-limited retention.
 
 ## How it works
 
@@ -123,27 +144,27 @@ npm run dev:client   # web app only
 Open http://localhost:5173. The Vite dev server proxies `/api` to the backend,
 so no CORS configuration is needed locally.
 
-## What has and has not been run
+## Current delivery status
 
-Everything below has been exercised locally against throwaway databases:
+The retailer-aware MVP is implemented and deployed:
 
-| | |
-| --- | --- |
-| Unit and integration suites | run, passing |
-| Migration sequence | rehearsed end to end (`npm run catalogue:verify`) |
-| Application in a browser | driven at mobile and desktop (`npm run verify:browser`) |
-| Adapter extraction | driven against saved HTML in real Chromium |
+- The client is live at https://thriftchef.vercel.app.
+- The Express API is deployed to Heroku.
+- Aldi UK is the only active retailer; other retailer records remain disabled.
+- Planning, regeneration, single-meal replacement, anonymous plan reopening,
+  recipe routes, and shopping-list persistence are available.
+- Production uses the deterministic planner and real stored Aldi catalogue data.
+- The deployed application has been verified at mobile and desktop sizes.
+- `CATALOGUE_READ_SOURCE=legacy` remains the production read path because the
+  store-scoped offer collection still needs a real-data backfill and equivalence
+  comparison before activation.
+- Catalogue crawls must be run separately from a trusted machine and are never
+  part of deployment.
 
-**Not performed, and deliberately so:**
-
-- **No production crawl.** `npm run aldi:crawl` has not been run against a live
-  site by the work that built this.
-- **No production database was touched.** Every verification creates its own
-  in-memory MongoDB on an ephemeral port and discards it; none of them read
-  `MONGODB_URI`.
-- **`CATALOGUE_READ_SOURCE` has not been switched to `offers` anywhere.** The
-  comparison step must pass against real data first.
-- **No retailer has been activated beyond Aldi**, and no deployment was made.
+For the authoritative product direction, see
+[`docs/ThriftChef-PRD-v0.1 (1).md`](docs/ThriftChef-PRD-v0.1%20(1).md). For
+the multi-retailer contract and rollout gates, see
+[`spec/thriftchef-multi-retailer-product-spec.md`](spec/thriftchef-multi-retailer-product-spec.md).
 
 ## Verify
 
