@@ -57,6 +57,12 @@ export interface CrawlOptions {
   /** Off for a diagnostic: nothing is written and nothing is retired. */
   persist?: boolean;
   reconcile?: boolean;
+  /**
+   * Off only for a no-write public-catalogue diagnostic. This lets an adapter
+   * inspect public product pages without pretending that an anonymous session
+   * proved a store scope. Persistent crawls may never disable verification.
+   */
+  verifyStoreSelection?: boolean;
 }
 
 export interface CrawlSummary {
@@ -68,6 +74,8 @@ export interface CrawlSummary {
   mode: CrawlMode;
   status: "completed" | "completed_with_warnings" | "failed";
   storeSelectionVerified: boolean;
+  /** True only when a no-write run actually returned public product data. */
+  publicCatalogueExtracted: boolean;
   categoriesRequested: number;
   categoriesCompleted: number;
   productLinksDiscovered: number;
@@ -150,6 +158,10 @@ export async function runCatalogueCrawl(
 ): Promise<CrawlSummary> {
   const { scope, adapter } = options;
   const persist = options.persist ?? true;
+
+  if (persist && options.verifyStoreSelection === false) {
+    throw new Error("A persistent crawl cannot skip store verification.");
+  }
 
   // A capped run is bounded whatever the caller says. Letting it call itself
   // `full` would let it retire products it never had a chance to see.
@@ -287,9 +299,11 @@ export async function runCatalogueCrawl(
         // the first listing. Staging products and hoping to write them later
         // makes the failure a rollback problem; refusing up front makes it a
         // run that did nothing.
-        storeSelectionVerified = await adapter
-          .verifyStoreSelection(context)
-          .catch(() => false);
+        if (options.verifyStoreSelection !== false) {
+          storeSelectionVerified = await adapter
+            .verifyStoreSelection(context)
+            .catch(() => false);
+        }
 
         const precondition = assessWritePrecondition({
           persist,
@@ -486,6 +500,20 @@ export async function runCatalogueCrawl(
 
   const categoriesCompleted = coverage.completedCategoryCount();
 
+  const publicCatalogueExtracted = !persist && scrapedById.size > 0;
+
+  // A diagnostic exists to prove that public catalogue data can actually be
+  // returned. An empty shell, delayed challenge page or selector miss must not
+  // report success merely because it produced no explicit browser error.
+  if (!persist && !publicCatalogueExtracted) {
+    crawlFailed = true;
+    note(
+      "PUBLIC_CATALOGUE_EMPTY",
+      "",
+      "The public diagnostic completed without extracting any products.",
+    );
+  }
+
   // A run that refused to write is a failed run, not a quiet one. Recording it
   // as completed would leave an operator reading zero products as an empty
   // shop rather than an unverified session.
@@ -552,6 +580,7 @@ export async function runCatalogueCrawl(
     mode,
     status,
     storeSelectionVerified,
+    publicCatalogueExtracted,
     categoriesRequested,
     categoriesCompleted,
     productLinksDiscovered: listingById.size,

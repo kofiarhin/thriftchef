@@ -167,11 +167,17 @@ async function main(): Promise<void> {
       `Tesco scope: store=${scope.storeSlug}, mode=${config.tesco.fulfilmentMode}, area=${redactPostcode(session.postcode)}.`,
     );
 
-    const adapterOptions = {
-      postcode: session.postcode,
-      fulfilmentMode: config.tesco.fulfilmentMode,
-      expectedLocationText: session.expectedLocationText,
-    };
+    // A public diagnostic reads only what the anonymous page publishes. It
+    // neither tries to establish a postcode session nor claims that it proved
+    // a store. Persistent crawls keep the full session configuration and the
+    // runner's fail-closed store gate.
+    const adapterOptions = options.diagnostic
+      ? {}
+      : {
+          postcode: session.postcode,
+          fulfilmentMode: config.tesco.fulfilmentMode,
+          expectedLocationText: session.expectedLocationText,
+        };
 
     const adapter = options.diagnostic
       ? boundedTescoAdapter(DIAGNOSTIC_PRODUCTS, adapterOptions)
@@ -203,6 +209,7 @@ async function main(): Promise<void> {
       // the selectors still match, and that needs no database at all.
       persist: !options.diagnostic,
       reconcile: !options.diagnostic,
+      verifyStoreSelection: !options.diagnostic,
     });
 
     console.log("\nCatalogue crawl complete");

@@ -106,6 +106,8 @@ function fakeAdapter(options: {
   baseUrl: string;
   verified: boolean;
   available?: boolean;
+  empty?: boolean;
+  onVerify?: () => void;
 }): RetailerCatalogueAdapter {
   // A distinct product per adapter, because Crawlee's request queue outlives a
   // single crawl within one process: a detail request whose key another test
@@ -131,7 +133,10 @@ function fakeAdapter(options: {
     adapterVersion: "1.0.0",
     allowedHosts: ["127.0.0.1"],
     prepareSession: async () => {},
-    verifyStoreSelection: async () => options.verified,
+    verifyStoreSelection: async () => {
+      options.onVerify?.();
+      return options.verified;
+    },
     discoverCategories: async () => [
       {
         key: "poultry",
@@ -141,7 +146,7 @@ function fakeAdapter(options: {
       },
     ],
     extractListingPage: async (): Promise<ListingPageResult> => ({
-      products: [listing],
+      products: options.empty ? [] : [listing],
       nextPages: [],
       skipped: 0,
     }),
@@ -341,7 +346,68 @@ describe("runCatalogueCrawl: store verification gates every write", () => {
     assert.equal(await Product.countDocuments({}), 0);
     assert.equal(await CrawlRun.countDocuments({}), 0);
     assert.equal(summary.reconciled, false);
+    assert.equal(summary.publicCatalogueExtracted, true);
     assert.ok(summary.sample && summary.sample.length > 0, "a diagnostic returns what it saw");
+  });
+
+  it("extracts a public diagnostic without attempting store verification", async () => {
+    let verificationCalls = 0;
+    const summary = await runCatalogueCrawl({
+      scope,
+      adapter: fakeAdapter({
+        baseUrl,
+        verified: false,
+        onVerify: () => {
+          verificationCalls += 1;
+        },
+      }),
+      expectedStoreText: "Fake Store One",
+      headless: true,
+      mode: "diagnostic",
+      persist: false,
+      reconcile: false,
+      verifyStoreSelection: false,
+    });
+
+    assert.equal(verificationCalls, 0);
+    assert.equal(summary.storeSelectionVerified, false);
+    assert.equal(summary.publicCatalogueExtracted, true);
+    assert.equal(summary.productsScraped, 1);
+    assert.ok(summary.sample && summary.sample.length === 1);
+    assert.equal(await Product.countDocuments({}), 0);
+    assert.equal(await CrawlRun.countDocuments({}), 0);
+  });
+
+  it("fails a public diagnostic that extracts no products", async () => {
+    const summary = await runCatalogueCrawl({
+      scope,
+      adapter: fakeAdapter({ baseUrl, verified: false, empty: true }),
+      expectedStoreText: "Fake Store One",
+      headless: true,
+      mode: "diagnostic",
+      persist: false,
+      reconcile: false,
+      verifyStoreSelection: false,
+    });
+
+    assert.equal(summary.status, "failed");
+    assert.equal(summary.publicCatalogueExtracted, false);
+    assert.ok(summary.issues.some((issue) => issue.type === "PUBLIC_CATALOGUE_EMPTY"));
+  });
+
+  it("never permits a persistent crawl to skip store verification", async () => {
+    await assert.rejects(
+      () =>
+        runCatalogueCrawl({
+          scope,
+          adapter: fakeAdapter({ baseUrl, verified: false }),
+          expectedStoreText: "Fake Store One",
+          headless: true,
+          mode: "full",
+          verifyStoreSelection: false,
+        }),
+      /persistent crawl cannot skip store verification/i,
+    );
   });
 
   it("never reconciles a bounded crawl", async () => {
