@@ -80,9 +80,16 @@ export interface AppProps {
   onPlanChange?: (plan: MealPlanResponse, request: MealPlanRequest) => void;
   /** Optional retailer choice rendered before the planning constraints. */
   retailerSelector?: ReactNode;
+  /** Starts a separate planning session, including a fresh retailer choice. */
+  onStartNewPlan?: () => void;
 }
 
-export function App({ defaults, onPlanChange, retailerSelector }: AppProps = {}) {
+export function App({
+  defaults,
+  onPlanChange,
+  retailerSelector,
+  onStartNewPlan,
+}: AppProps = {}) {
   const [formState, setFormState] = useState<ConstraintFormState>(() => ({
     ...INITIAL_FORM_STATE,
     ...defaults,
@@ -135,6 +142,16 @@ export function App({ defaults, onPlanChange, retailerSelector }: AppProps = {})
    */
   const regenerate = (): void => {
     if (lastRequest) run(withNextSeed(lastRequest));
+  };
+
+  const startNewPlan = (): void => {
+    setFormState({ ...INITIAL_FORM_STATE, ...defaults });
+    setLastRequest(null);
+    setPlan(null);
+    setShowForm(true);
+    planMutation.reset();
+    replaceMutation.reset();
+    onStartNewPlan?.();
   };
 
   /**
@@ -253,6 +270,7 @@ export function App({ defaults, onPlanChange, retailerSelector }: AppProps = {})
                 <MealPlanResults
                   plan={plan}
                   onRegenerate={regenerate}
+                  onStartNewPlan={startNewPlan}
                   onEditConstraints={() => setShowForm(true)}
                   onReplaceMeal={replaceSelectedMeal}
                   isRegenerating={isGenerating}

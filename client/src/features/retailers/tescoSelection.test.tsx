@@ -78,6 +78,22 @@ afterEach(() => {
 });
 
 describe("planner supermarket choice", () => {
+  it("starts fresh instead of preselecting the retailer saved last time", async () => {
+    window.localStorage.setItem(
+      "thriftchef.household-profile",
+      JSON.stringify({ defaultRetailerId: TESCO.id }),
+    );
+    window.localStorage.setItem("thriftchef.current-plan-id", "old-plan");
+
+    renderPlanner();
+
+    expect(await screen.findByRole("radio", { name: /Tesco UK/ })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: /Aldi UK/ })).not.toBeChecked();
+    await waitFor(() =>
+      expect(window.localStorage.getItem("thriftchef.current-plan-id")).toBeNull(),
+    );
+  });
+
   it("shows Aldi and Tesco before the constraints", async () => {
     renderPlanner();
 

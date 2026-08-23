@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { App } from "../App";
 import type { Retailer } from "../api/retailers";
 import type { Allergen, Appliance, MealPreference, PantryBasic } from "../api/types";
@@ -12,9 +12,15 @@ import { usePlan } from "../features/weeklyPlan/usePlan";
  */
 export function PlannerPage(): ReactElement {
   const { profile, update } = useHouseholdProfile();
-  const { setPlan } = usePlan();
+  const { setPlan, clear } = usePlan();
+  const [retailerId, setRetailerId] = useState<string | null>(null);
+
+  // Opening the planner is a fresh MVP session. Household preferences remain,
+  // but an old generated week and supermarket choice never silently carry in.
+  useEffect(() => clear(), [clear]);
 
   function chooseRetailer(retailer: Retailer): void {
+    setRetailerId(retailer.id);
     update({
       defaultRetailerId: retailer.id,
       // Each MVP retailer has one configured catalogue. The server resolves it
@@ -23,18 +29,24 @@ export function PlannerPage(): ReactElement {
     });
   }
 
+  function startNewPlan(): void {
+    clear();
+    setRetailerId(null);
+  }
+
   return (
     <App
-      key={profile.defaultRetailerId ?? "no-retailer"}
+      key={retailerId ?? "no-retailer"}
       onPlanChange={setPlan}
+      onStartNewPlan={startNewPlan}
       retailerSelector={
         <RetailerPicker
-          retailerId={profile.defaultRetailerId}
+          retailerId={retailerId}
           onRetailerChange={chooseRetailer}
         />
       }
       defaults={{
-        retailerId: profile.defaultRetailerId,
+        retailerId,
         // Store selection is deliberately absent from the MVP.
         storeId: null,
         householdSize: String(profile.householdSize),

@@ -996,6 +996,22 @@ describe("catalogue status card", () => {
 });
 
 describe("results view", () => {
+  it("starts a separate plan instead of carrying the generated week forward", async () => {
+    mockApi();
+    const onStartNewPlan = vi.fn();
+    renderWithProviders(<App onStartNewPlan={onStartNewPlan} />);
+    await submitForm();
+
+    await screen.findByRole("heading", { name: /your week is sorted/i });
+    await userEvent.click(screen.getByRole("button", { name: /start new plan/i }));
+
+    expect(onStartNewPlan).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { name: /plan your week/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /your week is sorted/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("makes the plan heading the only top-level heading on the page", async () => {
     mockApi();
     renderWithProviders(<App />);

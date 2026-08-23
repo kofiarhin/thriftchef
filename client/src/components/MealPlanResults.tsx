@@ -11,6 +11,7 @@ type ResultTab = "week" | "recipes" | "shopping";
 interface MealPlanResultsProps {
   plan: MealPlanResponse;
   onRegenerate: () => void;
+  onStartNewPlan: () => void;
   onEditConstraints: () => void;
   onReplaceMeal: (day: number, mealType: MealType) => void;
   isRegenerating: boolean;
@@ -127,6 +128,7 @@ function MustHaveUsageSection({ plan }: { plan: MealPlanResponse }) {
 export function MealPlanResults({
   plan,
   onRegenerate,
+  onStartNewPlan,
   onEditConstraints,
   onReplaceMeal,
   isRegenerating,
@@ -183,11 +185,18 @@ export function MealPlanResults({
             Your week is sorted
           </h1>
           <p className="print-hidden mt-1 text-sm text-ink-muted">
-            Review the week, open a recipe, then take your list to Aldi.
+            Review the week, open a recipe, then take your list to {plan.catalogue.retailerName}.
           </p>
         </div>
 
         <div className="print-hidden flex gap-2">
+          <button
+            type="button"
+            onClick={onStartNewPlan}
+            className="inline-flex items-center gap-2 rounded-xl border border-line px-4 py-2.5 text-sm font-semibold text-ink transition hover:border-ink-muted"
+          >
+            Start new plan
+          </button>
           <button
             type="button"
             onClick={onEditConstraints}

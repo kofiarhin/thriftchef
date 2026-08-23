@@ -128,6 +128,16 @@ describe("a Tesco shopper's plan requests", () => {
     );
   });
 
+  it("names Tesco in the generated-plan instructions", async () => {
+    mockApi();
+    renderTescoPlanner();
+    await submitForm();
+
+    expect(
+      await screen.findByText(/take your list to Tesco UK/i),
+    ).toBeInTheDocument();
+  });
+
   it("keeps the scope when one meal is replaced", async () => {
     mockApi();
     renderTescoPlanner();
