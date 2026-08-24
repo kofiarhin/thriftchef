@@ -9,6 +9,12 @@ Snapshot source: development checkpoint `2a7657e10cd3251fdcb7a6730fae6a6a138defb
 - `CATALOGUE_READ_SOURCE=legacy` remains the production read path.
 - Tesco from this development branch has not been merged, deployed, or activated in production.
 
+## Software delivery workspace
+
+On branch `docs/adopt-delivery-workspace`, the repository contains the project-local delivery skills `/setup-workspace`, `/ticket`, `/spec`, `/plan`, and `/implement-plan` under `.claude/skills/`. Work artifacts are separated into `tickets/`, `spec/`, and `plans/`, and `context/lessons.md` provides lightweight repository-specific long-term memory.
+
+The historical full multi-retailer implementation plan has moved from `plan/` to `plans/` and remains historical planning context. This workspace migration changes documentation and delivery tooling only; it does not change ThriftChef runtime code, catalogue data, deployment configuration, or production behaviour.
+
 ## Implemented on the development branch
 
 ### Retailer and catalogue work
@@ -85,6 +91,10 @@ The root README and historical specifications contain statements written for ear
 
 ## Status vocabulary
 
+- **Proposed:** requested outcome without an approved technical contract.
+- **Specified:** an approved technical specification exists.
+- **Planned:** an approved implementation plan exists.
+- **In progress:** implementation work has started against the approved plan.
 - **Implemented:** present in branch code.
 - **Verified:** supported by a named check run against the stated code checkpoint.
 - **Committed/pushed:** present in Git history/remote branch.

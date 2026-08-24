@@ -1,6 +1,12 @@
 # ThriftChef Specifications
 
-This directory contains product and implementation contracts. Repository evidence and the current-state documents identify what is actually implemented; older specifications remain useful design history but must not be treated as current-state evidence when the implementation has deliberately changed.
+This directory contains technical product and implementation contracts. New specifications should be generated from an approved source ticket under `tickets/`; repository evidence and `context/current-state.md` identify what is actually implemented. Older specifications remain useful design history but must not be treated as current-state evidence when implementation has deliberately changed.
+
+## Delivery contract
+
+A specification defines **how the approved ticket should fit the existing system**. It should reference its source ticket, inspect the relevant current code/tests, stay inside ticket scope, and capture applicable architecture, data, API, UI, validation, error, security, accessibility, testing, verification, risk, and unresolved technical details.
+
+After the specification is approved, `/plan` creates the ordered TDD implementation plan under `plans/`. Do not implement runtime code while generating a specification.
 
 ## Current product and architecture contract
 
@@ -15,17 +21,17 @@ For current Tesco development behaviour and evidence, read:
 - `../context/current-state.md`;
 - `../context/decisions.md`;
 - `../context/architecture.md`;
+- `../context/lessons.md`;
 - `../roadmap.md`.
 
-The canonical product direction remains in `docs/ThriftChef-PRD-v0.1 (1).md`. Historical implementation documents also remain under `docs/` and `plan/`.
+The canonical product direction remains in `docs/ThriftChef-PRD-v0.1 (1).md`. Historical implementation documents remain under `docs/`, `spec/`, and `plans/`.
 
 ## Organisation rules
 
-- Give each new ticket one outcome and one visible finish line.
+- Each new specification references one source ticket and keeps the same basename when practical.
 - Prefer updating an active specification over creating a competing source of truth.
 - Mark obsolete or superseded material as historical; do not silently rewrite history.
-- Separate intended, implemented, verified, committed/pushed, merged, deployed, and unresolved states.
-- Include scope, exclusions, experience, constraints, acceptance criteria, verification, and human-review items.
-- Record material conflicts between the PRD, specifications, and repository instead of resolving them silently.
+- Separate proposed, specified, planned, implemented, verified, committed/pushed, merged, deployed, and unresolved states.
+- Record material conflicts between the PRD, ticket, specification, and repository instead of resolving them silently.
 - Repository implementation evidence overrides an older specification for current-state claims; changing the intended product contract still requires an explicit decision.
 - Do not put credentials, live customer data, or unredacted retailer captures in specifications.

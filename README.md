@@ -89,6 +89,42 @@ npm run dev:client   # client only
 
 Open `http://localhost:5173`. Locally, Vite proxies `/api` to the API server.
 
+## Software delivery workflow
+
+ThriftChef vendors the project-local delivery skills under `.claude/skills/`:
+
+```text
+/setup-workspace
+/ticket
+/spec
+/plan
+/implement-plan
+```
+
+The normal delivery chain is:
+
+```text
+roadmap outcome
+    ↓
+/ticket → tickets/NNN-outcome.md
+    ↓
+/spec → spec/NNN-outcome.md
+    ↓
+/plan → plans/NNN-outcome.md
+    ↓
+/implement-plan
+    ↓
+RED → GREEN → REFACTOR → VERIFY
+    ↓
+review + document alignment + lessons
+```
+
+Tickets define **what should change and why**. Specifications define the technical contract. Plans define implementation order and TDD slices. `/implement-plan` is the state-changing stage and must revalidate the current repository before editing.
+
+After verified implementation, update only project truth that actually changed: `context/current-state.md`, architecture when applicable, confirmed decisions, roadmap status, and concise repository-specific lessons in `context/lessons.md`. A ticket, specification, or plan is never proof that code is implemented or verified.
+
+The older full multi-retailer implementation plan is retained as historical context at [`plans/thriftchef-full-implementation-plan.md`](plans/thriftchef-full-implementation-plan.md). New work should prefer one focused ticket/spec/plan chain per roadmap outcome.
+
 ## Catalogue ownership and migration
 
 Products and offers are retailer-scoped and catalogue/store-scoped. A plan must never mix scopes.
@@ -367,6 +403,17 @@ For product direction see [`docs/ThriftChef-PRD-v0.1 (1).md`](docs/ThriftChef-PR
 ## Repository layout
 
 ```text
+.claude/skills/           project-local setup, ticket, spec, plan, and implement-plan skills
+
+tickets/                  scoped what-and-why work items
+spec/                     technical contracts
+plans/                    ordered implementation plans and historical plan context
+
+context/                  current product, architecture, decisions, state, and lessons
+customers/                real customer evidence when available
+demos/                    human/browser review scripts
+routines/                 proposed automation contracts
+
 client/src/
   app/                    AppRouter, AppRoutes, AppShell, query client
   pages/                  Welcome, onboarding, planner, week, recipe, shopping, settings
@@ -382,10 +429,6 @@ server/
   models/                 catalogue and plan persistence
   testing/                fixtures, baselines, test helpers
 
-context/                  current product/architecture/decision/state summaries
-spec/                     product and implementation contracts
-demos/                    human/browser review scripts
-routines/                 proposed automation contracts
 scripts/                  operational and verification helpers
 ```
 
