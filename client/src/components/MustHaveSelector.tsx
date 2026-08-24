@@ -66,7 +66,7 @@ export function MustHaveSelector({
 
   const statusMessage = (): string => {
     if (debouncedTerm.trim().length < 2) return "Type at least two characters to search.";
-    if (results.isPending) return "Searching the Aldi catalogue…";
+    if (results.isPending) return "Searching the catalogue…";
     if (results.isError) return "Product search is unavailable. Try again in a moment.";
     if (results.data.total === 0) return `No products match “${debouncedTerm}”.`;
     return `${results.data.total} product${results.data.total === 1 ? "" : "s"} match “${debouncedTerm}”. Showing the first ${results.data.items.length}.`;
@@ -76,7 +76,7 @@ export function MustHaveSelector({
     <div className="space-y-5">
       <div>
         <label htmlFor={inputId} className="block text-sm font-semibold text-ink">
-          Search Aldi products
+          Search catalogue products
         </label>
         <p className="mt-1 text-sm text-ink-muted">
           Anything you add here is bought as part of this week's basket and used

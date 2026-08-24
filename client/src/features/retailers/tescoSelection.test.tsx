@@ -100,6 +100,7 @@ describe("planner supermarket choice", () => {
     expect(await screen.findByRole("radio", { name: /Aldi UK/ })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: /Tesco UK/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /plan your week/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/weekly budget/i)).not.toBeInTheDocument();
   });
 
   it("remembers Tesco without opening a store flow", async () => {
@@ -124,5 +125,26 @@ describe("planner supermarket choice", () => {
 
     await waitFor(() => expect(loadProfile().defaultRetailerId).toBe(ALDI.id));
     expect(loadProfile().defaultStoreId).toBeNull();
+  });
+
+  it("keeps entered planner answers when the retailer changes after going back", async () => {
+    renderPlanner();
+
+    await userEvent.click(await screen.findByRole("radio", { name: /Tesco UK/ }));
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    const budget = screen.getByLabelText(/weekly budget/i);
+    await userEvent.clear(budget);
+    await userEvent.type(budget, "91");
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    await userEvent.click(screen.getByRole("button", { name: /back/i }));
+    await userEvent.click(screen.getByRole("button", { name: /back/i }));
+
+    await userEvent.click(screen.getByRole("radio", { name: /Aldi UK/ }));
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    expect(screen.getByLabelText(/weekly budget/i)).toHaveValue(91);
+    expect(loadProfile().defaultRetailerId).toBe(ALDI.id);
   });
 });

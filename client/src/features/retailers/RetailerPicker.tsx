@@ -5,6 +5,8 @@ import { useRetailers } from "./useRetailers";
 interface RetailerPickerProps {
   retailerId: string | null;
   onRetailerChange: (retailer: Retailer) => void;
+  /** Remove the outer card chrome when a parent step already provides it. */
+  embedded?: boolean;
 }
 
 /**
@@ -17,11 +19,16 @@ interface RetailerPickerProps {
 export function RetailerPicker({
   retailerId,
   onRetailerChange,
+  embedded = false,
 }: RetailerPickerProps): ReactElement {
   const retailers = useRetailers();
 
   if (retailers.isLoading) {
-    return <p className="text-sm text-ink-muted" role="status">Loading supermarkets…</p>;
+    return (
+      <p className="text-sm text-ink-muted" role="status">
+        Loading supermarkets…
+      </p>
+    );
   }
 
   if (retailers.isError) {
@@ -46,28 +53,36 @@ export function RetailerPicker({
   if (available.length === 0) {
     return (
       <p className="text-sm text-ink-muted">
-        No supermarkets are available yet. Run the catalogue bootstrap first.
+        No supermarkets are available yet. Try again later.
       </p>
     );
   }
 
   return (
-    <fieldset className="rounded-2xl border border-line bg-surface-raised p-5 shadow-elevated sm:p-7">
-      <legend className="px-1 text-base font-semibold text-ink">
+    <fieldset
+      className={
+        embedded
+          ? ""
+          : "rounded-2xl border border-line bg-surface-raised p-5 shadow-elevated sm:p-7"
+      }
+    >
+      <legend className={embedded ? "sr-only" : "px-1 text-base font-semibold text-ink"}>
         Choose your supermarket
       </legend>
-      <p className="mt-1 text-sm text-ink-muted">
-        Every product, price and shopping-list item comes from this supermarket.
-      </p>
+      {!embedded ? (
+        <p className="mt-1 text-sm text-ink-muted">
+          Every product, price and shopping-list item comes from this supermarket.
+        </p>
+      ) : null}
 
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+      <ul className={`${embedded ? "" : "mt-4 "}grid gap-3 sm:grid-cols-2`}>
         {available.map((retailer) => (
           <li key={retailer.id}>
             <label
               className={`flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition ${
                 retailer.id === retailerId
-                  ? "border-brand bg-brand-surface"
-                  : "border-line hover:border-brand"
+                  ? "border-brand bg-brand-soft"
+                  : "border-line bg-surface-sunken hover:border-brand"
               }`}
             >
               <input

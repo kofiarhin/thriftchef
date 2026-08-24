@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiRequestError } from "./api/http";
 import {
@@ -68,14 +68,14 @@ export interface AppProps {
   /**
    * Publishes each generated or revised plan to whatever owns it outside the
    * planner — the router's plan context, in the routed app.
-   *
-   * Optional so the planner still works standalone, which is what its own
-   * tests exercise. Without it the week, recipe and shopping routes would have
-   * no plan to show, because this component holds it in local state.
    */
   onPlanChange?: (plan: MealPlanResponse, request: MealPlanRequest) => void;
-  /** Optional retailer choice rendered before the planning constraints. */
+  /** Optional retailer choice used by the routed planner. */
   retailerSelector?: ReactNode;
+  /** Human-readable retailer name for the focused Review step. */
+  retailerName?: string | null;
+  /** Use the routed single-focus wizard rather than the standalone grouped form. */
+  focusedWizard?: boolean;
   /** Starts a separate planning session, including a fresh retailer choice. */
   onStartNewPlan?: () => void;
 }
@@ -85,14 +85,14 @@ export interface AppProps {
  *
  * It renders one thing — the constraints, and the week they produce — and
  * nothing around it: the header, navigation and footer belong to `AppShell`,
- * which every route shares. It used to be the whole application, which is why
- * it is still called `App` and why its props are optional; the routed planner
- * passes all of them.
+ * which every route shares.
  */
 export function App({
   defaults,
   onPlanChange,
   retailerSelector,
+  retailerName,
+  focusedWizard = false,
   onStartNewPlan,
 }: AppProps = {}) {
   const [formState, setFormState] = useState<ConstraintFormState>(() => ({
@@ -104,9 +104,34 @@ export function App({
   const [lastRequest, setLastRequest] = useState<MealPlanRequest | null>(null);
   const [plan, setPlan] = useState<MealPlanResponse | null>(null);
 
+  /**
+   * The routed retailer picker lives above this component. It used to remount
+   * the whole planner with a React key whenever the shop changed, which also
+   * erased answers already entered in later steps. Synchronize only the scope
+   * fields instead so every other answer survives Back -> retailer changes.
+   */
+  useEffect(() => {
+    if (!focusedWizard) return;
+
+    const retailerId = defaults?.retailerId ?? null;
+    const storeId = defaults?.storeId ?? null;
+
+    setFormState((current) => {
+      if (current.retailerId === retailerId && current.storeId === storeId) {
+        return current;
+      }
+
+      return { ...current, retailerId, storeId };
+    });
+  }, [focusedWizard, defaults?.retailerId, defaults?.storeId]);
+
   const catalogue = useQuery({
     queryKey: ["catalogue-status"],
     queryFn: fetchCatalogueStatus,
+    // The focused customer wizard deliberately omits the old developer-style
+    // catalogue diagnostics. Generation errors still expose actionable
+    // catalogue failures through PlanError.
+    enabled: !focusedWizard,
   });
 
   const planMutation = useMutation<MealPlanResponse, unknown, MealPlanRequest>({
@@ -195,30 +220,34 @@ export function App({
               Plan your week
             </h1>
             <p className="mt-1.5 max-w-lg text-sm text-ink-muted">
-              Three focused steps. You can change anything before generating.
+              {focusedWizard
+                ? "One decision at a time. Review everything before generating."
+                : "Three focused steps. You can change anything before generating."}
             </p>
           </div>
 
           <div className="mt-7 space-y-7">
-            {retailerSelector}
+            {!focusedWizard ? retailerSelector : null}
             <ConstraintForm
               state={formState}
               onStateChange={setFormState}
               onSubmit={submit}
               isGenerating={isGenerating}
               serverIssues={serverIssuesFrom(planMutation.error)}
+              focusedWizard={focusedWizard}
+              retailerSelector={focusedWizard ? retailerSelector : undefined}
+              retailerName={retailerName}
             />
 
-            {/* Kept beside the form, not on a marketing page: when generation
-                fails, whether the catalogue can support a plan at all is the
-                first thing worth knowing. */}
-            <div className="print-hidden max-w-md">
-              <StatusPanel
-                status={catalogue.data}
-                isLoading={catalogue.isLoading}
-                error={catalogue.error as Error | null}
-              />
-            </div>
+            {!focusedWizard ? (
+              <div className="print-hidden max-w-md">
+                <StatusPanel
+                  status={catalogue.data}
+                  isLoading={catalogue.isLoading}
+                  error={catalogue.error as Error | null}
+                />
+              </div>
+            ) : null}
           </div>
         </section>
       ) : (

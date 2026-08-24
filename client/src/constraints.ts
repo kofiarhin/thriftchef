@@ -245,6 +245,8 @@ export function validateConstraints(
 /** Maps server-reported field names back onto form controls. */
 export function mapServerFieldToFormField(field: string): FieldName | null {
   const mapping: Record<string, FieldName> = {
+    retailerId: "retailerId",
+    storeId: "storeId",
     budgetPence: "budgetPounds",
     budgetTargetPercent: "budgetTargetPercent",
     mustHaveProductIds: "mustHaveProducts",
