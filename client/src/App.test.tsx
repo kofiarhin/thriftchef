@@ -730,164 +730,76 @@ describe("budget and must-have results", () => {
   });
 });
 
-describe("page chrome", () => {
-  it("renders banner and contentinfo landmarks", () => {
+describe("the planner screen", () => {
+  it("is the page's own content, not a page with a landing page around it", () => {
     mockApi();
     renderWithProviders(<App />);
 
-    expect(screen.getByRole("banner")).toBeInTheDocument();
-    expect(screen.getByRole("contentinfo")).toBeInTheDocument();
-  });
-
-  it("points primary navigation at sections that exist on the page", () => {
-    mockApi();
-    renderWithProviders(<App />);
-
-    const nav = screen.getByRole("navigation", { name: /primary/i });
-    const targets = [
-      [/^planner$/i, "planner"],
-      [/^how it works$/i, "how-it-works"],
-      [/^catalogue$/i, "catalogue"],
-    ] as const;
-
-    for (const [label, id] of targets) {
-      const link = within(nav).getByRole("link", { name: label });
-      expect(link).toHaveAttribute("href", "#" + id);
-      expect(document.getElementById(id)).not.toBeNull();
-    }
-  });
-
-  it("moves focus to the planner from the header call to action", async () => {
-    mockApi();
-    renderWithProviders(<App />);
-
-    await userEvent.click(screen.getByRole("button", { name: /plan my week/i }));
-
-    expect(document.getElementById("planner")).toHaveFocus();
-  });
-
-  it("shows only the planner while planning and restores the landing page on exit", async () => {
-    mockApi();
-    renderWithProviders(<App />);
-
-    await userEvent.click(screen.getByRole("button", { name: /plan my week/i }));
-
-    expect(screen.getByRole("button", { name: /exit planner/i })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: /how it works/i }),
-    ).not.toBeInTheDocument();
+    // The shell supplies the header, the navigation and the footer for every
+    // route. A second set here would give the page two of each.
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
     expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole("button", { name: /exit planner/i }));
-
-    expect(
-      screen.getByRole("heading", { name: /how it works/i }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("contentinfo")).toBeInTheDocument();
+    expect(screen.getAllByRole("main")).toHaveLength(1);
   });
 
-  it("exposes the mobile navigation as an accessible disclosure", async () => {
-    mockApi();
-    renderWithProviders(<App />);
-
-    const toggle = screen.getByRole("button", { name: /^menu$/i });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).toHaveAttribute("aria-controls");
-
-    await userEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-
-    await userEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("summarises catalogue readiness in the header once loaded", async () => {
-    mockApi();
-    renderWithProviders(<App />);
-
-    const banner = screen.getByRole("banner");
-    expect(await within(banner).findByText(/164 products ready/i)).toBeInTheDocument();
-  });
-
-  it("keeps the header readable when the catalogue cannot be read", async () => {
-    mockApi({
-      catalogue: () =>
-        json({ error: { code: "CATALOGUE_UNAVAILABLE", message: "No data." } }, 503),
-    });
-    renderWithProviders(<App />);
-
-    const banner = screen.getByRole("banner");
-    expect(
-      await within(banner).findByText(/catalogue unavailable/i),
-    ).toBeInTheDocument();
-  });
-
-  it("carries the identity, the year and both disclaimers in the footer", () => {
-    mockApi();
-    renderWithProviders(<App />);
-
-    const footer = screen.getByRole("contentinfo");
-    const year = String(new Date().getFullYear());
-
-    expect(within(footer).getByText(new RegExp(year))).toBeInTheDocument();
-    expect(within(footer).getByText(/not affiliated with aldi/i)).toBeInTheDocument();
-    expect(within(footer).getByText(/inferred from product wording/i)).toBeInTheDocument();
-  });
-
-  it("hides the marketing chrome from printed output", () => {
-    mockApi();
-    renderWithProviders(<App />);
-
-    expect(screen.getByRole("banner")).toHaveClass("print-hidden");
-    expect(screen.getByRole("contentinfo")).toHaveClass("print-hidden");
-  });
-});
-
-describe("hero and how it works", () => {
-  it("leads with a single hero headline and a planner call to action", async () => {
+  it("leads with the planning task as the only top-level heading", () => {
     mockApi();
     renderWithProviders(<App />);
 
     const headings = screen.getAllByRole("heading", { level: 1 });
     expect(headings).toHaveLength(1);
-    expect(headings[0]).toHaveTextContent(/seven days of aldi meals/i);
-
-    await userEvent.click(screen.getByRole("button", { name: /start planning/i }));
-    expect(document.getElementById("planner")).toHaveFocus();
+    expect(headings[0]).toHaveTextContent(/plan your week/i);
   });
 
-  it("states the three product benefits", () => {
+  it("carries none of the retired marketing sections", () => {
     mockApi();
     renderWithProviders(<App />);
 
-    const hero = screen.getByRole("region", { name: /seven days of aldi meals/i });
-    expect(within(hero).getByText(/seven days planned/i)).toBeInTheDocument();
-    expect(within(hero).getByText(/real aldi prices/i)).toBeInTheDocument();
-    expect(within(hero).getByText(/one shopping list/i)).toBeInTheDocument();
-  });
-
-  it("explains the flow in three ordered steps", () => {
-    mockApi();
-    renderWithProviders(<App />);
-
-    const section = screen.getByRole("region", { name: /how it works/i });
-    const steps = within(section).getAllByRole("listitem");
-
-    expect(steps).toHaveLength(3);
-    expect(steps[0]).toHaveTextContent(/set the budget/i);
-    expect(steps[1]).toHaveTextContent(/choose preferences/i);
-    expect(steps[2]).toHaveTextContent(/get the plan and list/i);
-  });
-
-  it("hides the hero once a plan has been generated", async () => {
-    mockApi();
-    renderWithProviders(<App />);
-    await submitForm();
-
-    await screen.findByRole("heading", { name: /your week is sorted/i });
+    expect(
+      screen.queryByRole("heading", { name: /how it works/i }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("region", { name: /seven days of aldi meals/i }),
     ).not.toBeInTheDocument();
+    // The catalogue card survives; the marketing section that framed it does not.
+    expect(
+      screen.queryByText(/plans are only as current as the products behind them/i),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/^data source$/i)).not.toBeInTheDocument();
+  });
+
+  it("reaches every planning control without a location hash", () => {
+    mockApi();
+    window.history.replaceState(null, "", "/plan");
+    renderWithProviders(<App />);
+
+    // No planner mode to enter or leave, and no anchor to jump to: the route
+    // is the only thing that decides what is on screen.
+    expect(
+      screen.queryByRole("button", { name: /plan my week/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /exit planner/i }),
+    ).not.toBeInTheDocument();
+    expect(document.getElementById("planner")).toBeNull();
+
+    for (const link of screen.queryAllByRole("link")) {
+      expect(link.getAttribute("href") ?? "").not.toMatch(/^#/);
+    }
+
+    expect(screen.getByRole("button", { name: /continue/i })).toBeInTheDocument();
+    expect(window.location.hash).toBe("");
+  });
+
+  it("keeps the planner heading off printed output", () => {
+    mockApi();
+    renderWithProviders(<App />);
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: /plan your week/i }).closest(
+        ".print-hidden",
+      ),
+    ).not.toBeNull();
   });
 });
 
@@ -980,6 +892,19 @@ describe("catalogue status card", () => {
     const card = await screen.findByRole("complementary", { name: /catalogue/i });
     expect(await within(card).findByText(/^stale$/i)).toBeInTheDocument();
     expect(within(card).getByText(/more than three days old/i)).toBeInTheDocument();
+  });
+
+  it("reports a catalogue that cannot be read at all", async () => {
+    mockApi({
+      catalogue: () =>
+        json({ error: { code: "CATALOGUE_UNAVAILABLE", message: "No data." } }, 503),
+    });
+    renderWithProviders(<App />);
+
+    const card = await screen.findByRole("complementary", { name: /catalogue/i });
+    expect(
+      await within(card).findByText(/could not read the catalogue status/i),
+    ).toBeInTheDocument();
   });
 
   it("keeps the crawl instruction when the catalogue is empty", async () => {

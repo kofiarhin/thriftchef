@@ -44,34 +44,6 @@ const STATE_VISUALS: Record<CatalogueState, StateVisual> = {
   },
 };
 
-/**
- * The compact form of the status, small enough to sit in the header. It says
- * how many products can actually be planned with, because that is the number
- * that decides whether planning will work at all.
- */
-export function CatalogueBadge({
-  state,
-  status,
-}: {
-  state: CatalogueState;
-  status: CatalogueStatus | undefined;
-}) {
-  const visual = STATE_VISUALS[state];
-  const summary =
-    state === "ready" || state === "stale"
-      ? `${(status?.eligibleProducts ?? 0).toLocaleString("en-GB")} products ready`
-      : visual.label;
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${visual.tone}`}
-    >
-      <Icon name={visual.icon} size={14} />
-      {summary}
-    </span>
-  );
-}
-
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-line/60 py-2 last:border-0">

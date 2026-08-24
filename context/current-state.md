@@ -1,6 +1,6 @@
 # Current State
 
-Snapshot source: development checkpoint `35f095b4bc1a9f8e6b8d4f4fc4f573e85239cec2` and recorded handoff evidence supplied on 23 August 2026.
+Snapshot source: development checkpoint `18e4231eec31198fac4c6196da209d90f752020e` on branch `docs/thriftchef-ai-workspace`. That commit is documentation-only, so its application code is identical to `35f095b4bc1a9f8e6b8d4f4fc4f573e85239cec2`. Catalogue figures below remain recorded handoff evidence supplied on 23 August 2026.
 
 ## Production
 
@@ -33,18 +33,28 @@ This is historical evidence, not a fresh verification run.
 
 ## Recorded automated verification
 
+### Current checkpoint `18e4231` (code identical to `35f095b`)
+
+Run on 23 August 2026, on branch `docs/thriftchef-ai-workspace`, against a clean working tree (`git status --porcelain` empty before and after), Node v22.20.0.
+
+| Command | Result | Evidence |
+| --- | --- | --- |
+| `npm run typecheck` | Passed | `tsc --noEmit` (server) and `tsc --noEmit -p client/tsconfig.json` (client) both exited 0 with no diagnostics. |
+| `npm run test:client` | Passed | Vitest 4.1.10: 9 test files passed (9), 128 tests passed (128), duration 47.69s. |
+| `npm run build` | Passed | `typecheck:client`, `build:server` (`tsc -p tsconfig.server.json`), and `build:client` (`vite build`) all exited 0. Vite 8.2.1 transformed 114 modules and emitted `dist/client/index.html` 0.70 kB, `assets/index-CQAksfoP.css` 35.53 kB, `assets/index-D2h17YsO.js` 374.12 kB. |
+
+Not run at this checkpoint: `npm run test:unit`, targeted catalogue-runner tests, and every browser/manual flow check.
+
+Recorded anomaly: the client-test count is **128**, not the 138 carried in the earlier evidence below. Two commits deliberately rewrote and shrank client test files after that figure was taken — `7ccecbc` ("test: lock MVP onboarding retailer flow", `OnboardingPage.test.tsx` +52/-178) and `0382ea5` ("test: lock planner retailer choice", `tescoSelection.test.tsx` +41/-189) — while `35f095b` added 3 tests back. A net reduction is therefore consistent with the history, but no per-commit test count has been run to confirm that 138 → 128 is fully explained. This is an open observation, not a confirmed explanation. All 128 tests currently pass across 9 files.
+
+### Earlier checkpoint evidence (superseded for the three commands above)
+
 - Server unit tests: 766/766 passed at the recorded Tesco checkpoint.
-- Client tests: 138/138 passed before the latest planner-session follow-up.
+- Client tests: 138/138 passed before the latest planner-session follow-up. See the anomaly note above.
 - Typecheck: passed at that earlier checkpoint.
 - Targeted catalogue-runner tests: 18/18 passed.
 
-The latest planner-session checkpoint still requires an exact recorded run of:
-
-```bash
-npm run typecheck
-npm run test:client
-npm run build
-```
+These figures describe an older commit and must not be cited as evidence for the current checkpoint.
 
 ## Remaining verification
 

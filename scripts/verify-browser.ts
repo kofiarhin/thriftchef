@@ -256,16 +256,17 @@ async function runFlow(browser: Browser, baseUrl: string, viewport: (typeof VIEW
     await page.getByRole("radio", { name: /Aldi UK/ }).waitFor();
 
     check(
-      "an unavailable retailer is shown but not selectable",
-      await page.getByRole("radio", { name: /Second UK/ }).isDisabled(),
+      "a retailer that cannot be planned with is not offered",
+      (await page.getByRole("radio", { name: /Second UK/ }).count()) === 0,
     );
 
     await page.getByRole("radio", { name: /Aldi UK/ }).check();
-    await page.getByRole("radio", { name: /Aldi Belper/ }).waitFor();
 
-    check("choosing a store-scoped retailer asks for a store", true);
+    check(
+      "the MVP asks for a supermarket and no store",
+      (await page.getByRole("radio", { name: /Aldi Belper/ }).count()) === 0,
+    );
 
-    await page.getByRole("radio", { name: /Aldi Belper/ }).check();
     await page.getByRole("button", { name: "Continue" }).click();
 
     check(
@@ -288,8 +289,55 @@ async function runFlow(browser: Browser, baseUrl: string, viewport: (typeof VIEW
     await page.getByRole("button", { name: /plan my week/i }).click();
     await page.waitForURL("**/plan");
 
-    /* -------------------------------------------------------- weekly setup */
+    /* ---------------------------------------------------------------- shell */
     await page.getByRole("heading", { name: /plan your week/i }).waitFor();
+
+    check(
+      "the planner opens on the task, not a landing page",
+      (await page.getByRole("heading", { name: /how it works/i }).count()) === 0 &&
+        (await page.getByRole("button", { name: /exit planner/i }).count()) === 0,
+    );
+
+    // Landmark roles, not tags: a page is free to use `header` inside its own
+    // `main`, and that is not a second banner.
+    check(
+      "one banner, one main and one contentinfo landmark",
+      (await page.getByRole("banner").count()) === 1 &&
+        (await page.getByRole("main").count()) === 1 &&
+        (await page.getByRole("contentinfo").count()) === 1,
+    );
+
+    check(
+      "exactly one top-level heading",
+      (await page.getByRole("heading", { level: 1 }).count()) === 1,
+    );
+
+    // Wide enough for the inline bar, narrow enough for the disclosure: only
+    // one of the two is ever operable, and it is always reachable.
+    const menu = page.getByRole("button", { name: /^menu$/i });
+    if (await menu.isVisible()) {
+      await menu.click();
+      const mobileNav = page.getByRole("navigation", { name: /primary, mobile/i });
+      check(
+        "mobile navigation opens without covering the page",
+        await mobileNav.getByRole("link", { name: /^shopping$/i }).isVisible(),
+      );
+      await menu.click();
+      check("mobile navigation closes again", !(await mobileNav.isVisible()));
+    } else {
+      const nav = page.getByRole("navigation", { name: "Primary" });
+      check(
+        "primary navigation reaches every destination",
+        (await nav.getByRole("link").count()) === 4,
+      );
+    }
+
+    check(
+      "navigation uses routes, not page anchors",
+      (await page.locator('a[href^="#"]').count()) === 0,
+    );
+
+    /* -------------------------------------------------------- weekly setup */
 
     await page.getByLabel(/weekly budget/i).fill("70");
     await page.getByLabel(/household size/i).fill("2");
@@ -430,6 +478,20 @@ ${(await page.locator("main").innerText()).slice(0, 600)}`,
       "shopping progress survives a refresh",
       await page.getByRole("checkbox").first().isChecked(),
     );
+
+    /* ------------------------------------------------------ shell per route */
+    for (const route of ["/", "/setup", "/week", "/shopping", "/profile"]) {
+      await page.goto(`${baseUrl}${route}`, { waitUntil: "networkidle" });
+      await page.getByRole("heading", { level: 1 }).first().waitFor();
+
+      check(
+        `${route} renders inside the one shared shell`,
+        (await page.getByRole("banner").count()) === 1 &&
+          (await page.getByRole("main").count()) === 1 &&
+          (await page.getByRole("contentinfo").count()) === 1 &&
+          (await page.getByRole("heading", { level: 1 }).count()) === 1,
+      );
+    }
 
     /* ------------------------------------------------------------ keyboard */
     await page.goto(`${baseUrl}/week`, { waitUntil: "networkidle" });

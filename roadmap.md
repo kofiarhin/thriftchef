@@ -19,7 +19,7 @@ The Tesco branch is ready for human merge consideration only when:
 
 ## Ordered outcomes
 
-1. Record `npm run typecheck`, `npm run test:client`, and `npm run build` at checkpoint `35f095b` or its verified successor.
+1. ~~Record `npm run typecheck`, `npm run test:client`, and `npm run build` at checkpoint `35f095b` or its verified successor.~~ Done: all three recorded as `Passed` at `18e4231` (documentation-only successor of `35f095b`). See `context/current-state.md`.
 2. Verify a fresh visit, Aldi generation, Tesco generation, regeneration, new-plan reset, recipe copy, and shopping-list copy in the real browser flow.
 3. Inspect all currently persisted Tesco records and record anomalies without modifying production data.
 4. Improve actionable 403/detail-request reporting while preserving fail-closed behaviour.
@@ -45,5 +45,5 @@ Production remains Aldi-only on commit `3eeaef07e408cf5bb44a9f87a4f077cbea348c7d
 
 ## Next recommended ticket
 
-Run and record the final typecheck, client tests, and production build for the latest planner-session checkpoint. This is the smallest missing evidence item and should precede further implementation.
+Verify the complete browser flow at checkpoint `18e4231`: a fresh visit starting at retailer selection, Aldi generation, Tesco generation, regeneration retaining the retailer, Start new plan resetting to retailer selection, and recipe and shopping-list copy naming the correct retailer. Check desktop and mobile widths plus console and network errors. This is Ordered Outcome 2; Outcome 1 is recorded.
 

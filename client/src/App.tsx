@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { ApiRequestError } from "./api/http";
 import {
@@ -8,11 +8,7 @@ import {
   type ReplaceMealInput,
 } from "./api/mealPlans";
 import type { MealPlanRequest, MealPlanResponse, MealType } from "./api/types";
-import { AppFooter } from "./components/AppFooter";
-import { AppHeader } from "./components/AppHeader";
 import { ConstraintForm } from "./components/ConstraintForm";
-import { HeroSection } from "./components/HeroSection";
-import { HowItWorks } from "./components/HowItWorks";
 import { Icon } from "./components/Icon";
 import { MealPlanResults } from "./components/MealPlanResults";
 import { PlanError } from "./components/PlanError";
@@ -84,6 +80,15 @@ export interface AppProps {
   onStartNewPlan?: () => void;
 }
 
+/**
+ * The planning screen.
+ *
+ * It renders one thing — the constraints, and the week they produce — and
+ * nothing around it: the header, navigation and footer belong to `AppShell`,
+ * which every route shares. It used to be the whole application, which is why
+ * it is still called `App` and why its props are optional; the routed planner
+ * passes all of them.
+ */
 export function App({
   defaults,
   onPlanChange,
@@ -98,8 +103,6 @@ export function App({
   // The submitted request is kept so "Regenerate" repeats it exactly.
   const [lastRequest, setLastRequest] = useState<MealPlanRequest | null>(null);
   const [plan, setPlan] = useState<MealPlanResponse | null>(null);
-  const [isPlannerMode, setIsPlannerMode] = useState(() => window.location.hash === "#planner");
-  const plannerRef = useRef<HTMLElement>(null);
 
   const catalogue = useQuery({
     queryKey: ["catalogue-status"],
@@ -175,154 +178,41 @@ export function App({
     replaceMutation.mutate({ request: lastRequest, plan, day, mealType });
   };
 
-  /**
-   * The header and the hero both point here. Focus moves as well as the
-   * viewport, so a keyboard or screen-reader user arrives where a sighted user
-   * is looking. `scrollIntoView` is called optionally: jsdom has no layout and
-   * does not implement it.
-   */
-  const focusPlanner = (): void => {
-    const planner = plannerRef.current;
-    if (!planner) return;
-
-    setIsPlannerMode(true);
-    window.history.replaceState(null, "", "#planner");
-    planner.focus();
-    planner.scrollIntoView?.({ behavior: "smooth", block: "start" });
-  };
-
-  const exitPlanner = (): void => {
-    setIsPlannerMode(false);
-    window.history.replaceState(null, "", window.location.pathname + window.location.search);
-  };
-
   const isGenerating = planMutation.isPending;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <AppHeader
-        status={catalogue.data}
-        isLoading={catalogue.isLoading}
-        error={catalogue.error as Error | null}
-        isPlannerMode={isPlannerMode}
-        onPlanClick={focusPlanner}
-        onExitPlanner={exitPlanner}
-      />
-
-      <main className="flex-1">
-        {showForm && !isPlannerMode ? <HeroSection onPlanClick={focusPlanner} /> : null}
-
-        <section
-          id="planner"
-          ref={plannerRef}
-          tabIndex={-1}
-          aria-label="Planner"
-          className={`mx-auto scroll-mt-20 px-4 outline-none sm:px-6 ${
-            isPlannerMode
-              ? "flex min-h-[calc(100dvh-4rem)] max-w-5xl items-start py-5 sm:py-7"
-              : "max-w-6xl py-10 sm:py-14"
-          }`}
-        >
-          {showForm ? (
-            <section aria-labelledby="constraints-heading" className="w-full">
-              <div className="print-hidden">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
-                  The planner
-                </p>
-                <h2
-                  id="constraints-heading"
-                  className="mt-2 text-3xl font-semibold tracking-tight text-ink"
-                >
-                  Plan your week
-                </h2>
-                <p className="mt-1.5 max-w-lg text-sm text-ink-muted">
-                  Three focused steps. You can change anything before generating.
-                </p>
-              </div>
-
-              <div className="mt-7 space-y-7">
-                {retailerSelector}
-                <ConstraintForm
-                  state={formState}
-                  onStateChange={setFormState}
-                  onSubmit={submit}
-                  isGenerating={isGenerating}
-                  serverIssues={serverIssuesFrom(planMutation.error)}
-                />
-              </div>
-            </section>
-          ) : (
-            <div>
-              {isGenerating ? <PlanSkeleton /> : null}
-
-              {!isGenerating && planMutation.isError ? (
-                <PlanError
-                  error={planMutation.error}
-                  onRetry={retry}
-                  onEditConstraints={() => {
-                    setShowForm(true);
-                    planMutation.reset();
-                  }}
-                />
-              ) : null}
-
-              {!isGenerating && !planMutation.isError && plan ? (
-                <MealPlanResults
-                  plan={plan}
-                  onRegenerate={regenerate}
-                  onStartNewPlan={startNewPlan}
-                  onEditConstraints={() => setShowForm(true)}
-                  onReplaceMeal={replaceSelectedMeal}
-                  isRegenerating={isGenerating}
-                  isReplacing={replaceMutation.isPending}
-                />
-              ) : null}
-
-              {replaceMutation.isError ? (
-                <div
-                  role="alert"
-                  className="mt-4 flex items-start gap-2.5 rounded-xl border border-danger bg-danger-surface p-4 text-sm text-danger-ink"
-                >
-                  <span className="mt-0.5 shrink-0">
-                    <Icon name="alert-circle" size={16} />
-                  </span>
-                  {describeReplacementFailure(replaceMutation.error)}
-                </div>
-              ) : null}
-
-              {!isGenerating && !plan && !planMutation.isError ? (
-                <p className="text-sm text-ink-muted">
-                  No plan yet. Open the form to set your constraints.
-                </p>
-              ) : null}
-            </div>
-          )}
-        </section>
-
-        {!isPlannerMode ? (
-          <>
-            <HowItWorks />
-
-            <section
-          id="catalogue"
-          aria-labelledby="catalogue-section-heading"
-          className="print-hidden border-t border-line/70"
-        >
-          <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+    <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+      {showForm ? (
+        <section aria-labelledby="constraints-heading">
+          <div className="print-hidden">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">
-              Data source
+              The planner
             </p>
-            <h2
-              id="catalogue-section-heading"
-              className="mt-2 text-2xl font-semibold tracking-tight text-ink sm:text-3xl"
+            <h1
+              id="constraints-heading"
+              className="mt-2 text-3xl font-semibold tracking-tight text-ink"
             >
-              Catalogue
-            </h2>
+              Plan your week
+            </h1>
             <p className="mt-1.5 max-w-lg text-sm text-ink-muted">
-              Plans are only as current as the products behind them.
+              Three focused steps. You can change anything before generating.
             </p>
+          </div>
 
-            <div className="mt-6 max-w-md">
+          <div className="mt-7 space-y-7">
+            {retailerSelector}
+            <ConstraintForm
+              state={formState}
+              onStateChange={setFormState}
+              onSubmit={submit}
+              isGenerating={isGenerating}
+              serverIssues={serverIssuesFrom(planMutation.error)}
+            />
+
+            {/* Kept beside the form, not on a marketing page: when generation
+                fails, whether the catalogue can support a plan at all is the
+                first thing worth knowing. */}
+            <div className="print-hidden max-w-md">
               <StatusPanel
                 status={catalogue.data}
                 isLoading={catalogue.isLoading}
@@ -330,12 +220,53 @@ export function App({
               />
             </div>
           </div>
-            </section>
-          </>
-        ) : null}
-      </main>
+        </section>
+      ) : (
+        <div>
+          {isGenerating ? <PlanSkeleton /> : null}
 
-      {!isPlannerMode ? <AppFooter /> : null}
-    </div>
+          {!isGenerating && planMutation.isError ? (
+            <PlanError
+              error={planMutation.error}
+              onRetry={retry}
+              onEditConstraints={() => {
+                setShowForm(true);
+                planMutation.reset();
+              }}
+            />
+          ) : null}
+
+          {!isGenerating && !planMutation.isError && plan ? (
+            <MealPlanResults
+              plan={plan}
+              onRegenerate={regenerate}
+              onStartNewPlan={startNewPlan}
+              onEditConstraints={() => setShowForm(true)}
+              onReplaceMeal={replaceSelectedMeal}
+              isRegenerating={isGenerating}
+              isReplacing={replaceMutation.isPending}
+            />
+          ) : null}
+
+          {replaceMutation.isError ? (
+            <div
+              role="alert"
+              className="mt-4 flex items-start gap-2.5 rounded-xl border border-danger bg-danger-surface p-4 text-sm text-danger-ink"
+            >
+              <span className="mt-0.5 shrink-0">
+                <Icon name="alert-circle" size={16} />
+              </span>
+              {describeReplacementFailure(replaceMutation.error)}
+            </div>
+          ) : null}
+
+          {!isGenerating && !plan && !planMutation.isError ? (
+            <p className="text-sm text-ink-muted">
+              No plan yet. Open the form to set your constraints.
+            </p>
+          ) : null}
+        </div>
+      )}
+    </main>
   );
 }
