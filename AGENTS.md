@@ -23,6 +23,15 @@ The deterministic planner is authoritative. Do not introduce a model into the re
 
 The PRD describes intended product direction. The repository describes current implementation. Production state must be recorded separately from development-branch state. Never collapse proposed, specified, planned, implemented, verified, merged, deployed, or released into one status.
 
+## Operator and workspace lifecycle
+
+Use the repository-local operator skills in `.claude/skills/`:
+
+- `/morning-brief` is read-only orientation. It reconciles project context, repository and available GitHub state, roadmap priorities, verification evidence, risks, and real customer signals, then recommends at most one next ticket outcome. It does not create the ticket or authorize execution.
+- `/reset-workspace` resets only AI operating state explicitly owned by `.claude/workspace-manifest.json`. It must show the exact deletion set and receive explicit approval before deleting anything. It preserves application/runtime files, source product documents, Git metadata, secrets and configuration, dependencies, deployment files, unknown project files, and `.claude/skills/`.
+
+If the workspace manifest is missing, invalid, unsafe, or conflicts with the repository, `/reset-workspace` must fail closed and delete nothing. The manifest is ownership evidence for the operating layer; it never grants authority over protected application or project files.
+
 ## Software delivery workflow
 
 Use the repository-local skills in `.claude/skills/`:
@@ -83,7 +92,7 @@ Inspect files and history, analyze sources, explain findings, compare states, pr
 
 ### Approval required
 
-Create or edit files; change dependencies, lockfiles, migrations, authentication, payments, permissions, external services, Git state, schedules, routines, or catalogue data; run persistent crawls; commit or push changes; and create previews or pull requests.
+Create, edit, move, or delete files; reset manifest-owned operating state through `/reset-workspace`; change dependencies, lockfiles, migrations, authentication, payments, permissions, external services, Git state, schedules, routines, or catalogue data; run persistent crawls; commit or push changes; and create previews or pull requests.
 
 ### Human-owned
 
