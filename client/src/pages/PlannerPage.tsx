@@ -43,6 +43,7 @@ export function PlannerPage(): ReactElement {
       retailerName={retailer?.name ?? null}
       retailerSelector={
         <RetailerPicker
+          embedded
           retailerId={retailerId}
           onRetailerChange={chooseRetailer}
         />
