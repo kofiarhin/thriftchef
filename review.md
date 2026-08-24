@@ -35,6 +35,18 @@ Use this checklist before calling a ticket complete or ready for human review.
 - Are security, secrets, origin restrictions, and environment boundaries preserved?
 - Are regression tests focused on observable behaviour and failure modes?
 - Does the diff contain surprising, unrelated, generated, or secret material?
+- For testable implementation work, does the evidence show RED → GREEN → REFACTOR → VERIFY rather than tests being added only after the implementation?
+
+## Delivery traceability and document alignment
+
+- Does the change trace back to one source ticket, approved spec, and implementation plan when those artifacts are required?
+- Does the implementation remain inside the approved ticket/spec/plan scope?
+- Is a plan being treated only as intended work rather than proof that code exists?
+- Does `context/current-state.md` reflect only observed implementation and verification evidence?
+- Was `context/architecture.md` changed only if architecture truth changed?
+- Was `context/decisions.md` changed only for confirmed decisions?
+- Was `roadmap.md` advanced only when its completion evidence was satisfied?
+- Are additions to `context/lessons.md` concise, ThriftChef-specific, and supported by actual implementation, testing, debugging, or review evidence?
 
 ## Evidence
 
@@ -56,5 +68,4 @@ Important quality, maintainability, clarity, or coverage issue that does not blo
 
 ### Okay to ship
 
-The approved outcome is implemented, relevant checks pass, the user flow is inspected where applicable, the diff is scoped, and remaining limitations are disclosed. This classification is not permission to merge or deploy.
-
+The approved outcome is implemented, relevant checks pass, the user flow is inspected where applicable, the diff is scoped, project documents are aligned with verified reality, and remaining limitations are disclosed. This classification is not permission to merge or deploy.

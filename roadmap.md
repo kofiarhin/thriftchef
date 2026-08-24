@@ -29,6 +29,16 @@ The Tesco branch is ready for human merge consideration only when:
 
 Each outcome is a separate ticket unless a later approved plan demonstrates that two items form one inseparable vertical slice.
 
+## Delivery workflow
+
+Move each outcome through the same evidence chain:
+
+```text
+roadmap outcome → tickets/ → spec/ → plans/ → implementation → verification
+```
+
+Use `/ticket`, `/spec`, `/plan`, and `/implement-plan` for the corresponding stages. A ticket, specification, or plan does not advance an outcome to implemented or verified. Testable implementation plans use RED → GREEN → REFACTOR → VERIFY by default, and verified work must synchronize `context/current-state.md` plus any genuinely changed architecture, decisions, roadmap status, or repository-specific lessons.
+
 ## Completed supporting work
 
 - The development branch implements direct Aldi/Tesco retailer choice using Tesco's national public catalogue scope.
@@ -53,4 +63,4 @@ Production remains recorded as Aldi-only on `3eeaef07e408cf5bb44a9f87a4f077cbea3
 
 ## Next recommended ticket
 
-Run the final required automated verification against the exact current merge candidate and record the checkpoint. This closes the evidence gap in Ordered Outcome 1 without changing product behaviour. After that, take Ordered Outcome 2 as a separate ticket focused specifically on the unverified Tesco browser journey.
+Run `/ticket` for the final required automated verification against the exact current merge candidate and record the checkpoint. This closes the evidence gap in Ordered Outcome 1 without changing product behaviour. After that, take Ordered Outcome 2 as a separate ticket focused specifically on the unverified Tesco browser journey.

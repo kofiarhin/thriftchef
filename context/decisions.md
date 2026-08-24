@@ -17,6 +17,9 @@
 | Each routed page owns its own `main` and top-level heading | Confirmed | The shell does not add a second `main`; pages remain valid when rendered independently. |
 | Planner navigation is route-based, not hash-mode based | Confirmed | `/plan` is the planning destination; `#planner`, planner enter/exit state, and landing-page anchor navigation are retired. |
 | Query, household-profile, and plan providers outlive route navigation | Confirmed | Providers remain outside the router so navigation does not recreate query cache, profile state, or the active plan. |
+| Software delivery uses ticket → spec → plan → implementation | Confirmed | Product intent, technical design, execution order, and code changes remain separate reviewable artifacts under `tickets/`, `spec/`, and `plans/`. |
+| Testable implementation defaults to RED → GREEN → REFACTOR → VERIFY | Confirmed | `/plan` defines test-first slices and `/implement-plan` must prove the intended RED failure before the minimum GREEN implementation. |
+| Repository-specific delivery lessons live in `context/lessons.md` | Confirmed | Future work may reuse observed ThriftChef lessons without introducing a separate memory service or treating generic advice as project truth. |
 | Production deployment and merge are human-owned | Confirmed | Each requires separate explicit approval. |
 
 ## Current implementation decision
@@ -30,6 +33,7 @@ The routed client uses one pathless layout route with `AppShell` around all seve
 - A passing routed-shell/Aldi browser harness does not prove the Tesco browser journey because the current harness does not seed or select Tesco.
 - Verification recorded before a later comment-only source edit remains useful implementation evidence but is not an exact-head full-suite result. Exact merge-candidate verification must be recorded separately.
 - Development branch selectability must never be described as merged, deployed, or production-active without corresponding evidence.
+- A ticket, specification, or plan does not prove implementation or verification; status advances only from current repository/check evidence.
 
 ## Unresolved questions
 
