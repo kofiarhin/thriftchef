@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+  type Ref,
+} from "react";
 import {
   APPLIANCES,
   MEAL_PREFERENCES,
@@ -23,6 +30,7 @@ import {
   type FieldName,
   type ValidationIssues,
 } from "../constraints";
+import { WeeklyMoodPicker } from "../features/weeklyPlan/WeeklyMoodPicker";
 import { formatPence } from "../format";
 import { Icon } from "./Icon";
 import { MustHaveSelector } from "./MustHaveSelector";
@@ -41,21 +49,89 @@ interface ConstraintFormProps {
   onSubmit: (request: MealPlanRequest) => void;
   isGenerating: boolean;
   serverIssues?: ValidationIssues;
+  /**
+   * The routed `/plan` experience uses the single-focus wizard. The grouped
+   * form remains the standalone fallback because `App` is also rendered
+   * directly by its existing component tests and optional embedding contract.
+   */
+  focusedWizard?: boolean;
+  /** Existing selectable-retailer UI, rendered as the first focused step. */
+  retailerSelector?: ReactNode;
+  /** Human-readable retailer name used by the Review step. */
+  retailerName?: string | null;
 }
 
-const STEPS = ["Basics", "Preferences", "Kitchen"] as const;
-const STEP_FIELDS: FieldName[][] = [
+const LEGACY_STEPS = ["Basics", "Preferences", "Kitchen"] as const;
+const LEGACY_STEP_FIELDS: FieldName[][] = [
   ["budgetPounds", "budgetTargetPercent", "householdSize", "mealsPerDay"],
-  ["mustHaveProducts", "mealPreferences", "cuisinePreferences", "allergies", "dislikedIngredients"],
+  [
+    "mustHaveProducts",
+    "mealPreferences",
+    "cuisinePreferences",
+    "allergies",
+    "dislikedIngredients",
+  ],
   ["appliances", "pantryBasics"],
+];
+
+interface FocusedStepDefinition {
+  id:
+    | "supermarket"
+    | "budget"
+    | "household"
+    | "meals"
+    | "days"
+    | "time"
+    | "preferences"
+    | "diet"
+    | "kitchen"
+    | "review";
+  label: string;
+  fields: FieldName[];
+}
+
+const FOCUSED_STEPS: FocusedStepDefinition[] = [
+  { id: "supermarket", label: "Supermarket", fields: ["retailerId"] },
+  {
+    id: "budget",
+    label: "Budget",
+    fields: ["budgetPounds", "budgetTargetPercent"],
+  },
+  { id: "household", label: "Household", fields: ["householdSize"] },
+  { id: "meals", label: "Meals", fields: ["mealsPerDay"] },
+  { id: "days", label: "Cooking days", fields: ["cookingDays"] },
+  { id: "time", label: "Cooking time", fields: ["maxTotalMinutes"] },
+  {
+    id: "preferences",
+    label: "Food preferences",
+    fields: ["weeklyMoods", "mealPreferences", "cuisinePreferences"],
+  },
+  {
+    id: "diet",
+    label: "Diet & exclusions",
+    fields: ["mustHaveProducts", "allergies", "dislikedIngredients"],
+  },
+  {
+    id: "kitchen",
+    label: "Kitchen & pantry",
+    fields: ["appliances", "pantryBasics"],
+  },
+  { id: "review", label: "Review", fields: [] },
 ];
 
 const ALLERGEN_LABELS: Partial<Record<Allergen, string>> = {
   "tree nuts": "Tree nuts",
 };
 
-function hasStepIssues(issues: ValidationIssues, step: number): boolean {
-  return STEP_FIELDS[step].some((field) => Boolean(issues[field]));
+function hasLegacyStepIssues(issues: ValidationIssues, step: number): boolean {
+  return LEGACY_STEP_FIELDS[step].some((field) => Boolean(issues[field]));
+}
+
+function hasFocusedStepIssues(
+  issues: ValidationIssues,
+  definition: FocusedStepDefinition,
+): boolean {
+  return definition.fields.some((field) => Boolean(issues[field]));
 }
 
 function StepIntro({
@@ -96,11 +172,6 @@ interface BudgetTargetChoiceProps {
   error?: string;
 }
 
-/**
- * Radio cards rather than a slider: the three presets are the whole choice,
- * and a real radio group is what gives keyboard and screen-reader users arrow
- * navigation and a spoken group label for free.
- */
 function BudgetTargetChoice({
   value,
   onChange,
@@ -170,11 +241,6 @@ function BudgetTargetChoice({
   );
 }
 
-/**
- * Aldi publishes no allergen labels, so the safety story needs more than one
- * line — but not at the top of the form every time. The short warning stays
- * visible; the reasoning sits one click away.
- */
 function AllergenSafetyNote() {
   return (
     <details className="group rounded-xl border border-warning bg-warning-surface px-4 py-3">
@@ -192,8 +258,6 @@ function AllergenSafetyNote() {
   );
 }
 
-import { WeeklyMoodPicker } from "../features/weeklyPlan/WeeklyMoodPicker";
-
 const WEEKDAY_LABELS = [
   { day: 1, short: "Mon", long: "Monday" },
   { day: 2, short: "Tue", long: "Tuesday" },
@@ -204,13 +268,6 @@ const WEEKDAY_LABELS = [
   { day: 7, short: "Sun", long: "Sunday" },
 ];
 
-/**
- * Which days the household actually cooks.
- *
- * A plan for seven days when someone eats out on Fridays wastes a meal and the
- * food it was going to buy, so this is a real constraint rather than a
- * presentational filter — the planner builds only the days chosen here.
- */
 function CookingDaysChoice({
   value,
   onChange,
@@ -266,14 +323,6 @@ function CookingDaysChoice({
   );
 }
 
-/**
- * A ceiling on any single recipe.
- *
- * Distinct from the "quick" preference on the next step: this one is a refusal
- * — no recipe over the limit is ever offered — while "quick" only nudges the
- * scoring. Conflating them would quietly narrow the menu for everyone who
- * simply likes fast dinners.
- */
 function CookingTimeChoice({
   value,
   onChange,
@@ -330,7 +379,533 @@ function CookingTimeChoice({
   );
 }
 
-export function ConstraintForm({
+function daysSummary(days: number[]): string {
+  return WEEKDAY_LABELS.filter((weekday) => days.includes(weekday.day))
+    .map((weekday) => weekday.short)
+    .join(", ");
+}
+
+function ReviewRow({
+  label,
+  value,
+  onEdit,
+}: {
+  label: string;
+  value: string;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-line/70 py-3 last:border-0">
+      <div className="min-w-0">
+        <dt className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+          {label}
+        </dt>
+        <dd className="mt-1 text-sm text-ink">{value}</dd>
+      </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-brand hover:bg-brand-soft"
+      >
+        Edit {label}
+      </button>
+    </div>
+  );
+}
+
+function FocusedConstraintForm({
+  state,
+  onStateChange,
+  onSubmit,
+  isGenerating,
+  serverIssues,
+  retailerSelector,
+  retailerName,
+}: ConstraintFormProps) {
+  const steps = retailerSelector
+    ? FOCUSED_STEPS
+    : FOCUSED_STEPS.filter((definition) => definition.id !== "supermarket");
+  const [step, setStep] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+  const [retailerError, setRetailerError] = useState<string | null>(null);
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const hasRenderedRef = useRef(false);
+  const validation = validateConstraints(state);
+  const issues: ValidationIssues = {
+    ...(submitted ? validation.issues : {}),
+    ...serverIssues,
+  };
+  const currentStep = steps[step];
+
+  useEffect(() => {
+    if (!hasRenderedRef.current) {
+      hasRenderedRef.current = true;
+      return;
+    }
+
+    const heading = stepHeadingRef.current;
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }, [step]);
+
+  useEffect(() => {
+    if (!serverIssues) return;
+
+    const fieldsWithServerIssues = new Set(
+      Object.entries(serverIssues)
+        .filter(([, message]) => Boolean(message))
+        .map(([field]) => field as FieldName),
+    );
+
+    if (fieldsWithServerIssues.size === 0) return;
+
+    const target = steps.findIndex((definition) =>
+      definition.fields.some((field) => fieldsWithServerIssues.has(field)),
+    );
+
+    if (target >= 0) {
+      setSubmitted(true);
+      setStep(target);
+    }
+  }, [serverIssues, steps]);
+
+  const update = <K extends keyof ConstraintFormState>(
+    key: K,
+    value: ConstraintFormState[K],
+  ): void => onStateChange({ ...state, [key]: value });
+
+  const goToStep = (nextStep: number): void => {
+    setSubmitted(false);
+    setRetailerError(null);
+    setStep(Math.max(0, Math.min(steps.length - 1, nextStep)));
+  };
+
+  const goToFocusedStep = (id: FocusedStepDefinition["id"]): void => {
+    const index = steps.findIndex((definition) => definition.id === id);
+    if (index >= 0) goToStep(index);
+  };
+
+  const continueToNextStep = (): void => {
+    setSubmitted(true);
+
+    if (
+      currentStep.id === "supermarket" &&
+      retailerSelector &&
+      !state.retailerId
+    ) {
+      setRetailerError("Choose a supermarket to continue.");
+      return;
+    }
+
+    setRetailerError(null);
+    if (hasFocusedStepIssues(validation.issues, currentStep)) return;
+    goToStep(step + 1);
+  };
+
+  const handleSubmit = (event: FormEvent): void => {
+    event.preventDefault();
+
+    if (currentStep.id !== "review") {
+      continueToNextStep();
+      return;
+    }
+
+    setSubmitted(true);
+    if (validation.request) {
+      onSubmit(validation.request);
+      return;
+    }
+
+    const target = steps.findIndex((definition) =>
+      definition.fields.some((field) => Boolean(validation.issues[field])),
+    );
+    if (target >= 0) setStep(target);
+  };
+
+  const preferenceCount =
+    state.weeklyMoods.length +
+    state.mealPreferences.length +
+    (state.cuisinePreferences.trim() ? 1 : 0);
+  const exclusionCount =
+    state.allergies.length +
+    state.mustHaveProducts.length +
+    (state.dislikedIngredients.trim() ? 1 : 0);
+  const kitchenCount = state.appliances.length + state.pantryBasics.length;
+  const progress = Math.round(((step + 1) / steps.length) * 100);
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <nav aria-label="Planning progress" className="mb-5">
+        <div className="mb-3 flex items-center justify-between gap-3 text-sm">
+          <p className="font-semibold text-ink">
+            Step {step + 1} of {steps.length}
+          </p>
+          <p className="text-ink-muted">{currentStep.label}</p>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Planning progress"
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-valuenow={step + 1}
+          className="h-1.5 overflow-hidden rounded-full bg-line"
+        >
+          <div
+            className="h-full rounded-full bg-brand transition-[width] duration-200"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </nav>
+
+      <div className="min-h-[26rem] rounded-2xl border border-line bg-surface-raised p-5 shadow-elevated sm:p-7">
+        {currentStep.id === "supermarket" ? (
+          <section aria-labelledby="supermarket-step" className="space-y-6">
+            <StepIntro
+              eyebrow="Supermarket"
+              id="supermarket-step"
+              title="Choose your supermarket"
+              detail="Every product, price and shopping-list item will come from this shop."
+              headingRef={stepHeadingRef}
+            />
+            {retailerSelector}
+            {retailerError ? (
+              <p role="alert" className="text-sm text-danger-ink">
+                {retailerError}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {currentStep.id === "budget" ? (
+          <section aria-labelledby="budget-step" className="space-y-6">
+            <StepIntro
+              eyebrow="Budget"
+              id="budget-step"
+              title="Set your weekly budget"
+              detail="This is a hard maximum for the whole basket."
+              headingRef={stepHeadingRef}
+            />
+            <TextField
+              label="Weekly budget"
+              hint={`Between £${MIN_BUDGET_POUNDS} and £${MAX_BUDGET_POUNDS} for the whole basket.`}
+              value={state.budgetPounds}
+              onChange={(value) => update("budgetPounds", value)}
+              error={issues.budgetPounds}
+              type="number"
+              inputMode="decimal"
+              min={MIN_BUDGET_POUNDS}
+              max={MAX_BUDGET_POUNDS}
+              step="0.01"
+              prefix="£"
+              icon="wallet"
+              emphasis
+            />
+            <BudgetTargetChoice
+              value={state.budgetTargetPercent}
+              onChange={(value) => update("budgetTargetPercent", value)}
+              targetPence={targetPenceFor(state)}
+              error={issues.budgetTargetPercent}
+            />
+          </section>
+        ) : null}
+
+        {currentStep.id === "household" ? (
+          <section aria-labelledby="household-step" className="space-y-6">
+            <StepIntro
+              eyebrow="Household"
+              id="household-step"
+              title="How many people are you cooking for?"
+              detail="Recipes and shopping quantities are sized to your household."
+              headingRef={stepHeadingRef}
+            />
+            <div className="max-w-sm">
+              <TextField
+                label="Household size"
+                hint="Between 1 and 10 people."
+                value={state.householdSize}
+                onChange={(value) => update("householdSize", value)}
+                error={issues.householdSize}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={10}
+                step="1"
+                icon="users"
+                emphasis
+              />
+            </div>
+          </section>
+        ) : null}
+
+        {currentStep.id === "meals" ? (
+          <section aria-labelledby="meals-step" className="space-y-6">
+            <StepIntro
+              eyebrow="Meals"
+              id="meals-step"
+              title="Which meals should we plan?"
+              detail="Each selected meal type is planned for every cooking day."
+              headingRef={stepHeadingRef}
+            />
+            <CheckboxGroup<MealType>
+              legend="Meals to plan each day"
+              hint="Choose at least one."
+              options={MEAL_TYPES}
+              selected={state.mealsPerDay}
+              onChange={(value) => update("mealsPerDay", value)}
+              error={issues.mealsPerDay}
+              meta={MEAL_TYPE_META}
+            />
+          </section>
+        ) : null}
+
+        {currentStep.id === "days" ? (
+          <section aria-labelledby="days-step" className="space-y-6">
+            <StepIntro
+              eyebrow="Schedule"
+              id="days-step"
+              title="Which days are you cooking?"
+              detail="We only plan meals and buy food for the days you choose."
+              headingRef={stepHeadingRef}
+            />
+            <CookingDaysChoice
+              value={state.cookingDays}
+              onChange={(value) => update("cookingDays", value)}
+              error={issues.cookingDays}
+            />
+          </section>
+        ) : null}
+
+        {currentStep.id === "time" ? (
+          <section aria-labelledby="time-step" className="space-y-6">
+            <StepIntro
+              eyebrow="Cooking time"
+              id="time-step"
+              title="How long can dinner take?"
+              detail="Nothing longer than this limit will be suggested."
+              headingRef={stepHeadingRef}
+            />
+            <CookingTimeChoice
+              value={state.maxTotalMinutes}
+              onChange={(value) => update("maxTotalMinutes", value)}
+              error={issues.maxTotalMinutes}
+            />
+          </section>
+        ) : null}
+
+        {currentStep.id === "preferences" ? (
+          <section aria-labelledby="preferences-step" className="space-y-7">
+            <StepIntro
+              eyebrow="Food preferences"
+              id="preferences-step"
+              title="What sounds good this week?"
+              detail="These choices steer the planner; leave them empty for more variety."
+              headingRef={stepHeadingRef}
+            />
+            <WeeklyMoodPicker
+              selected={state.weeklyMoods}
+              onChange={(value) => update("weeklyMoods", value)}
+            />
+            <CheckboxGroup<MealPreference>
+              legend="Meal preferences"
+              hint="Optional. These steer which recipes the planner picks."
+              options={MEAL_PREFERENCES}
+              selected={state.mealPreferences}
+              onChange={(value) => update("mealPreferences", value)}
+              error={issues.mealPreferences}
+              meta={MEAL_PREFERENCE_META}
+            />
+            <TextField
+              label="Cuisine preferences"
+              hint="Optional, comma separated — for example: Ghanaian, British."
+              value={state.cuisinePreferences}
+              onChange={(value) => update("cuisinePreferences", value)}
+              error={issues.cuisinePreferences}
+            />
+          </section>
+        ) : null}
+
+        {currentStep.id === "diet" ? (
+          <section aria-labelledby="diet-step" className="space-y-7">
+            <StepIntro
+              eyebrow="Diet & exclusions"
+              id="diet-step"
+              title="Anything we must include or avoid?"
+              detail="Set hard exclusions and any products you definitely want this week."
+              headingRef={stepHeadingRef}
+            />
+            <div>
+              <h4 className="text-sm font-semibold text-ink">Must-have items</h4>
+              <p className="mt-1 text-xs text-ink-muted">
+                Optional. Add catalogue products you want included in the basket.
+              </p>
+              <div className="mt-3">
+                <MustHaveSelector
+                  selected={state.mustHaveProducts}
+                  onChange={(value) => update("mustHaveProducts", value)}
+                  error={issues.mustHaveProducts}
+                />
+              </div>
+            </div>
+            <CheckboxGroup<Allergen>
+              legend="Allergies to avoid"
+              hint="Allergen data is inferred, never official. Check the packaging."
+              options={UK_ALLERGENS}
+              selected={state.allergies}
+              onChange={(value) => update("allergies", value)}
+              error={issues.allergies}
+              labels={ALLERGEN_LABELS}
+              meta={ALLERGEN_META}
+              dense
+              footnote={<AllergenSafetyNote />}
+            />
+            <TextField
+              label="Disliked ingredients"
+              hint="Optional, comma separated — for example: olives, mushrooms."
+              value={state.dislikedIngredients}
+              onChange={(value) => update("dislikedIngredients", value)}
+              error={issues.dislikedIngredients}
+            />
+          </section>
+        ) : null}
+
+        {currentStep.id === "kitchen" ? (
+          <section aria-labelledby="kitchen-step" className="space-y-8">
+            <StepIntro
+              eyebrow="Kitchen & pantry"
+              id="kitchen-step"
+              title="What is already in your kitchen?"
+              detail="We will only suggest recipes you can cook and avoid rebuying selected basics."
+              headingRef={stepHeadingRef}
+            />
+            <CheckboxGroup<Appliance>
+              legend="Cooking appliances available"
+              hint="Clear every option to request no-cook meals only."
+              options={APPLIANCES}
+              selected={state.appliances}
+              onChange={(value) => update("appliances", value)}
+              error={issues.appliances}
+              meta={APPLIANCE_META}
+            />
+            <CheckboxGroup<PantryBasic>
+              legend="Already have at home"
+              hint="Only selected basics may be used without joining the basket."
+              options={PANTRY_BASICS}
+              selected={state.pantryBasics}
+              onChange={(value) => update("pantryBasics", value)}
+              error={issues.pantryBasics}
+              meta={PANTRY_META}
+            />
+          </section>
+        ) : null}
+
+        {currentStep.id === "review" ? (
+          <section aria-labelledby="review-step" className="space-y-6">
+            <StepIntro
+              eyebrow="Review"
+              id="review-step"
+              title="Review your week"
+              detail="Check the essentials before ThriftChef builds the plan."
+              headingRef={stepHeadingRef}
+            />
+            <dl className="rounded-xl border border-line bg-surface-sunken px-4">
+              {retailerSelector ? (
+                <ReviewRow
+                  label="Supermarket"
+                  value={retailerName ?? "Selected supermarket"}
+                  onEdit={() => goToFocusedStep("supermarket")}
+                />
+              ) : null}
+              <ReviewRow
+                label="Budget"
+                value={`£${state.budgetPounds || "0"} maximum · aiming for ${state.budgetTargetPercent}%`}
+                onEdit={() => goToFocusedStep("budget")}
+              />
+              <ReviewRow
+                label="Household"
+                value={`${state.householdSize || "0"} people`}
+                onEdit={() => goToFocusedStep("household")}
+              />
+              <ReviewRow
+                label="Meals"
+                value={state.mealsPerDay.join(", ") || "None"}
+                onEdit={() => goToFocusedStep("meals")}
+              />
+              <ReviewRow
+                label="Cooking days"
+                value={daysSummary(state.cookingDays) || "None"}
+                onEdit={() => goToFocusedStep("days")}
+              />
+              <ReviewRow
+                label="Cooking time"
+                value={
+                  state.maxTotalMinutes === null
+                    ? "No limit"
+                    : `Up to ${state.maxTotalMinutes} min`
+                }
+                onEdit={() => goToFocusedStep("time")}
+              />
+              <ReviewRow
+                label="Food preferences"
+                value={
+                  preferenceCount === 0
+                    ? "No extra preferences"
+                    : `${preferenceCount} selected`
+                }
+                onEdit={() => goToFocusedStep("preferences")}
+              />
+              <ReviewRow
+                label="Diet & exclusions"
+                value={
+                  exclusionCount === 0
+                    ? "No extra exclusions"
+                    : `${exclusionCount} selected`
+                }
+                onEdit={() => goToFocusedStep("diet")}
+              />
+              <ReviewRow
+                label="Kitchen & pantry"
+                value={`${kitchenCount} selected`}
+                onEdit={() => goToFocusedStep("kitchen")}
+              />
+            </dl>
+          </section>
+        ) : null}
+      </div>
+
+      <div className="sticky bottom-0 z-20 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-elevated backdrop-blur sm:px-4">
+        <button
+          type="button"
+          onClick={() => goToStep(step - 1)}
+          disabled={step === 0 || isGenerating}
+          className="rounded-xl border border-line px-5 py-2.5 text-sm font-semibold text-ink transition hover:border-ink-muted disabled:invisible"
+        >
+          Back
+        </button>
+
+        <p className="hidden text-xs text-ink-muted sm:block">
+          {currentStep.id === "review"
+            ? "Nothing is generated until you confirm."
+            : "Your answers stay saved as you move between steps."}
+        </p>
+
+        <button
+          type="submit"
+          disabled={isGenerating}
+          className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-on-brand shadow-brand-glow transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isGenerating
+            ? "Building your plan…"
+            : currentStep.id === "review"
+              ? "Generate my plan"
+              : "Continue"}
+          <Icon name="arrow-right" size={16} />
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function LegacyConstraintForm({
   state,
   onStateChange,
   onSubmit,
@@ -365,18 +940,18 @@ export function ConstraintForm({
 
   const goToStep = (nextStep: number): void => {
     setSubmitted(false);
-    setStep(Math.max(0, Math.min(STEPS.length - 1, nextStep)));
+    setStep(Math.max(0, Math.min(LEGACY_STEPS.length - 1, nextStep)));
   };
 
   const continueToNextStep = (): void => {
     setSubmitted(true);
-    if (hasStepIssues(validation.issues, step)) return;
+    if (hasLegacyStepIssues(validation.issues, step)) return;
     goToStep(step + 1);
   };
 
   const handleSubmit = (event: FormEvent): void => {
     event.preventDefault();
-    if (step < STEPS.length - 1) {
+    if (step < LEGACY_STEPS.length - 1) {
       continueToNextStep();
       return;
     }
@@ -385,17 +960,19 @@ export function ConstraintForm({
     if (validation.request) onSubmit(validation.request);
   };
 
-  const isLastStep = step === STEPS.length - 1;
+  const isLastStep = step === LEGACY_STEPS.length - 1;
 
   return (
     <form onSubmit={handleSubmit} noValidate>
       <nav aria-label="Planning progress" className="mb-5">
         <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-          <p className="font-semibold text-ink">Step {step + 1} of {STEPS.length}</p>
-          <p className="text-ink-muted">{STEPS[step]}</p>
+          <p className="font-semibold text-ink">
+            Step {step + 1} of {LEGACY_STEPS.length}
+          </p>
+          <p className="text-ink-muted">{LEGACY_STEPS[step]}</p>
         </div>
         <ol className="grid grid-cols-3 gap-2">
-          {STEPS.map((label, index) => (
+          {LEGACY_STEPS.map((label, index) => (
             <li key={label}>
               <button
                 type="button"
@@ -517,9 +1094,7 @@ export function ConstraintForm({
               meta={MEAL_PREFERENCE_META}
             />
 
-            <details
-              className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
-            >
+            <details className="group rounded-xl border border-line bg-surface-sunken px-4 py-3">
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
                 <Icon name="basket" size={16} />
                 Add must-have items
@@ -536,9 +1111,7 @@ export function ConstraintForm({
               </div>
             </details>
 
-            <details
-              className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
-            >
+            <details className="group rounded-xl border border-line bg-surface-sunken px-4 py-3">
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
                 <Icon name="shield" size={16} />
                 Add allergies
@@ -560,9 +1133,7 @@ export function ConstraintForm({
               </div>
             </details>
 
-            <details
-              className="group rounded-xl border border-line bg-surface-sunken px-4 py-3"
-            >
+            <details className="group rounded-xl border border-line bg-surface-sunken px-4 py-3">
               <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-ink">
                 <Icon name="sliders" size={16} />
                 Add optional details
@@ -645,21 +1216,27 @@ export function ConstraintForm({
           Back
         </button>
 
-        <p className="hidden text-xs text-ink-muted sm:block">You can change this later.</p>
-          <button
-            type="submit"
-            disabled={isGenerating}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-on-brand shadow-brand-glow transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isGenerating
-              ? "Building your plan…"
-              : isLastStep
-                ? "Generate my plan"
-                : "Continue"}
-            <Icon name="arrow-right" size={16} />
-          </button>
-
+        <p className="hidden text-xs text-ink-muted sm:block">
+          You can change this later.
+        </p>
+        <button
+          type="submit"
+          disabled={isGenerating}
+          className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-on-brand shadow-brand-glow transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isGenerating
+            ? "Building your plan…"
+            : isLastStep
+              ? "Generate my plan"
+              : "Continue"}
+          <Icon name="arrow-right" size={16} />
+        </button>
       </div>
     </form>
   );
+}
+
+export function ConstraintForm(props: ConstraintFormProps) {
+  if (props.focusedWizard) return <FocusedConstraintForm {...props} />;
+  return <LegacyConstraintForm {...props} />;
 }
