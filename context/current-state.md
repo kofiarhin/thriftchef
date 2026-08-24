@@ -1,23 +1,35 @@
 # Current State
 
-Snapshot source: development checkpoint `18e4231eec31198fac4c6196da209d90f752020e` on branch `docs/thriftchef-ai-workspace`. That commit is documentation-only, so its application code is identical to `35f095b4bc1a9f8e6b8d4f4fc4f573e85239cec2`. Catalogue figures below remain recorded handoff evidence supplied on 23 August 2026.
+Snapshot source: development checkpoint `2a7657e10cd3251fdcb7a6730fae6a6a138defbe` on branch `docs/thriftchef-ai-workspace`. This checkpoint adds the routed application shell on top of the previous documentation checkpoint. Catalogue figures below remain recorded handoff evidence supplied on 23 August 2026; they were not refreshed by the shell work.
 
 ## Production
 
-- Vercel and Heroku remain on `3eeaef07e408cf5bb44a9f87a4f077cbea348c7d`.
-- Production is Aldi-only.
-- `CATALOGUE_READ_SOURCE=legacy` remains active.
-- Tesco has not been merged, deployed, or activated in production.
+- Vercel and Heroku remain recorded on `3eeaef07e408cf5bb44a9f87a4f077cbea348c7d`.
+- Production remains Aldi-only.
+- `CATALOGUE_READ_SOURCE=legacy` remains the production read path.
+- Tesco from this development branch has not been merged, deployed, or activated in production.
 
-## Implemented on the Tesco branch
+## Implemented on the development branch
 
-- Tesco adapter, current public category routes, product selectors, category registry, failure detection, fixtures, and tests.
+### Retailer and catalogue work
+
+- Tesco adapter, public category routes, product selectors, category registry, failure detection, captured and authored fixtures, and tests.
 - Shared bounded public crawl command: `npm run tesco:public-crawl`.
 - Additive Tesco retailer/catalogue bootstrap alongside preserved Aldi data.
 - Retailer-scoped persistence and planner-query boundaries.
-- Direct Aldi/Tesco choice with no additional postcode or store-selection UI.
+- The branch bootstrap seeds Tesco as `active` against the national public catalogue scope so Aldi and Tesco can both be exercised in development. This is branch-only application state, not production activation.
+- Direct Aldi/Tesco choice with no postcode or store-selection step for the current national-catalogue development flow.
 - Retailer propagation through generation, regeneration, replacement, recipes, shopping lists, and displayed copy.
 - Fresh-session behaviour for planner visits and Start new plan.
+
+### Routed client shell
+
+- `AppShell` is the single routed frame and owns the shared header, primary navigation, mobile disclosure, and footer.
+- All seven application routes are children of one pathless layout route, so the shell remains mounted while route content changes.
+- `AppShell` deliberately does not render a `main` landmark. Each route continues to own its own `main` and top-level heading so pages remain valid when rendered independently.
+- `App.tsx` is now only the planner screen. The old `#planner` hash mode, landing-page marketing chrome, and planner enter/exit state are removed.
+- `QueryClientProvider`, `HouseholdProfileProvider`, and `PlanProvider` remain outside the router. Query cache, reusable profile state, and the current plan therefore survive route navigation.
+- `AppHeader`, `AppFooter`, `HeroSection`, and `HowItWorks` were retired after their routed responsibilities moved into the shell or became obsolete.
 
 ## Recorded catalogue evidence
 
@@ -29,53 +41,54 @@ Snapshot source: development checkpoint `18e4231eec31198fac4c6196da209d90f752020
 - No availability reconciliation performed.
 - Recorded anomalies: one HTTP 403 detail request, eight route-not-found rejections, and one missing-standard-price rejection.
 
-This is historical evidence, not a fresh verification run.
+This is historical catalogue evidence, not a fresh verification run.
 
-## Recorded automated verification
+## Recorded verification
 
-### Current checkpoint `18e4231` (code identical to `35f095b`)
+### Routed-shell implementation
 
-Run on 23 August 2026, on branch `docs/thriftchef-ai-workspace`, against a clean working tree (`git status --porcelain` empty before and after), Node v22.20.0.
+The implementation handoff reported the following full checks immediately before the final `App.tsx` documentation-comment edit:
 
 | Command | Result | Evidence |
 | --- | --- | --- |
-| `npm run typecheck` | Passed | `tsc --noEmit` (server) and `tsc --noEmit -p client/tsconfig.json` (client) both exited 0 with no diagnostics. |
-| `npm run test:client` | Passed | Vitest 4.1.10: 9 test files passed (9), 128 tests passed (128), duration 47.69s. |
-| `npm run build` | Passed | `typecheck:client`, `build:server` (`tsc -p tsconfig.server.json`), and `build:client` (`vite build`) all exited 0. Vite 8.2.1 transformed 114 modules and emitted `dist/client/index.html` 0.70 kB, `assets/index-CQAksfoP.css` 35.53 kB, `assets/index-D2h17YsO.js` 374.12 kB. |
+| `npm run typecheck` | Passed | Server and client typechecks reported green. |
+| `npm run test:client` | Passed | Vitest: 10 files, 148 tests. |
+| `npm run build` | Passed | Production build reported green. |
+| `npm run verify:browser` | Passed | 71/71 checks at 390×844 and 1440×900; no console errors, page errors, or failed requests were reported. |
 
-Not run at this checkpoint: `npm run test:unit`, targeted catalogue-runner tests, and every browser/manual flow check.
+After the final comment-only `App.tsx` edit, `npm run typecheck:client` was rerun and passed. The complete four-command suite was not rerun after that edit, so the table above must not be described as an exact-head run for `2a7657e`.
 
-Recorded anomaly: the client-test count is **128**, not the 138 carried in the earlier evidence below. Two commits deliberately rewrote and shrank client test files after that figure was taken — `7ccecbc` ("test: lock MVP onboarding retailer flow", `OnboardingPage.test.tsx` +52/-178) and `0382ea5` ("test: lock planner retailer choice", `tescoSelection.test.tsx` +41/-189) — while `35f095b` added 3 tests back. A net reduction is therefore consistent with the history, but no per-commit test count has been run to confirm that 138 → 128 is fully explained. This is an open observation, not a confirmed explanation. All 128 tests currently pass across 9 files.
+The browser harness now verifies the routed shell, route navigation, landmarks, responsive navigation, and the Aldi planning flow against an in-memory MongoDB catalogue. It does **not** seed or exercise Tesco generation, so the Tesco browser journey remains unverified by that harness.
 
-### Earlier checkpoint evidence (superseded for the three commands above)
+### Earlier checkpoint evidence
 
-- Server unit tests: 766/766 passed at the recorded Tesco checkpoint.
-- Client tests: 138/138 passed before the latest planner-session follow-up. See the anomaly note above.
-- Typecheck: passed at that earlier checkpoint.
-- Targeted catalogue-runner tests: 18/18 passed.
+At `18e4231` / application code `35f095b`, the recorded checks were:
 
-These figures describe an older commit and must not be cited as evidence for the current checkpoint.
+- `npm run typecheck`: passed.
+- `npm run test:client`: 9 files, 128 tests passed.
+- `npm run build`: passed.
+- Earlier server unit evidence: 766/766 passed.
+- Earlier targeted catalogue-runner evidence: 18/18 passed.
+
+These figures describe older checkpoints and must not be cited as current-head verification.
 
 ## Remaining verification
 
-- Fresh website visit starts at retailer selection.
-- Aldi and Tesco generation each remain retailer-scoped.
-- Regeneration keeps the same retailer.
-- Start new plan returns to retailer selection.
-- Recipe and shopping-list copy name the correct retailer.
-- All 17 Tesco records have valid retailer scope, product ID, price, availability, category, and canonical URL.
+- Run the required automated suite against the final merge candidate and record it at that exact checkpoint.
+- Exercise the complete Tesco browser path in an approved development environment: selection, generation, regeneration, Start new plan, recipe route, and shopping list.
+- Inspect all 17 recorded Tesco products for retailer scope, identity, price, availability, category, and canonical URL integrity.
+- Continue the remaining catalogue coverage, failure-reporting, offer-backfill, and merge-readiness work in `roadmap.md`.
 
-## Documentation conflict
+## Documentation boundary
 
-Some existing PRD and README language describes Aldi as the only active/selectable retailer. That remains correct for production, but the Tesco development branch now implements a direct Tesco planning flow. Future edits must label production and branch state explicitly instead of treating either statement as globally true.
+The root README and historical specifications contain statements written for earlier baselines, including Aldi-only or Tesco-store-selection assumptions. Production is still Aldi-only, but this development branch now implements direct Aldi/Tesco planning against Tesco's national public catalogue scope. Current repository behaviour is described by this file, `context/decisions.md`, `context/architecture.md`, and `roadmap.md`; historical specifications should not be treated as proof of current implementation state.
 
 ## Status vocabulary
 
 - **Implemented:** present in branch code.
-- **Verified:** supported by a named check run against the stated commit.
+- **Verified:** supported by a named check run against the stated code checkpoint.
 - **Committed/pushed:** present in Git history/remote branch.
 - **Merged:** incorporated into the target branch.
 - **Deployed:** running in an identified environment.
 
 Never promote an item to a later state without evidence.
-
