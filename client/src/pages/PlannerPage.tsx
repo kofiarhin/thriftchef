@@ -13,16 +13,17 @@ import { usePlan } from "../features/weeklyPlan/usePlan";
 export function PlannerPage(): ReactElement {
   const { profile, update } = useHouseholdProfile();
   const { setPlan, clear } = usePlan();
-  const [retailerId, setRetailerId] = useState<string | null>(null);
+  const [retailer, setRetailer] = useState<Retailer | null>(null);
+  const retailerId = retailer?.id ?? null;
 
   // Opening the planner is a fresh MVP session. Household preferences remain,
   // but an old generated week and supermarket choice never silently carry in.
   useEffect(() => clear(), [clear]);
 
-  function chooseRetailer(retailer: Retailer): void {
-    setRetailerId(retailer.id);
+  function chooseRetailer(nextRetailer: Retailer): void {
+    setRetailer(nextRetailer);
     update({
-      defaultRetailerId: retailer.id,
+      defaultRetailerId: nextRetailer.id,
       // Each MVP retailer has one configured catalogue. The server resolves it
       // after validating retailer ownership and active status.
       defaultStoreId: null,
@@ -31,14 +32,15 @@ export function PlannerPage(): ReactElement {
 
   function startNewPlan(): void {
     clear();
-    setRetailerId(null);
+    setRetailer(null);
   }
 
   return (
     <App
-      key={retailerId ?? "no-retailer"}
+      focusedWizard
       onPlanChange={setPlan}
       onStartNewPlan={startNewPlan}
+      retailerName={retailer?.name ?? null}
       retailerSelector={
         <RetailerPicker
           retailerId={retailerId}
