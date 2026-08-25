@@ -804,7 +804,7 @@ export function createMealPlanEngine(options: EngineOptions): MealPlanEngine {
 
       if (variants.length === 0) {
         throw ApiError.conflict(
-          `No ${mealType} recipe can be built from the Aldi products these constraints allow.`,
+          `No ${mealType} recipe can be built from the supermarket products these constraints allow.`,
           {
             mealType,
             causes: [
@@ -814,7 +814,7 @@ export function createMealPlanEngine(options: EngineOptions): MealPlanEngine {
               "Remove a disliked ingredient or an allergy filter.",
               "Add a cooking appliance, such as a hob or an oven.",
               `Remove ${mealType} from the meals you want each day.`,
-              "Re-run the Aldi crawl to widen the catalogue.",
+              "Refresh this supermarket's catalogue to widen the available ingredients.",
             ],
           },
         );
