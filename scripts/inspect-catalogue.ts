@@ -87,7 +87,7 @@ async function main(): Promise<void> {
     }
 
     const request = parseMealPlanRequest({
-      budgetPence: 100_000,
+      budgetPence: 50_000,
       householdSize: 2,
       mealsPerDay: [mealType],
       appliances: [...APPLIANCES],
