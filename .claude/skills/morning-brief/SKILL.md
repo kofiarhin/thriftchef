@@ -36,6 +36,21 @@ Inspect the current repository state and recent history available in the environ
 
 Prefer observable repository and GitHub evidence over stale planning statements. If external GitHub state cannot be inspected, say so clearly and do not infer it.
 
+## Application routes and AI commands
+
+Slash-prefixed names may refer to product/application routes, AI workspace commands, or both. Do not treat the leading `/` as enough evidence to decide which one is meant.
+
+When a brief mentions a slash-prefixed name and there is any realistic ambiguity, identify its role explicitly. Prefer wording such as:
+
+- `Application route /plan` runs the product's planner experience.
+- `AI command /plan` creates an implementation plan from an approved specification.
+- `Application route /setup` is unchanged.
+- `AI command /setup-workspace` initializes the operating workspace.
+
+Inspect application routing and installed workspace skills when necessary to resolve the distinction. If the same token is used by both the application and the AI workspace, keep both meanings separate and mention only the one supported by the statement being made.
+
+Never write an ambiguous statement such as `/plan runs the ten-step wizard` when `/plan` is also an installed AI command. Use an explicit role label instead.
+
 ## Responsibilities
 
 Reconcile what project documents claim with what current evidence supports.
@@ -115,5 +130,6 @@ Use `None detected`, `No current evidence`, or `None` rather than inventing cont
 - No automatic ticket creation.
 - No invented customer feedback.
 - No production or deployment claims without current evidence.
+- Label application routes and AI commands explicitly when slash-prefixed names could be confused.
 - Recommend no more than one next ticket outcome.
 - A morning brief is a recommendation, not approval to execute consequential work.
