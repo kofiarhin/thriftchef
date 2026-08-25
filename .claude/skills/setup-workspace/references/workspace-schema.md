@@ -4,6 +4,7 @@ Create the smallest applicable form of this structure. Reuse equivalent existing
 
 | Path | Responsibility |
 | --- | --- |
+| `.claude/workspace-manifest.json` | Ownership record for operating-workspace paths created, updated, or reused by setup; used by `/reset-workspace` to fail closed and delete only explicitly owned state |
 | `AGENTS.md` | Canonical operating guide: working style, permissions, delivery flow, verification, learning, and reporting |
 | `CLAUDE.md` | Thin compatibility entry point that directs Claude-compatible tools to the canonical operating guide |
 | `roadmap.md` | Current goal, priorities, exclusions, ordered outcomes, lifecycle status, and definition of done |
@@ -22,5 +23,11 @@ Create the smallest applicable form of this structure. Reuse equivalent existing
 | `routines/README.md` | Safe routine format and activation boundary; define no active schedule |
 
 Use the templates in `assets/templates/` as content guides, not text to copy blindly. Replace every placeholder with supported project facts or `Unresolved`.
+
+Track ownership at the safest level:
+
+- if setup creates an entire operating directory, the manifest may record that directory as `created`;
+- if the directory already existed, preserve it and record only individual files setup creates or updates inside it;
+- never record application/runtime directories, source product documents, secrets, Git metadata, installed skills, dependency files, lockfiles, deployment configuration, or unrelated project content as reset-owned paths.
 
 Do not create empty `interviews/`, `feedback/`, `evidence/`, or similar directories. Create them later when real content exists.
