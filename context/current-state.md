@@ -46,9 +46,30 @@ The branch is therefore **implemented and preview-build verified only**. It is n
 
 ## Software delivery workspace
 
-The repository now contains the project-local delivery skills `/setup-workspace`, `/ticket`, `/spec`, `/plan`, and `/implement-plan` under `.claude/skills/`. Work artifacts are separated into `tickets/`, `spec/`, and `plans/`, and `context/lessons.md` provides lightweight repository-specific long-term memory.
+Branch `chore/upgrade-ai-workspace-v2` upgrades the project-local AI delivery workspace to the ticket-queue and `/deliver-ticket` model from `kofiarhin/ai-dev-workspace` source commit `89c33c09702d7032381bbaa2724e07f576e51d16`.
 
-The historical full multi-retailer implementation plan moved from `plan/` to `plans/` and remains historical planning context. This workspace migration changes documentation and delivery tooling only; it does not change ThriftChef runtime code, catalogue data, deployment configuration, or production behaviour.
+The repository-local `.claude/skills/` set now contains eight skills:
+
+- `/setup-workspace`
+- `/morning-brief`
+- `/reset-workspace`
+- `/ticket`
+- `/spec`
+- `/plan`
+- `/implement-plan`
+- `/deliver-ticket`
+
+The default operating loop is now `/morning-brief` → create/reuse one evidence-backed queued ticket → `/deliver-ticket` → spec → TDD plan → consolidated execution approval → RED/GREEN/REFACTOR/VERIFY → final verification/review → project truth and ticket delivery evidence → `status: delivered`.
+
+`/morning-brief` may create at most one new ticket when no equivalent active ticket exists and no material decision blocks safe scoping. `/deliver-ticket` supports no-argument latest eligible ticket selection, explicit ticket path, unique number/basename, and freeform task input. Runtime/application edits remain gated by explicit approval of the consolidated execution contract. The manual `/ticket` → `/spec` → `/plan` → `/implement-plan` path remains available.
+
+New tickets use lifecycle metadata with canonical states `ready`, `awaiting-approval`, `in-progress`, `verifying`, `delivered`, `blocked`, `failed-verification`, and `superseded`. Historical delivered tickets are not silently reopened, and repository/verification evidence remains authoritative when lifecycle metadata conflicts with current reality. `delivered` does not imply committed, pushed, merged, deployed, or released.
+
+The existing `tickets/001-single-focus-planner-wizard.md` remains a legacy ticket without forced lifecycle normalization as part of this workspace upgrade. Its state must be classified against current repository evidence if selected by `/deliver-ticket`.
+
+`.claude/workspace-manifest.json` remains unchanged and continues to exclude `.claude/skills/` from reset ownership. This workspace upgrade changes delivery tooling and operating documentation only; it does not change ThriftChef runtime code, catalogue data, dependency/lockfile state, deployment configuration, or production behaviour.
+
+The historical full multi-retailer implementation plan moved from `plan/` to `plans/` and remains historical planning context.
 
 ## Implemented on the multi-retailer development lineage
 
@@ -137,11 +158,15 @@ The root README and historical specifications contain statements written for ear
 - **Proposed:** requested outcome without an approved technical contract.
 - **Specified:** an approved technical specification exists.
 - **Planned:** an approved implementation plan exists.
+- **Awaiting approval:** the current execution contract is ready for explicit approval.
 - **In progress:** implementation work has started against the approved plan.
 - **Implemented:** present in branch code.
+- **Verifying:** implementation is complete enough for final required verification/review.
 - **Verified:** supported by a named check run against the stated code checkpoint.
+- **Delivered:** the ticket's acceptance criteria, required verification/review, project-truth synchronization, and delivery evidence are complete.
 - **Committed/pushed:** present in Git history/remote branch.
 - **Merged:** incorporated into the target branch.
 - **Deployed:** running in an identified environment.
+- **Released:** deliberately made available to the intended users/production audience.
 
 Never promote an item to a later state without evidence.
