@@ -31,13 +31,33 @@ Each outcome is a separate ticket unless a later approved plan demonstrates that
 
 ## Delivery workflow
 
-Move each outcome through the same evidence chain:
+Use `tickets/` as the durable queue between prioritization and delivery:
 
 ```text
-roadmap outcome → tickets/ → spec/ → plans/ → implementation → verification
+/morning-brief
+      ↓
+create/reuse one evidence-backed ticket
+      ↓
+status: ready
+      ↓
+/deliver-ticket
+      ↓
+spec → plan → consolidated execution contract
+      ↓
+Approve plan
+      ↓
+RED → GREEN → REFACTOR → VERIFY
+      ↓
+final verification → review → project truth sync
+      ↓
+status: delivered
 ```
 
-Use `/ticket`, `/spec`, `/plan`, and `/implement-plan` for the corresponding stages. A ticket, specification, or plan does not advance an outcome to implemented or verified. Testable implementation plans use RED → GREEN → REFACTOR → VERIFY by default, and verified work must synchronize `context/current-state.md` plus any genuinely changed architecture, decisions, roadmap status, or repository-specific lessons.
+`/morning-brief` may create at most one new ticket when no equivalent active ticket exists and no material decision blocks safe scoping. `/deliver-ticket` with no argument selects the highest-numbered eligible unfinished numeric ticket; explicit path, number/basename, and freeform task inputs are also supported.
+
+The manual `/ticket` → `/spec` → `/plan` → `/implement-plan` chain remains available for step-by-step control. A morning brief, ticket, specification, or plan does not advance an outcome to implemented, verified, or delivered. Testable implementation plans use RED → GREEN → REFACTOR → VERIFY by default, and verified work must synchronize `context/current-state.md` plus any genuinely changed architecture, decisions, roadmap status, repository-specific lessons, and lifecycle-aware source-ticket evidence.
+
+`delivered` means the ticket's acceptance criteria, required verification, review, project-truth synchronization, and delivery evidence are complete. It does not mean committed, pushed, merged, deployed, or released.
 
 ## Completed supporting work
 
@@ -63,4 +83,4 @@ Production remains recorded as Aldi-only on `3eeaef07e408cf5bb44a9f87a4f077cbea3
 
 ## Next recommended ticket
 
-Run `/ticket` for the final required automated verification against the exact current merge candidate and record the checkpoint. This closes the evidence gap in Ordered Outcome 1 without changing product behaviour. After that, take Ordered Outcome 2 as a separate ticket focused specifically on the unverified Tesco browser journey.
+Run `/morning-brief` to reconcile current evidence and create or reuse the single highest-leverage queued ticket. Based on the current roadmap, the expected first candidate is the exact-head automated verification outcome; after the ticket is ready, run `/deliver-ticket` to carry it through spec, plan, approval, implementation/verification, review, and delivery evidence.
