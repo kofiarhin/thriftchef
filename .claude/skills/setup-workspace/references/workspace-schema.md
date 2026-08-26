@@ -5,7 +5,7 @@ Create the smallest applicable form of this structure. Reuse equivalent existing
 | Path | Responsibility |
 | --- | --- |
 | `.claude/workspace-manifest.json` | Ownership record for operating-workspace paths created, updated, or reused by setup; used by `/reset-workspace` to fail closed and delete only explicitly owned state |
-| `AGENTS.md` | Canonical operating guide: working style, permissions, delivery flow, verification, learning, and reporting |
+| `AGENTS.md` | Canonical operating guide: working style, permissions, queue/delivery flow, verification, learning, and reporting |
 | `CLAUDE.md` | Thin compatibility entry point that directs Claude-compatible tools to the canonical operating guide |
 | `roadmap.md` | Current goal, priorities, exclusions, ordered outcomes, lifecycle status, and definition of done |
 | `review.md` | Product, UX, code, security, accessibility, evidence, scope, and document-alignment review standard |
@@ -15,7 +15,7 @@ Create the smallest applicable form of this structure. Reuse equivalent existing
 | `context/current-state.md` | Proposed, specified, planned, in-progress, implemented, verified, released, and unresolved status where applicable |
 | `context/lessons.md` | Concise repository-specific lessons learned from observed implementation/review evidence; never generic advice |
 | `customers/README.md` | Format and rules for future real customer evidence; no invented notes |
-| `tickets/README.md` | Tickets define what should change and why; one ticket, one outcome, one visible finish line |
+| `tickets/README.md` | Durable work-queue contract: tickets define what should change and why, lifecycle metadata/status, one outcome per ticket, active versus terminal states, and delivery-evidence rules |
 | `spec/README.md` | Specs define the technical contract for an approved ticket |
 | `plans/README.md` | Plans define ordered TDD implementation slices for an approved spec |
 | `demos/core-flow.md` | PRD-derived buyer/user walkthrough and expected outcome |
