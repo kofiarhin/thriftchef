@@ -91,37 +91,90 @@ Open `http://localhost:5173`. Locally, Vite proxies `/api` to the API server.
 
 ## Software delivery workflow
 
-ThriftChef vendors the project-local delivery skills under `.claude/skills/`:
+ThriftChef vendors eight project-local AI delivery skills under `.claude/skills/`:
 
 ```text
 /setup-workspace
+/morning-brief
+/reset-workspace
 /ticket
 /spec
 /plan
 /implement-plan
+/deliver-ticket
 ```
 
-The normal delivery chain is:
+The default operating loop is:
 
 ```text
-roadmap outcome
-    ↓
-/ticket → tickets/NNN-outcome.md
-    ↓
-/spec → spec/NNN-outcome.md
-    ↓
-/plan → plans/NNN-outcome.md
-    ↓
-/implement-plan
-    ↓
+/morning-brief
+      ↓
+create or reuse one evidence-backed ticket
+      ↓
+tickets/NNN-outcome.md
+status: ready
+      ↓
+/deliver-ticket
+      ↓
+spec → TDD plan → consolidated execution contract
+      ↓
+Approve plan
+      ↓
 RED → GREEN → REFACTOR → VERIFY
-    ↓
-review + document alignment + lessons
+      ↓
+final verification + review
+      ↓
+project truth + ticket delivery evidence
+      ↓
+status: delivered
 ```
 
-Tickets define **what should change and why**. Specifications define the technical contract. Plans define implementation order and TDD slices. `/implement-plan` is the state-changing stage and must revalidate the current repository before editing.
+`/morning-brief` reconciles roadmap, current repository/GitHub evidence, verification debt, risks, customer signals, and the existing ticket/spec/plan queue. It may create **at most one** new evidence-backed ticket when no equivalent active ticket exists and no material decision blocks safe scoping. Otherwise it reuses an existing ticket or creates no ticket. It never implements the outcome.
 
-After verified implementation, update only project truth that actually changed: `context/current-state.md`, architecture when applicable, confirmed decisions, roadmap status, and concise repository-specific lessons in `context/lessons.md`. A ticket, specification, or plan is never proof that code is implemented or verified.
+`/deliver-ticket` orchestrates the full lifecycle while preserving the lower-level skill responsibilities. Supported entry forms are:
+
+```text
+/deliver-ticket
+/deliver-ticket tickets/004-saved-products.md
+/deliver-ticket 004
+/deliver-ticket 004-saved-products
+/deliver-ticket Add saved products to the catalogue
+```
+
+With no argument, it sorts numeric ticket prefixes descending and selects the highest-numbered eligible unfinished ticket. It skips `delivered`, `superseded`, and blocked tickets during automatic selection, and it revalidates interrupted or failed work before continuation. It never uses filesystem modification time as queue priority.
+
+Before runtime/application edits, `/deliver-ticket` creates or revalidates the matching spec and TDD plan, then presents one consolidated execution contract. Runtime work begins only after explicit approval; when no stronger project phrase applies, use:
+
+```text
+Approve plan
+```
+
+Material scope, architecture, dependency, migration, authentication, payment, permission, security, deployment, destructive-behaviour, acceptance, or verification changes invalidate prior approval.
+
+New tickets use lifecycle metadata:
+
+```yaml
+---
+ticket_schema: 1
+status: ready
+source: manual
+created: YYYY-MM-DD
+---
+```
+
+Canonical states are `ready`, `awaiting-approval`, `in-progress`, `verifying`, `delivered`, `blocked`, `failed-verification`, and `superseded`. `delivered` and `superseded` are terminal historical states. A delivered ticket is not silently reopened; regressions become new tickets referencing the historical work.
+
+`delivered` means acceptance criteria, required verification/review, project-truth synchronization, and ticket delivery evidence are complete from observed evidence. It does **not** mean committed, pushed, pull-requested, merged, deployed, or released.
+
+For manual step-by-step control, the original lower-level chain remains available:
+
+```text
+/ticket → /spec → /plan → /implement-plan
+```
+
+Tickets define **what should change and why**. Specifications define the technical contract. Plans define implementation order and TDD slices. `/implement-plan` executes an approved plan, verifies and reviews the result, synchronizes project truth, and updates lifecycle-aware source-ticket evidence/status.
+
+After verified implementation, update only project truth that actually changed: `context/current-state.md`, architecture when applicable, confirmed decisions, roadmap status, concise repository-specific lessons in `context/lessons.md`, and the source ticket's acceptance/delivery evidence. A morning brief, ticket, specification, or plan is never proof that code is implemented, verified, or delivered.
 
 The older full multi-retailer implementation plan is retained as historical context at [`plans/thriftchef-full-implementation-plan.md`](plans/thriftchef-full-implementation-plan.md). New work should prefer one focused ticket/spec/plan chain per roadmap outcome.
 
@@ -403,9 +456,9 @@ For product direction see [`docs/ThriftChef-PRD-v0.1 (1).md`](docs/ThriftChef-PR
 ## Repository layout
 
 ```text
-.claude/skills/           project-local setup, ticket, spec, plan, and implement-plan skills
+.claude/skills/           project-local setup, morning-brief, reset, ticket, spec, plan, implement-plan, and deliver-ticket skills
 
-tickets/                  scoped what-and-why work items
+tickets/                  lifecycle-aware queued work items defining what and why
 spec/                     technical contracts
 plans/                    ordered implementation plans and historical plan context
 
@@ -432,4 +485,4 @@ server/
 scripts/                  operational and verification helpers
 ```
 
-The repository is the source of truth for current implementation. Historical plans and specifications remain useful context, but they must not be used to claim a feature is implemented, verified, merged, or deployed without current evidence.
+The repository is the source of truth for current implementation. Historical plans and specifications remain useful context, but they must not be used to claim a feature is implemented, verified, delivered, merged, or deployed without current evidence.
