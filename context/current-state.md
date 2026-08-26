@@ -1,6 +1,6 @@
 # Current State
 
-Repository baseline for current work: `main` at `264d1ec6799554a5696ce36df1af47aa4bb218d7`. That revision includes the software-delivery workspace migration and does not change the routed runtime behaviour described below. Historical catalogue figures remain recorded handoff evidence supplied on 23 August 2026 unless a newer section explicitly says otherwise.
+Repository baseline inspected for this workspace upgrade: `main` at `ef17cd487aabf5e35411d1b0d3ccba5d07226f2a`. The `chore/upgrade-ai-workspace-v2` change is delivery-tooling and operating-documentation only. Runtime, catalogue, and verification sections below retain their own stated checkpoints and historical evidence and were not re-verified by this workspace upgrade.
 
 ## Active implementation — single-focus planner wizard
 
