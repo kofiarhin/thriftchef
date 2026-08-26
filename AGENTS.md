@@ -21,20 +21,58 @@ The deterministic planner is authoritative. Do not introduce a model into the re
 9. `context/` for product, architecture, decisions, current state, and repository-specific lessons.
 10. Historical specifications, plans, and documentation.
 
-The PRD describes intended product direction. The repository describes current implementation. Production state must be recorded separately from development-branch state. Never collapse proposed, specified, planned, implemented, verified, merged, deployed, or released into one status.
+The PRD describes intended product direction. The repository describes current implementation. Production state must be recorded separately from development-branch state. Never collapse proposed, specified, planned, awaiting-approval, in-progress, implemented, verifying, verified, delivered, committed, pushed, merged, deployed, or released into one status.
 
 ## Operator and workspace lifecycle
 
 Use the repository-local operator skills in `.claude/skills/`:
 
-- `/morning-brief` is read-only orientation. It reconciles project context, repository and available GitHub state, roadmap priorities, verification evidence, risks, and real customer signals, then recommends at most one next ticket outcome. It does not create the ticket or authorize execution.
+- `/morning-brief` reconciles project context, repository and available GitHub state, roadmap priorities, verification evidence, risks, active tickets/specs/plans, and real customer signals. It identifies at most one highest-leverage next outcome and may create at most one evidence-backed ticket under `tickets/` when no equivalent active ticket exists and no material decision blocks safe scoping. It never implements the ticket.
 - `/reset-workspace` resets only AI operating state explicitly owned by `.claude/workspace-manifest.json`. It must show the exact deletion set and receive explicit approval before deleting anything. It preserves application/runtime files, source product documents, Git metadata, secrets and configuration, dependencies, deployment files, unknown project files, and `.claude/skills/`.
+
+Invoking `/morning-brief` authorizes only its narrow queue write: creation of at most one new evidence-backed ticket under `tickets/`. It does not authorize edits to existing tickets, runtime code, specs, plans, GitHub state, dependencies, data, commits, pushes, merges, deployments, or routines.
 
 If the workspace manifest is missing, invalid, unsafe, or conflicts with the repository, `/reset-workspace` must fail closed and delete nothing. The manifest is ownership evidence for the operating layer; it never grants authority over protected application or project files.
 
 ## Software delivery workflow
 
-Use the repository-local skills in `.claude/skills/`:
+Use `/deliver-ticket` as the default end-to-end delivery command:
+
+```text
+/morning-brief
+      ↓
+create/reuse one evidence-backed ticket
+      ↓
+tickets/NNN-outcome.md
+status: ready
+      ↓
+/deliver-ticket
+      ↓
+spec → TDD plan → consolidated execution contract
+      ↓
+Approve plan
+      ↓
+RED → GREEN → REFACTOR → VERIFY
+      ↓
+final verification → review → project truth sync
+      ↓
+source-ticket delivery evidence
+      ↓
+status: delivered
+```
+
+`/deliver-ticket` supports:
+
+- no argument: select the highest-numbered eligible unfinished numeric ticket;
+- an exact ticket path;
+- a unique ticket number or basename;
+- freeform task text, which creates or reuses a ticket before continuing.
+
+Automatic selection skips `delivered`, `superseded`, and blocked tickets. Interrupted or failed work must be revalidated before continuation. Repository and verification evidence outrank stale lifecycle metadata.
+
+Invoking `/deliver-ticket` authorizes the documentation work needed to resolve/create the ticket and generate or revalidate the matching `spec/` and `plans/` artifacts up to the consolidated execution contract. It does not authorize runtime/application edits. Runtime work begins only after explicit execution approval; when no stronger project phrase applies, the required phrase is `Approve plan`. Material scope, architecture, dependency, migration, authentication, payment, permission, security, deployment, destructive-behaviour, acceptance, or verification changes invalidate prior approval.
+
+For manual/expert control, the lower-level skills remain independently available:
 
 ```text
 /ticket → /spec → /plan → /implement-plan
@@ -43,20 +81,37 @@ Use the repository-local skills in `.claude/skills/`:
 - `/ticket` creates one evidence-backed request under `tickets/` and defines **what should change and why**.
 - `/spec` turns an approved ticket into the technical contract under `spec/`.
 - `/plan` turns an approved specification into ordered implementation slices under `plans/`.
-- `/implement-plan` executes the approved plan against the current repository using **RED → GREEN → REFACTOR → VERIFY**, then reviews the result and synchronizes project truth.
+- `/implement-plan` executes the approved plan using **RED → GREEN → REFACTOR → VERIFY**, then verifies, reviews, synchronizes project truth, and updates lifecycle-aware source-ticket evidence/status.
 
 Keep the same work-item basename across ticket, spec, and plan when practical so implementation can be traced back to its source. Do not skip an artifact when doing so would force the next stage to guess material product or technical decisions.
+
+## Ticket lifecycle
+
+New tickets use `ticket_schema: 1` and a canonical lifecycle state:
+
+- `ready` — scoped, unblocked, and waiting for delivery;
+- `awaiting-approval` — spec and plan are valid and execution approval is pending;
+- `in-progress` — approved runtime implementation has started;
+- `verifying` — implementation slices are complete and final verification/review is underway;
+- `delivered` — acceptance criteria, required verification, review, project-truth synchronization, and ticket delivery evidence are complete;
+- `blocked` — a material unresolved decision or prerequisite prevents safe progress;
+- `failed-verification` — implementation was attempted but required verification remains failed;
+- `superseded` — another identified ticket intentionally replaces this one.
+
+`delivered` and `superseded` are terminal historical states. A delivered ticket is not silently reopened; a later regression becomes a new ticket referencing the historical work. `delivered` does not mean committed, pushed, merged, deployed, or released.
+
+Legacy tickets without lifecycle metadata remain valid historical artifacts. When selected for delivery, classify them against current repository evidence before normalization or execution. Do not invent historical dates or delivery evidence.
 
 ## Working style
 
 - One ticket must produce one outcome, one visible finish line, and one reviewable diff.
-- Inspect the active branch, repository instructions, relevant code, tests, documentation, and applicable lessons before proposing edits.
-- Present a concise plan before product-behaviour, architecture, data, permission, dependency, deployment, or other consequential changes.
-- Wait for explicit approval before state-changing work. Approval covers only the presented scope.
+- Inspect the active branch, repository instructions, relevant code, tests, documentation, active tickets/specs/plans, and applicable lessons before proposing edits.
+- Present a concise execution contract before runtime product-behaviour, architecture, data, permission, dependency, deployment, or other consequential changes.
+- Wait for explicit approval before runtime state-changing work. Approval covers only the presented scope.
 - Prefer the smallest complete vertical slice. Do not add unrelated features, abstractions, dependencies, services, or refactors.
 - Preserve unrelated user changes. Never discard, overwrite, or hide them.
 - Correct documentation when implementation evidence changes, but never manufacture evidence.
-- A ticket, specification, or plan is not implementation evidence.
+- A morning brief, ticket, specification, or plan is not implementation evidence.
 - Add to `context/lessons.md` only when actual repository work, tests, debugging, or review produced a useful repository-specific lesson.
 
 ## Engineering conventions
@@ -82,7 +137,9 @@ Every consequential ticket must define:
 - Automated and browser verification.
 - Human-review items.
 
-If a material assumption remains, ask exactly one decision question with a recommended answer and consequence. If scope changes materially after approval, stop and request approval for a revised plan.
+New tickets also carry lifecycle metadata. Acceptance criteria may be checked and `## Delivery Evidence` may be written only from observed implementation/verification evidence.
+
+If a material assumption remains, ask exactly one decision question with a recommended answer and consequence. If scope changes materially after approval, stop and request approval for a revised execution contract.
 
 ## Permission levels
 
@@ -90,9 +147,18 @@ If a material assumption remains, ask exactly one decision question with a recom
 
 Inspect files and history, analyze sources, explain findings, compare states, propose plans, and recommend checks.
 
+### Command-scoped documentation writes
+
+- Invoking `/morning-brief` authorizes at most one new evidence-backed queue ticket under `tickets/`, with duplicate prevention and no implementation.
+- Invoking `/deliver-ticket` authorizes ticket normalization/intake plus matching ticket/spec/plan documentation updates required to reach the consolidated execution contract.
+
+These narrow authorizations do not extend to runtime/application edits, dependency or lockfile changes, migrations, catalogue mutation, GitHub writes, commits, pushes, pull requests, merges, deployments, or destructive operations.
+
 ### Approval required
 
-Create, edit, move, or delete files; reset manifest-owned operating state through `/reset-workspace`; change dependencies, lockfiles, migrations, authentication, payments, permissions, external services, Git state, schedules, routines, or catalogue data; run persistent crawls; commit or push changes; and create previews or pull requests.
+Create, edit, move, or delete files outside the command-scoped documentation writes above; reset manifest-owned operating state through `/reset-workspace`; change runtime/application files, dependencies, lockfiles, migrations, authentication, payments, permissions, external services, Git state, schedules, routines, or catalogue data; run persistent crawls; commit or push changes; and create previews or pull requests.
+
+For `/deliver-ticket`, the consolidated execution contract is the approval boundary for in-scope runtime/application edits. Material changes invalidate that approval and require a revised contract.
 
 ### Human-owned
 
@@ -123,7 +189,8 @@ After verified implementation, update only documents whose truth actually change
 - `context/architecture.md` only when architecture actually changed;
 - `context/decisions.md` only for decisions explicitly confirmed during the work;
 - `roadmap.md` only when an outcome's completion evidence is satisfied;
-- `context/lessons.md` only for concise, reusable ThriftChef-specific lessons supported by observed evidence.
+- `context/lessons.md` only for concise, reusable ThriftChef-specific lessons supported by observed evidence;
+- the lifecycle-aware source ticket for acceptance-criteria evidence, final checks, review findings, artifact paths, and final status.
 
 If no useful lesson was learned, leave `context/lessons.md` unchanged. Do not promote a predicted plan detail into project truth merely because it was intended.
 
@@ -134,7 +201,7 @@ Review the final diff against the ticket, specification, plan, `roadmap.md`, and
 - delivered outcome and affected files;
 - RED/GREEN/REFACTOR/VERIFY evidence when implementation was testable;
 - verification evidence and limitations;
-- synchronized project documents and any lessons added;
+- synchronized project documents and source-ticket evidence/status;
 - unresolved risks and assumptions;
 - human-review items;
-- whether the work is implemented, verified, committed, pushed, merged, or deployed.
+- whether the work is implemented, verified, delivered, committed, pushed, merged, deployed, or released.
