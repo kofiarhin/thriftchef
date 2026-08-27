@@ -1,157 +1,138 @@
 # Current State
 
-Repository baseline inspected for this workspace upgrade: `main` at `ef17cd487aabf5e35411d1b0d3ccba5d07226f2a`. The `chore/upgrade-ai-workspace-v2` change is delivery-tooling and operating-documentation only. Runtime, catalogue, and verification sections below retain their own stated checkpoints and historical evidence and were not re-verified by this workspace upgrade.
+Repository truth reconciled against `main` at `46cbb0e364dacd6c11d7f6b795f0cf10090ba826` on 2026-08-27.
 
-## Active implementation — single-focus planner wizard
+This document separates current repository state from historical verification and production records. A merge, authored test, plan, or historical checkpoint is not treated as current verification unless the executed evidence is tied to the stated code checkpoint.
 
-Branch: `agent/planner-single-focus-wizard`  
-Runtime checkpoint: `463884f95be2dbcd0035d6e93650f5bad5b1b75d`
+## Current main
 
-The weekly `/plan` route now implements the approved single-focus planning flow while `/setup` remains unchanged. The routed planner presents one focused stage at a time: Supermarket, Budget, Household, Meals, Cooking days, Cooking time, Food preferences, Diet & exclusions, Kitchen & pantry, then Review before generation.
+### Single-focus weekly planner
 
-Implemented behaviour at the runtime checkpoint:
+The single-focus `/plan` wizard is now **implemented and merged** on `main` through PR #7 (`feat: add single-focus planner wizard`), merged as `d11f8847ad891b27dca1326737dd656263b2c6cf` from exact feature head `242585399bf57262ea5ad588cf0a04fc26944abd`.
 
-- only the active weekly-planner step is rendered;
-- Back/Continue navigation preserves the shared `ConstraintFormState`;
-- the retailer picker is the first routed planner step and is embedded without a second outer card;
-- switching retailer no longer remounts `App`, so previously entered answers remain intact;
-- the Review step summarizes the accumulated request and is the normal location of the final Generate action;
-- server field errors can return the wizard to the step that owns the invalid field;
-- retailer/store API-field names map back to the client form state;
-- the old developer-oriented catalogue status panel is not shown in the focused customer wizard;
-- must-have product search wording is retailer-neutral rather than Aldi-specific;
-- the existing `MealPlanRequest`, planner mutation, regeneration, replacement, profile persistence, router/provider boundaries, and backend behaviour are unchanged.
+Implemented behaviour includes:
 
-Focused regression coverage was added in `client/src/components/ConstraintForm.focused.test.tsx`, and retailer-selection coverage was extended to assert that a retailer switch after navigating backward preserves an edited budget.
+- one focused planning decision at a time;
+- ordered Supermarket → Budget → Household → Meals → Cooking days → Cooking time → Food preferences → Diet & exclusions → Kitchen & pantry → Review flow;
+- Back/Continue value preservation;
+- final Review before generation;
+- retailer selection preserved without remounting the planner state;
+- server field errors routed back to the owning wizard step;
+- retailer-neutral must-have search wording;
+- unchanged backend request shape, retailer isolation, regeneration, replacement, profile persistence, and `/setup` behaviour.
 
-### Verification for this implementation
+The ticket/spec/plan artifacts remain:
+
+- `tickets/001-single-focus-planner-wizard.md`;
+- `spec/001-single-focus-planner-wizard.md`;
+- `plans/001-single-focus-planner-wizard.md`.
+
+`tickets/001-single-focus-planner-wizard.md` is still a legacy ticket without lifecycle frontmatter. Current evidence classifies the work conceptually as **verifying**, not delivered: implementation is merged, but the required exact-checkpoint verification suite has not been fully observed.
+
+### Verification debt for the merged planner
+
+PR #7 recorded:
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Vercel Git preview install | Passed | `npm ci` installed 555 packages with 0 vulnerabilities for runtime checkpoint `463884f`. |
-| Vercel client production build | Passed | Vite 8.2.1 transformed 111 modules and completed `npm run build:client` successfully for `463884f`. |
-| `npm run typecheck` | Not run | The available execution container could not resolve GitHub/Vercel hosts, so an executable repository checkout was unavailable. Vercel's configured build does not run TypeScript `--noEmit`. |
-| `npm run test:client` | Not run | Same executor limitation; no claim is made from authored tests alone. |
-| `npm run build` | Not run | Vercel ran `build:client`, not the repository's full `npm run build` chain. |
-| `npm run verify:browser` | Not run | The preview is reachable through Vercel's fetch connector, but no interactive browser executor is available in this environment. |
+| Vercel client preview build | Passed | Passed on exact feature head `242585399bf57262ea5ad588cf0a04fc26944abd`. |
+| `npm run typecheck` | Not run | Explicitly not run before merge. |
+| `npm run test:client` | Not run | Explicitly not run before merge. |
+| `npm run build` | Not run | Full repository build not run before merge. |
+| `npm run verify:browser` | Not run | Browser verification not run before merge. |
 
-The branch is therefore **implemented and preview-build verified only**. It is not yet fully verified against the repository's required client tests, typecheck, full build, or desktop/mobile browser flow. It has not been merged or production-deployed.
+The merge was explicitly approved with this verification exception. That approval allowed the merge; it does not convert missing checks into Passed results.
 
-## Production
+The current main checkpoint therefore still needs fresh exact-head verification before the planner ticket may be normalized to `delivered`.
 
-- Vercel and Heroku remain recorded on `3eeaef07e408cf5bb44a9f87a4f077cbea348c7d` in the historical handoff material below; later deployment records must be checked independently before using this line as current production evidence.
-- Production remains recorded as Aldi-only in the project documentation.
-- `CATALOGUE_READ_SOURCE=legacy` remains the recorded production read path.
-- Tesco development state does not by itself authorize production activation.
+## AI software-delivery workspace
 
-## Software delivery workspace
+PR #10 (`chore: upgrade AI delivery workspace`) is **merged** on `main` at `46cbb0e364dacd6c11d7f6b795f0cf10090ba826`.
 
-Branch `chore/upgrade-ai-workspace-v2` upgrades the project-local AI delivery workspace to the ticket-queue and `/deliver-ticket` model from `kofiarhin/ai-dev-workspace` source commit `89c33c09702d7032381bbaa2724e07f576e51d16`.
+The repository-local `.claude/skills/` set currently contains eight installed skills:
 
-The repository-local `.claude/skills/` set now contains eight skills:
+- `/setup-workspace`;
+- `/morning-brief`;
+- `/reset-workspace`;
+- `/ticket`;
+- `/spec`;
+- `/plan`;
+- `/implement-plan`;
+- `/deliver-ticket`.
 
-- `/setup-workspace`
-- `/morning-brief`
-- `/reset-workspace`
-- `/ticket`
-- `/spec`
-- `/plan`
-- `/implement-plan`
-- `/deliver-ticket`
+The active operating loop is:
 
-The default operating loop is now `/morning-brief` → create/reuse one evidence-backed queued ticket → `/deliver-ticket` → spec → TDD plan → consolidated execution approval → RED/GREEN/REFACTOR/VERIFY → final verification/review → project truth and ticket delivery evidence → `status: delivered`.
+```text
+/morning-brief
+      ↓
+create/reuse one evidence-backed ticket
+      ↓
+/deliver-ticket
+      ↓
+spec → TDD plan → consolidated execution contract
+      ↓
+Approve plan
+      ↓
+RED → GREEN → REFACTOR → VERIFY
+      ↓
+final verification → review → project truth sync
+      ↓
+status: delivered
+```
 
-`/morning-brief` may create at most one new ticket when no equivalent active ticket exists and no material decision blocks safe scoping. `/deliver-ticket` supports no-argument latest eligible ticket selection, explicit ticket path, unique number/basename, and freeform task input. Runtime/application edits remain gated by explicit approval of the consolidated execution contract. The manual `/ticket` → `/spec` → `/plan` → `/implement-plan` path remains available.
+The manual `/ticket` → `/spec` → `/plan` → `/implement-plan` chain remains available.
 
-New tickets use lifecycle metadata with canonical states `ready`, `awaiting-approval`, `in-progress`, `verifying`, `delivered`, `blocked`, `failed-verification`, and `superseded`. Historical delivered tickets are not silently reopened, and repository/verification evidence remains authoritative when lifecycle metadata conflicts with current reality. `delivered` does not imply committed, pushed, merged, deployed, or released.
+`.claude/workspace-manifest.json` remains the reset ownership source and still excludes `.claude/skills/` from reset ownership. The PR #10 merge changed delivery tooling and operating documentation only; it did not change runtime code, dependencies, lockfiles, catalogue data, deployment configuration, or production behaviour.
 
-The existing `tickets/001-single-focus-planner-wizard.md` remains a legacy ticket without forced lifecycle normalization as part of this workspace upgrade. Its state must be classified against current repository evidence if selected by `/deliver-ticket`.
+## Application architecture
 
-`.claude/workspace-manifest.json` remains unchanged and continues to exclude `.claude/skills/` from reset ownership. This workspace upgrade changes delivery tooling and operating documentation only; it does not change ThriftChef runtime code, catalogue data, dependency/lockfile state, deployment configuration, or production behaviour.
+Current repository architecture remains:
 
-The historical full multi-retailer implementation plan moved from `plan/` to `plans/` and remains historical planning context.
+- React 19 + Vite + TypeScript + Tailwind CSS client;
+- Express + TypeScript API;
+- MongoDB through Mongoose;
+- TanStack Query for client server state;
+- deterministic meal planning rather than a generative model in the request path;
+- retailer/store-scoped catalogue selection and planning;
+- Crawlee + Playwright retailer catalogue collection;
+- Vitest client tests and Node TypeScript server tests.
 
-## Implemented on the multi-retailer development lineage
+`context/architecture.md` remains the architecture source of truth. No architecture change is inferred from the documentation-only AI workspace upgrade.
 
-### Retailer and catalogue work
+## Tesco development state
 
-- Tesco adapter, public category routes, product selectors, category registry, failure detection, captured and authored fixtures, and tests.
-- Shared bounded public crawl command: `npm run tesco:public-crawl`.
-- Additive Tesco retailer/catalogue bootstrap alongside preserved Aldi data.
-- Retailer-scoped persistence and planner-query boundaries.
-- The development bootstrap seeds Tesco as `active` against the national public catalogue scope so Aldi and Tesco can both be exercised in development. This development state is not production activation.
-- Direct Aldi/Tesco choice with no postcode or store-selection step for the current national-catalogue development flow.
-- Retailer propagation through generation, regeneration, replacement, recipes, shopping lists, and displayed copy.
-- Fresh-session behaviour for planner visits and Start new plan.
+The repository contains the multi-retailer/Tesco development lineage, including Tesco adapter/catalogue work and retailer-scoped planner support documented in `context/architecture.md`, historical specs, and plans.
 
-### Routed client shell
+Current production truth is deliberately not inferred from those development artifacts. Production remains historically recorded as Aldi-only, with `CATALOGUE_READ_SOURCE=legacy`, until current deployment/configuration evidence is inspected separately.
 
-- `AppShell` is the single routed frame and owns the shared header, primary navigation, mobile disclosure, and footer.
-- All seven application routes are children of one pathless layout route, so the shell remains mounted while route content changes.
-- `AppShell` deliberately does not render a `main` landmark. Each route continues to own its own `main` and top-level heading so pages remain valid when rendered independently.
-- `App.tsx` is the planner screen. The old `#planner` hash mode, landing-page marketing chrome, and planner enter/exit state are removed.
-- `QueryClientProvider`, `HouseholdProfileProvider`, and `PlanProvider` remain outside the router. Query cache, reusable profile state, and the current plan therefore survive route navigation.
-- `AppHeader`, `AppFooter`, `HeroSection`, and `HowItWorks` were retired after their routed responsibilities moved into the shell or became obsolete.
+The remaining Tesco readiness work is tracked in `roadmap.md` and still includes exact-head verification, complete Aldi/Tesco browser validation, persisted-record inspection, controlled crawl coverage, offer backfill/comparison, and human merge/release decisions where applicable.
 
-## Recorded catalogue evidence
+## Current verification priorities
 
-- 148 product tiles observed.
-- 147 valid listing products.
-- 17 Tesco products persisted.
-- 0 Tesco product offers persisted.
-- Verified sample: `Tesco Parsnips 500G`, 74 pence, with canonical Tesco product URL.
-- No availability reconciliation performed.
-- Recorded anomalies: one HTTP 403 detail request, eight route-not-found rejections, and one missing-standard-price rejection.
+Before describing the current merged planner state as fully verified/delivered, run against the exact final `main` checkpoint:
 
-This is historical catalogue evidence, not a fresh verification run.
+```bash
+npm run typecheck
+npm run test:unit
+npm run test:client
+npm run build
+npm run verify:browser
+```
 
-## Recorded verification
+For the browser run, inspect `/plan` at mobile and desktop widths and cover step progression, focus movement, validation, Back/Continue value preservation, retailer choice, Review, generation, and server-field-error recovery.
 
-### Routed-shell implementation
+For Tesco work, separately verify the real development flow and data integrity before any production activation decision.
 
-The routed-shell implementation handoff reported the following full checks immediately before its final `App.tsx` documentation-comment edit:
+## Production and deployment boundary
 
-| Command | Result | Evidence |
-| --- | --- | --- |
-| `npm run typecheck` | Passed | Server and client typechecks reported green. |
-| `npm run test:client` | Passed | Vitest: 10 files, 148 tests. |
-| `npm run build` | Passed | Production build reported green. |
-| `npm run verify:browser` | Passed | 71/71 checks at 390×844 and 1440×900; no console errors, page errors, or failed requests were reported. |
+No fresh production deployment inspection was performed by this reconciliation. Historical production/deployment statements remain historical evidence only until rechecked.
 
-After the final comment-only `App.tsx` edit, `npm run typecheck:client` was rerun and passed. The complete four-command suite was not rerun after that edit, so this table must not be described as verification of the current single-focus-wizard branch.
+Do not infer any of the following from a merged branch alone:
 
-The historical browser harness verified the routed shell, route navigation, landmarks, responsive navigation, and Aldi planning flow against an in-memory MongoDB catalogue. It did **not** seed or exercise the newer focused wizard implementation recorded above.
-
-### Earlier checkpoint evidence
-
-At `18e4231` / application code `35f095b`, the recorded checks were:
-
-- `npm run typecheck`: passed.
-- `npm run test:client`: 9 files, 128 tests passed.
-- `npm run build`: passed.
-- Earlier server unit evidence: 766/766 passed.
-- Earlier targeted catalogue-runner evidence: 18/18 passed.
-
-These figures describe older checkpoints and must not be cited as current-head verification.
-
-## Remaining verification
-
-For the single-focus planner branch:
-
-- run `npm run typecheck` against the exact final branch checkpoint;
-- run `npm run test:client` against that checkpoint;
-- run the repository's full `npm run build` chain;
-- run `npm run verify:browser` and inspect `/plan` at mobile and desktop widths, including focus movement, validation, Back/Continue value preservation, Review, generation, and server-field-error recovery.
-
-For the wider Tesco work:
-
-- exercise the complete Tesco browser path in an approved development environment: selection, generation, regeneration, Start new plan, recipe route, and shopping list;
-- inspect the recorded Tesco products for retailer scope, identity, price, availability, category, and canonical URL integrity;
-- continue the remaining catalogue coverage, failure-reporting, offer-backfill, and merge-readiness work in `roadmap.md`.
-
-## Documentation boundary
-
-The root README and historical specifications contain statements written for earlier baselines, including Aldi-only or Tesco-store-selection assumptions. Production is still recorded separately from development behaviour. Current repository behaviour should be established from live repository/deployment evidence first, then reconciled into this file, `context/decisions.md`, `context/architecture.md`, and `roadmap.md` when appropriate; historical specifications are not proof of current implementation state.
+- production deployment;
+- Tesco production activation;
+- catalogue read-source migration;
+- release to users.
 
 ## Status vocabulary
 
@@ -159,14 +140,15 @@ The root README and historical specifications contain statements written for ear
 - **Specified:** an approved technical specification exists.
 - **Planned:** an approved implementation plan exists.
 - **Awaiting approval:** the current execution contract is ready for explicit approval.
-- **In progress:** implementation work has started against the approved plan.
-- **Implemented:** present in branch code.
-- **Verifying:** implementation is complete enough for final required verification/review.
-- **Verified:** supported by a named check run against the stated code checkpoint.
-- **Delivered:** the ticket's acceptance criteria, required verification/review, project-truth synchronization, and delivery evidence are complete.
-- **Committed/pushed:** present in Git history/remote branch.
+- **In progress:** approved implementation work has started.
+- **Implemented:** behaviour exists in repository code.
+- **Verifying:** implementation exists and required final verification/review is incomplete.
+- **Verified:** supported by an identified executed check at the stated checkpoint.
+- **Delivered:** ticket acceptance criteria, required verification/review, project-truth synchronization, and delivery evidence are complete.
+- **Committed:** present in a Git commit.
+- **Pushed:** commit/branch is present on a remote.
 - **Merged:** incorporated into the target branch.
 - **Deployed:** running in an identified environment.
-- **Released:** deliberately made available to the intended users/production audience.
+- **Released:** deliberately available to the intended production audience.
 
-Never promote an item to a later state without evidence.
+Never promote an outcome to a later state without evidence.
