@@ -1,6 +1,6 @@
 # Claude Compatibility Guide
 
-Read and follow [`AGENTS.md`](AGENTS.md) as the canonical ThriftChef operating guide. Read [`.claude/README.md`](.claude/README.md) for the installed command registry; it supplements but never overrides `AGENTS.md`.
+Read and follow [`AGENTS.md`](AGENTS.md) as the canonical ThriftChef operating guide. Read [`.claude/README.md`](.claude/README.md) for the installed command registry and [`docs/AI_WORKSPACE.md`](docs/AI_WORKSPACE.md) for the practical day-to-day operating workflow. These supplement but never override `AGENTS.md`.
 
 Before consequential work, also read:
 
