@@ -1,8 +1,10 @@
 # ThriftChef AI Workspace Skills
 
-`AGENTS.md` remains the canonical project operating guide and safety boundary. This file records the repository-local skill set installed under `.claude/skills/`.
+`AGENTS.md` is the canonical ThriftChef operating guide and safety boundary. This file records the repository-local skill set installed under `.claude/skills/`.
 
-## Installed command architecture on this integration branch
+For the practical day-to-day workflow, command selection, approval boundaries, lifecycle states, and examples, read [`docs/AI_WORKSPACE.md`](../docs/AI_WORKSPACE.md).
+
+## Installed command architecture
 
 ### Workspace
 
@@ -27,9 +29,9 @@
 ## Recommended operating flow
 
 ```text
-/workspace-health        optional read-only audit
+/workspace-health
       ↓
-/sync-project            optional approved truth repair
+/sync-project            only when durable project truth needs repair
       ↓
 /morning-brief
       ↓
@@ -41,23 +43,55 @@ RED → GREEN → REFACTOR → VERIFY
       ↓
 status: delivered
       ↓
-/publish-ticket          optional separate approval
+/publish-ticket
+      ↓
+Approve publish
       ↓
 commit if needed → push branch → draft PR
+      ↓
+human review / explicit merge
 ```
 
 `delivered`, `committed`, `pushed`, `merged`, `deployed`, and `released` remain distinct states.
 
+## Approval boundaries
+
+Fallback phrases when no stricter ThriftChef rule applies:
+
+```text
+Approve plan
+Approve sync
+Approve publish
+```
+
+- `Approve plan` covers only the presented runtime execution contract.
+- `Approve sync` covers only the presented documentation/lifecycle reconciliation.
+- `Approve publish` covers only the presented commit/push/draft-PR contract.
+
+Material changes invalidate the relevant prior approval.
+
+## Quick command choice
+
+```text
+Need a read-only audit?                  /workspace-health
+Project memory is stale?                 /sync-project
+Need the next evidence-backed outcome?   /morning-brief
+Want end-to-end delivery?                /deliver-ticket
+Want manual stage-by-stage control?      /ticket → /spec → /plan → /implement-plan
+Ticket delivered and needs a draft PR?   /publish-ticket
+Need to rebuild operating state?         /reset-workspace
+```
+
 ## Reusable source traceability
 
-The three extension skills are vendored from the stacked draft implementation in `kofiarhin/ai-dev-workspace`:
+The installed extension skills originate from `kofiarhin/ai-dev-workspace` and were merged into that repository's `main` before this usage-guide refresh:
 
-- `/workspace-health` — source head `e18b10543cf367729d0de96ec4dca3e25f801353`;
-- `/sync-project` — source head `73b9aea1fcd2ae59e86c4b1194c5f7b4ad58bb77`;
-- `/publish-ticket` — source head `314c0b6e5b38eba2732e18a151be43bd9ee37b0c`.
+- `/workspace-health` — reusable source PR #7;
+- `/sync-project` — reusable source PR #8;
+- `/publish-ticket` — reusable source PR #9.
 
-The reusable source PRs are intentionally draft. Vendoring them here does not merge those source PRs and does not authorize runtime, production, merge, or deployment actions.
+ThriftChef vendors the repository-local copies under `.claude/skills/`; project-specific `AGENTS.md` rules remain authoritative and may be stricter than the reusable command contracts.
 
 ## ThriftChef-specific precedence
 
-All new skills remain subordinate to `AGENTS.md`, including ThriftChef's retailer/data safety rules, explicit approval boundaries, verification requirements, and human-owned production decisions. A reusable skill must stop rather than weaken a stricter ThriftChef rule.
+All skills remain subordinate to `AGENTS.md`, including retailer/data safety rules, explicit approval boundaries, verification requirements, and human-owned production decisions. A reusable skill must stop rather than weaken a stricter ThriftChef rule.
