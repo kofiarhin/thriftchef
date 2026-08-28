@@ -16,15 +16,33 @@ For the practical day-to-day workflow, command selection, approval boundaries, l
 ### Intake and delivery
 
 - `/morning-brief` — orientation/prioritization and at most one evidence-backed queued ticket.
-- `/ticket` — define what should change and why.
-- `/spec` — define the technical contract.
-- `/plan` — define ordered TDD implementation slices.
+- `/ticket` — establish shared understanding, then define what should change and why.
+- `/spec` — define the technical contract only from a shared-understanding-ready ticket.
+- `/plan` — define ordered TDD implementation slices only from a plan-ready spec.
 - `/implement-plan` — execute an approved plan and synchronize verified truth.
-- `/deliver-ticket` — orchestrate ticket → spec → plan → approval → implementation → verification → delivery.
+- `/deliver-ticket` — orchestrate bounded ticket intake → spec → plan → approval → implementation → verification → delivery.
 
 ### Publication
 
 - `/publish-ticket` — after a ticket is already delivered, present a separate publish contract and, only after approval, create a scoped commit when needed, push the non-main branch without force, and create a draft PR. It never merges or deploys.
+
+## Shared-understanding ticket intake
+
+`/ticket` now performs a bounded Grill before writing a new `status: ready` ticket whenever repository evidence leaves a material user-owned decision unresolved.
+
+The Grill:
+
+- researches repository facts instead of asking the user for discoverable information;
+- asks exactly one material question at a time;
+- uses the visible format `Question` → `Recommended answer` → `Why`;
+- asks no more than three questions by default and stops early when the request is already clear;
+- limits questions to decisions that can materially change scope, acceptance criteria, environment/data, security/permissions, architecture constraints, dependencies/migrations, or verification requirements;
+- leaves ordinary technical choices to `/spec`;
+- never creates a misleading `status: ready` ticket while a known material intake question remains unresolved.
+
+A ready ticket records concise confirmed decisions under `## Shared Understanding` and has `## Open Questions` set to `None` for material intake decisions. If the default Grill cap is exhausted while a material decision still blocks safe specification, the workflow stops or records the ticket as `status: blocked`; it does not guess.
+
+`/spec` and `/plan` preserve this boundary. New material user-owned decisions discovered later route back to `/ticket`; plan-ready specs must not carry blocking open technical questions.
 
 ## Recommended operating flow
 
@@ -35,7 +53,13 @@ For the practical day-to-day workflow, command selection, approval boundaries, l
       ↓
 /morning-brief
       ↓
-/deliver-ticket
+/ticket or /deliver-ticket freeform intake
+      ↓
+bounded shared-understanding Grill when needed
+      ↓
+status: ready with no material intake questions
+      ↓
+/spec → /plan
       ↓
 Approve plan
       ↓
@@ -68,7 +92,7 @@ Approve publish
 - `Approve sync` covers only the presented documentation/lifecycle reconciliation.
 - `Approve publish` covers only the presented commit/push/draft-PR contract.
 
-Material changes invalidate the relevant prior approval.
+The ticket Grill is not an execution approval gate. Its purpose is shared understanding before ticket creation. Material changes after an execution or publication approval still invalidate the relevant approval.
 
 ## Quick command choice
 
@@ -76,7 +100,8 @@ Material changes invalidate the relevant prior approval.
 Need a read-only audit?                  /workspace-health
 Project memory is stale?                 /sync-project
 Need the next evidence-backed outcome?   /morning-brief
-Want end-to-end delivery?                /deliver-ticket
+Need to define a request carefully?      /ticket <outcome>
+Want end-to-end delivery?                /deliver-ticket <outcome or ticket>
 Want manual stage-by-stage control?      /ticket → /spec → /plan → /implement-plan
 Ticket delivered and needs a draft PR?   /publish-ticket
 Need to rebuild operating state?         /reset-workspace
@@ -84,13 +109,14 @@ Need to rebuild operating state?         /reset-workspace
 
 ## Reusable source traceability
 
-The installed extension skills originate from `kofiarhin/ai-dev-workspace` and were merged into that repository's `main` before this usage-guide refresh:
+The installed reusable skills originate from `kofiarhin/ai-dev-workspace` and are vendored under `.claude/skills/`:
 
 - `/workspace-health` — reusable source PR #7;
 - `/sync-project` — reusable source PR #8;
-- `/publish-ticket` — reusable source PR #9.
+- `/publish-ticket` — reusable source PR #9;
+- bounded shared-understanding ticket intake across `/ticket`, `/spec`, `/plan`, and `/deliver-ticket` — reusable source PR #11.
 
-ThriftChef vendors the repository-local copies under `.claude/skills/`; project-specific `AGENTS.md` rules remain authoritative and may be stricter than the reusable command contracts.
+The PR #11 vendored contracts are copied from `ai-dev-workspace/main` after merge commit `48747c4bd26746a966546cbe42d715d5a531ab09`.
 
 ## ThriftChef-specific precedence
 

@@ -2,7 +2,7 @@
 
 This is the practical operator guide for using ThriftChef's repository-local AI delivery workspace.
 
-`AGENTS.md` remains the canonical safety and project-policy source. This guide explains which command to use, in what order, and where approvals occur.
+`AGENTS.md` remains the canonical safety and project-policy source. This guide explains which command to use, in what order, where the shared-understanding Grill runs, and where approvals occur.
 
 ## Daily workflow
 
@@ -11,7 +11,15 @@ This is the practical operator guide for using ThriftChef's repository-local AI 
       ↓
 /morning-brief
       ↓
-/deliver-ticket
+/ticket or /deliver-ticket freeform intake
+      ↓
+bounded shared-understanding Grill when needed
+      ↓
+status: ready with no material intake questions
+      ↓
+/spec
+      ↓
+/plan
       ↓
 Approve plan
       ↓
@@ -39,6 +47,7 @@ Use `/sync-project` earlier whenever `/workspace-health` finds stale durable pro
 | Check whether docs/lifecycle match repository reality | `/workspace-health` |
 | Repair stale project memory from current evidence | `/sync-project` |
 | Decide the single highest-leverage next outcome | `/morning-brief` |
+| Define a request carefully before technical design | `/ticket <outcome>` |
 | Deliver the next eligible queued ticket | `/deliver-ticket` |
 | Deliver a specific ticket | `/deliver-ticket 004` |
 | Deliver a known freeform task | `/deliver-ticket Add saved meals` |
@@ -54,16 +63,7 @@ Run:
 /workspace-health
 ```
 
-It is strictly read-only and compares:
-
-- repository and Git state;
-- available GitHub branch/PR/commit/check evidence;
-- `context/current-state.md`;
-- `roadmap.md`;
-- lifecycle-aware tickets;
-- ticket → spec → plan links;
-- verification evidence;
-- `.claude/workspace-manifest.json`.
+It is strictly read-only and compares repository/Git state, available GitHub evidence, `context/current-state.md`, `roadmap.md`, lifecycle-aware tickets, ticket → spec → plan links, verification evidence, and `.claude/workspace-manifest.json`.
 
 Possible overall results:
 
@@ -74,50 +74,23 @@ BLOCKED
 UNKNOWN
 ```
 
-Examples of issues it should find:
-
-- a document says a PR is open but GitHub says merged;
-- a ticket says delivered but required checks are missing;
-- an interrupted approval is stale after repository changes;
-- a spec/plan points at architecture that materially changed;
-- project docs claim deployment/release state without evidence.
-
-The command never fixes findings.
+If the result is `DEGRADED` because durable project truth is stale, use `/sync-project` before starting new work when the drift could affect prioritization or execution.
 
 ## 2. Reconcile stale project truth
 
-When evidence changed outside the normal delivery flow, run:
+When repository/Git/GitHub/verification reality changed outside the normal delivery flow, run:
 
 ```text
 /sync-project
 ```
 
-Typical cases:
-
-- a PR was merged manually;
-- a verification check completed later;
-- code changed outside `/deliver-ticket`;
-- roadmap/current-state is stale;
-- ticket lifecycle metadata needs evidence-backed correction.
-
-Before writing anything, the command must show the exact proposed documentation/lifecycle changes. Unless a stricter ThriftChef rule applies, approve only with:
+Before writing, the command must show the exact proposed documentation/lifecycle changes. Unless a stricter ThriftChef rule applies, approve only with:
 
 ```text
 Approve sync
 ```
 
-It may update supported project-truth files such as:
-
-```text
-context/current-state.md
-context/architecture.md        only if implemented architecture changed
-context/decisions.md           only for explicit confirmed decisions
-context/lessons.md             only for observed reusable lessons
-roadmap.md
-lifecycle/evidence fields in tickets
-```
-
-It does not edit runtime code, dependencies, lockfiles, specs/plans, Git/GitHub state, production catalogue data, deployments, or releases.
+It may update supported project-truth files and evidence-backed ticket lifecycle fields. It does not edit runtime code, dependencies, lockfiles, specs/plans, Git/GitHub state, production catalogue data, deployments, or releases.
 
 ## 3. Pick the next outcome
 
@@ -127,17 +100,140 @@ Run:
 /morning-brief
 ```
 
-The brief reconciles current evidence and identifies at most one highest-leverage outcome.
+The brief reconciles current evidence and identifies at most one highest-leverage outcome. It may reuse an equivalent active ticket, create at most one safely scoped `status: ready` ticket, or create no ticket if a material decision is unresolved or evidence is insufficient. It never implements the outcome.
 
-It may:
+When morning-brief delegates ticket creation, the same `/ticket` readiness invariant applies: a new `status: ready` ticket must not carry a known material intake question.
 
-- reuse/reference an equivalent active ticket;
-- create one evidence-backed `status: ready` ticket;
-- create no ticket if a material decision is unresolved or evidence is insufficient.
+## 4. Shared-understanding ticket intake
 
-It never implements the outcome.
+Use `/ticket` when you want to define **what should change and why** before technical design:
 
-## 4. Deliver work end to end
+```text
+/ticket Add shopping-list CSV export
+```
+
+Before writing a new ready ticket, `/ticket` inspects repository and project evidence and separates facts from user-owned decisions.
+
+### Facts are researched
+
+The agent should inspect code, tests, routes, configuration, project context, active tickets/specs/plans, and other available evidence rather than asking you for facts it can establish itself.
+
+### Material decisions use the Grill
+
+When a decision remains that can materially change scope, acceptance criteria, environment/data, security/permissions, architecture constraints, dependencies/migrations, or verification requirements, `/ticket` asks exactly one question at a time using:
+
+```text
+Question
+<one material question>
+
+Recommended answer
+<one concrete recommendation>
+
+Why
+<why this recommendation best fits the evidence, goal, risk, and trade-offs>
+```
+
+The Grill is intentionally bounded:
+
+- zero questions when the request is already clear;
+- one question should be common;
+- two for moderately ambiguous work;
+- three is the default maximum;
+- stop early as soon as shared understanding is sufficient;
+- do not ask about naming preferences, ordinary implementation style, file placement, or technical choices that `/spec` can safely determine.
+
+After each answer, `/ticket` recomputes what remains materially ambiguous. It does not manufacture questions merely to reach the limit.
+
+### Ready means ready for specification
+
+A new ticket may use:
+
+```yaml
+status: ready
+```
+
+only when no known material user-owned intake decision remains.
+
+Ready tickets record concise confirmed decisions under:
+
+```text
+## Shared Understanding
+```
+
+and use:
+
+```text
+## Open Questions
+None
+```
+
+for material intake decisions.
+
+If the default three-question cap is exhausted while a material decision still prevents safe specification, the workflow must not guess. It either stops and reports the blocker or records a `status: blocked` ticket with the exact unresolved decision.
+
+This prevents the old failure mode:
+
+```text
+ticket created as ready
+      ↓
+/spec discovers a known product/scope question
+```
+
+The intended flow is:
+
+```text
+repository inspection
+      ↓
+minimum necessary Grill questions
+      ↓
+shared understanding
+      ↓
+ready ticket
+      ↓
+/spec
+```
+
+## 5. Create the technical specification
+
+For manual stage-by-stage control:
+
+```text
+/spec tickets/NNN-outcome.md
+```
+
+A current-contract ready ticket should already contain sufficient shared understanding. `/spec` defines **how** the requested behaviour fits the current repository.
+
+It should resolve repository-answerable technical choices itself rather than asking you to choose file names or ordinary implementation patterns.
+
+A specification is ready for `/plan` only when:
+
+```text
+Open Technical Questions: None
+```
+
+If specification discovers a genuinely new user-owned material decision, it stops and returns that decision to `/ticket` shared-understanding intake instead of silently redesigning scope. If the problem is technical and can be resolved from repository evidence, `/spec` should make the smallest justified proposal.
+
+## 6. Create the implementation plan
+
+Run:
+
+```text
+/plan spec/NNN-outcome.md
+```
+
+The plan defines **implementation order**, not new product decisions or a new technical design.
+
+If planning reveals:
+
+- a missing/conflicting user decision → return to `/ticket`;
+- a material technical-contract problem → return to `/spec`;
+- a repository fact that can be looked up → inspect the repository rather than asking the user.
+
+A successful plan must not carry a known decision that blocks `/implement-plan`.
+
+## 7. Deliver work end to end
+
+For ordinary work, `/deliver-ticket` remains the recommended orchestration command.
 
 Default:
 
@@ -153,16 +249,18 @@ Specific ticket:
 /deliver-ticket 004-something
 ```
 
-Known task without a ticket:
+Known freeform task:
 
 ```text
 /deliver-ticket Add CSV export for shopping lists
 ```
 
-The command coordinates:
+Freeform `/deliver-ticket` intake applies the complete `/ticket` contract, including the bounded shared-understanding Grill, before specification. It must not move into `/spec` until the resulting ticket is genuinely ready.
+
+The orchestrated path is:
 
 ```text
-ticket
+ticket intake + Grill when needed
   ↓
 spec
   ↓
@@ -173,20 +271,9 @@ consolidated execution contract
 
 At the execution-contract stage, no runtime/application changes are authorized yet.
 
-Review the contract for:
+Review the contract for exact goal/scope, exclusions, technical approach, affected areas, TDD slices, verification plan, dependency/migration/auth/security/data checkpoints, risks/assumptions, human-review items, and excluded external actions.
 
-- exact goal and scope;
-- exclusions;
-- technical approach;
-- files/areas likely to change;
-- TDD slices;
-- verification plan;
-- migrations/dependencies/auth/security/data checkpoints;
-- risks and assumptions;
-- human-review items;
-- explicitly excluded external actions.
-
-When the plan is correct, approve with:
+When correct, approve runtime execution with:
 
 ```text
 Approve plan
@@ -194,7 +281,7 @@ Approve plan
 
 Approval is scoped to that exact contract. Material scope, architecture, dependency, migration, authentication, payments, permissions, security, destructive behaviour, deployment, acceptance, or verification changes invalidate it.
 
-## 5. TDD execution
+## 8. TDD execution
 
 Testable work defaults to:
 
@@ -233,17 +320,11 @@ Not run
 
 Do not claim a check succeeded unless it was executed and inspected.
 
-## 6. Understand `delivered`
+## 9. Understand `delivered`
 
-A ticket reaches `status: delivered` only when evidence supports:
+A ticket reaches `status: delivered` only when evidence supports implemented acceptance criteria, required verification, final review, project-truth synchronization, and ticket delivery evidence.
 
-- implemented acceptance criteria;
-- required verification;
-- final review;
-- project-truth synchronization;
-- ticket delivery evidence.
-
-These states are intentionally different:
+These states remain intentionally different:
 
 ```text
 implemented
@@ -256,11 +337,9 @@ deployed
 released
 ```
 
-A delivered ticket may still be uncommitted and only local.
+A delivered ticket may still be uncommitted and local. A merged PR does not automatically prove delivery if required acceptance/verification evidence is missing.
 
-A merged PR does not automatically prove delivery if required acceptance/verification evidence is missing.
-
-## 7. Publish delivered work
+## 10. Publish delivered work
 
 Only after the source ticket is already `status: delivered`, run:
 
@@ -268,47 +347,21 @@ Only after the source ticket is already `status: delivered`, run:
 /publish-ticket tickets/004-something.md
 ```
 
-Before Git/GitHub writes, it validates:
+It validates the current non-main branch, base branch, exact diff/commit range, unrelated changes, unexpected secret/protected files, existing remote/PR state, and recorded delivery evidence.
 
-- current non-main branch;
-- base branch;
-- exact diff or commit range;
-- unrelated changes;
-- unexpected secret/protected files;
-- existing remote state;
-- existing PRs;
-- recorded delivery evidence.
-
-It then presents a publish contract including the exact commit/push/draft-PR actions.
-
-Approve with:
+Approve the exact publication contract with:
 
 ```text
 Approve publish
 ```
 
-After approval it may:
+After approval it may create one scoped commit when required, push the approved branch normally without force, and create exactly one draft PR.
 
-1. create one scoped commit when required;
-2. push the approved branch normally without force;
-3. create exactly one draft PR.
+It never force-pushes, rewrites history, merges, deploys/releases, activates retailers, mutates production catalogue data, changes `CATALOGUE_READ_SOURCE`, or deletes branches.
 
-It never:
+## 11. Review and merge
 
-- force-pushes;
-- rebases/amends or rewrites history as part of the default workflow;
-- merges;
-- deploys/releases;
-- activates retailers;
-- mutates production catalogue data;
-- changes `CATALOGUE_READ_SOURCE`;
-- deletes branches.
-
-## 8. Review and merge
-
-The draft PR is a human-review boundary.
-
-Review findings should be classified:
+The draft PR is a human-review boundary. Review findings should be classified as:
 
 ```text
 Must fix
@@ -322,32 +375,29 @@ After an approved merge, run `/workspace-health` or `/sync-project` if current-s
 
 ## Manual delivery mode
 
-Use the lower-level chain when you want deliberate stops between stages:
+The manual path is now especially useful when you want to inspect each contract boundary:
 
 ```text
 /ticket <outcome>
+      ↓
+shared-understanding Grill when needed
+      ↓
 /spec tickets/NNN-outcome.md
+      ↓
 /plan spec/NNN-outcome.md
+      ↓
 /implement-plan plans/NNN-outcome.md
 ```
 
-This is useful when:
+Use it when product scope needs review before technical design, architecture needs review before planning, a plan needs review by another person, different agents/people own separate stages, or you want to validate the operating system one stage at a time.
 
-- product scope needs review before technical design;
-- architecture needs review before planning;
-- a plan needs review by another person;
-- separate agents/people own separate stages;
-- you want to inspect/edit artifacts before continuing.
-
-For ordinary scoped work, `/deliver-ticket` is the preferred default.
+For ordinary scoped work, `/deliver-ticket` is still the preferred default.
 
 ## Ticket lifecycle
 
-Canonical states:
-
 | State | Meaning |
 | --- | --- |
-| `ready` | Scoped and waiting for delivery |
+| `ready` | Scoped, unblocked, and no known material intake question remains |
 | `awaiting-approval` | Spec/plan and execution contract are ready; approval pending |
 | `in-progress` | Approved runtime implementation has started |
 | `verifying` | Implementation is complete enough for final verification/review |
@@ -360,7 +410,7 @@ Canonical states:
 
 ## Common recipes
 
-### Start the day
+Start the day:
 
 ```text
 /workspace-health
@@ -368,21 +418,30 @@ Canonical states:
 /deliver-ticket
 ```
 
-### Implement a known request
+Manual feature flow:
+
+```text
+/ticket <outcome>
+/spec tickets/NNN-outcome.md
+/plan spec/NNN-outcome.md
+/implement-plan plans/NNN-outcome.md
+```
+
+Known request, fully orchestrated:
 
 ```text
 /deliver-ticket Add meal-plan CSV export
 Approve plan
 ```
 
-### Publish completed work
+Publish completed work:
 
 ```text
 /publish-ticket
 Approve publish
 ```
 
-### Return after several days away
+Return after several days away:
 
 ```text
 /workspace-health
@@ -390,17 +449,11 @@ Approve publish
 /morning-brief
 ```
 
-### After a manual/outside merge
+After a manual/outside merge:
 
 ```text
 /workspace-health
 /sync-project
-```
-
-### Investigate without changing anything
-
-```text
-/workspace-health
 ```
 
 ## ThriftChef-specific hard boundaries
@@ -423,11 +476,11 @@ In particular:
 /workspace-health    inspect truth, no writes
 /sync-project        repair durable project truth after approval
 /morning-brief       choose/queue one next outcome
-/ticket              define WHAT + WHY
-/spec                define HOW
-/plan                define implementation order
+/ticket              reach shared understanding, then define WHAT + WHY
+/spec                define HOW from a ready ticket
+/plan                define implementation order from a plan-ready spec
 /implement-plan      execute approved implementation slices
-/deliver-ticket      orchestrate delivery end to end
+/deliver-ticket      orchestrate bounded intake through delivery
 /publish-ticket      publish delivered work to a draft PR
 /reset-workspace     reset manifest-owned operating state
 /setup-workspace     initialize/reconcile the operating layer

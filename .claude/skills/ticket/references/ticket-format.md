@@ -30,6 +30,9 @@ What should be different when the ticket is complete.
 ## Repository Evidence
 Relevant confirmed files, flows, tests, constraints, or existing patterns.
 
+## Shared Understanding
+Concise confirmed intake decisions that materially shaped this ticket. Record decisions, not a transcript. Use `No additional decisions required` when repository evidence and the original request were already sufficient.
+
 ## Scope
 Included behaviour.
 
@@ -44,14 +47,31 @@ Product/functional requirements without inventing technical design.
 - [ ] Another observable condition when needed.
 
 ## Constraints
-Confirmed product, technical, security, accessibility, compatibility, or permission boundaries.
+Confirmed product, technical, security, accessibility, compatibility, environment/data, or permission boundaries.
 
 ## Dependencies
 Real prerequisites or `None identified`.
 
 ## Open Questions
-Only unresolved questions that materially affect the outcome; otherwise `None`.
+`None` for every `status: ready` ticket. Only a `status: blocked` ticket may preserve a material unresolved intake decision here.
 ```
+
+## Shared-understanding invariant
+
+A ticket may use `status: ready` only when the bounded `/ticket` Grill has reached sufficient shared understanding and no known material user-owned intake question remains.
+
+The Grill should resolve only decisions that can materially change scope, acceptance criteria, environment/data, security/permissions, architecture constraints, dependencies/migrations, or verification requirements. Repository facts must be researched rather than asked. Minor implementation choices belong to `/spec`.
+
+Do not store the full interview transcript. Fold confirmed decisions into `## Shared Understanding` and the sections they affect so `/spec` and `/plan` can consume the durable result without re-asking settled questions.
+
+If the default three-question Grill cap is exhausted while a material decision remains unresolved, never create a misleading ready ticket. When a durable record is appropriate, use:
+
+```yaml
+status: blocked
+blocked_reason: <concise unresolved material decision>
+```
+
+and list the same decision under `## Open Questions`.
 
 ## Lifecycle frontmatter
 

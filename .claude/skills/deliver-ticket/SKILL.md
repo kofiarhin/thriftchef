@@ -1,6 +1,6 @@
 ---
 name: deliver-ticket
-description: Orchestrate one ticket from queue resolution or freeform intake through repository-grounded spec and TDD plan generation, one explicit execution approval gate, implementation, verification, review, project-truth synchronization, and evidence-backed delivery status.
+description: Orchestrate one ticket from queue resolution or freeform intake through bounded shared-understanding ticketing, repository-grounded spec and TDD plan generation, one explicit execution approval gate, implementation, verification, review, project-truth synchronization, and evidence-backed delivery status.
 ---
 
 # Deliver Ticket
@@ -16,15 +16,17 @@ Resolve input using [references/workflow.md](references/workflow.md) in this pre
 1. an existing explicit ticket path;
 2. a unique ticket number or basename;
 3. no argument → select the highest-numbered eligible unfinished numeric ticket;
-4. otherwise treat the argument as a freeform task, apply `/ticket` rules, prevent duplicates, reuse an equivalent ticket without changing its provenance, or create a new ticket with `source: deliver-ticket`.
+4. otherwise treat the argument as a freeform task, apply the complete `/ticket` rules including the bounded shared-understanding Grill, prevent duplicates, reuse an equivalent ticket without changing its provenance, or create a new ticket with `source: deliver-ticket`.
 
-Ambiguous references stop for one concrete question. Never guess between multiple tickets.
+Ambiguous ticket references stop for one concrete resolution question. Never guess between multiple tickets.
+
+Freeform product/task ambiguity is different: use the `/ticket` shared-understanding Grill, which asks one material decision at a time with `Question`, `Recommended answer`, and `Why`, up to the default three-question cap. Do not proceed to `/spec` until the resulting ticket is genuinely `ready`.
 
 ## Context to read
 
 Before planning or resuming work:
 
-1. Read the complete source ticket.
+1. Read the complete source ticket, including `## Shared Understanding` and `## Open Questions` when present.
 2. Read `AGENTS.md`, `CLAUDE.md`, `roadmap.md`, `review.md`, and relevant `context/*.md`, including `context/lessons.md`, when present.
 3. Inspect relevant current code, tests, configuration, Git/worktree state, and available verification evidence.
 4. Inspect related tickets/specs/plans to prevent duplicate or conflicting work.
@@ -36,13 +38,19 @@ Preserve unrelated and uncommitted work. Stop when project-specific safety rules
 
 Follow the detailed state machine and selection rules in [references/workflow.md](references/workflow.md).
 
-### 1. Resolve and inspect
+### 1. Resolve, Grill when needed, and inspect
 
-Resolve or create the source ticket, classify legacy state when needed, and stop if a material unresolved product decision blocks safe specification.
+Resolve or create the source ticket and classify legacy state when needed.
+
+For freeform intake, apply `/ticket` completely before specification. A newly created `status: ready` ticket must have no known material intake question remaining.
+
+If an existing or legacy ticket is `blocked`, or is marked `ready` while still carrying a material unresolved product decision, stop before `/spec`. Do not treat lifecycle metadata as proof of shared understanding when the ticket content contradicts it; return to `/ticket` intake/reconciliation instead.
 
 ### 2. Generate or revalidate the spec
 
 Apply the installed `/spec` contract. Use `spec/<ticket-basename>.md` by default. Revalidate an existing spec against current repository evidence before reuse. Record the valid spec path in ticket metadata.
+
+A spec returned as ready for planning must not carry a blocking technical question. If specification discovers a new material user-owned decision, return to `/ticket`; if it discovers a material technical contract flaw, resolve it in `/spec` rather than passing ambiguity onward.
 
 If repository evidence requires a material ticket/scope change, stop instead of silently redesigning the ticket.
 
@@ -50,7 +58,7 @@ If repository evidence requires a material ticket/scope change, stop instead of 
 
 Apply the installed `/plan` contract. Use `plans/<ticket-basename>.md` by default. Revalidate an existing plan against the spec and current repository before reuse. Record the valid plan path in ticket metadata.
 
-If planning reveals a material flaw in the spec, return to specification rather than hiding the change inside implementation steps.
+If planning reveals a material user decision, return to `/ticket`. If planning reveals a material flaw in the spec, return to `/spec`. Do not hide either inside implementation steps.
 
 ### 4. Present one execution contract
 

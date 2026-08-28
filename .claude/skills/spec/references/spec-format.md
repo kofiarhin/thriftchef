@@ -8,6 +8,9 @@ Use only applicable sections.
 ## Source Ticket
 `tickets/...`
 
+## Ticket Decisions
+Concise shared-understanding decisions from the source ticket that materially constrain this technical design. Do not reopen settled intake decisions without new conflicting repository evidence.
+
 ## Objective
 The technical outcome this specification must enable.
 
@@ -54,5 +57,13 @@ Project checks and user-facing verification needed before completion.
 Material risks and compatibility concerns.
 
 ## Open Technical Questions
-Blocking unresolved issues or `None`.
+`None` for a specification that is ready for `/plan`.
 ```
+
+## Plan-readiness rule
+
+Do not use `## Open Technical Questions` as a place to defer decisions that should have been resolved before planning.
+
+- Material user-owned product/scope/safety decisions belong back in `/ticket` shared-understanding intake.
+- Repository-answerable technical choices belong in the spec as evidence-backed proposals.
+- A genuinely blocking unknown means the spec is not plan-ready and the skill must stop rather than hand an ambiguous contract to `/plan`.
